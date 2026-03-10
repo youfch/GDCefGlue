@@ -6,22 +6,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CefGlueTargetPlatform>win-x64</CefGlueTargetPlatform>
     <DotnetVersion>net8.0</DotnetVersion>
+<!--      Recommended version number 134.6998.178-->
     <CefGlueCommonVersion>134.6998.178</CefGlueCommonVersion>
-    <CefRuntimeVersion>134.3.9</CefRuntimeVersion>
-
-    <!-- 启用AOT -->
-    <PublishAOT>true</PublishAOT>
+    <CefRuntimeVersion>145.0.26</CefRuntimeVersion>
   </PropertyGroup>
-
-<ItemGroup>
-<!-- 避免裁剪程序集 -->
-<TrimmerRootAssembly Include="GodotSharp" />
-<TrimmerRootAssembly Include="$(TargetName)" />
-</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
-    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="$(CefRuntimeVersion)" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="145.0.26" />
   </ItemGroup>
 
   <Target Name="CopyCefFilesToOutput" AfterTargets="Build">
