@@ -18,7 +18,7 @@
 
 支持 WebGL 渲染，20000 条鱼稳定 120fps：
 
-![WebGL水族馆](img/WebGL水族馆.png)
+!\[WebGL水族馆]\(img/WebGL水族馆.png null)
 
 ## 环境要求
 
@@ -33,6 +33,7 @@
 最简单的使用方式。构建时自动复制所有必要文件。
 
 **CEF 134（推荐）：**
+
 ```xml
 <ItemGroup>
   <PackageReference Include="CefGlue.Common" Version="134.6998.178" />
@@ -41,6 +42,7 @@
 ```
 
 **CEF 120（官方）：**
+
 ```xml
 <ItemGroup>
   <PackageReference Include="CefGlue.Common" Version="120.6099.0" />
@@ -53,23 +55,90 @@
 如果需要最新版本或自定义 CefGlue：
 
 **CEF 134（推荐）：**
+
 ```bash
 git clone https://github.com/youfch/CefGlue.git
 ```
 
 **CEF 120（官方）：**
+
 ```bash
 git clone https://github.com/OutSystems/CefGlue.git
 ```
 
 将克隆的仓库放置到项目目录：
+
 ```
 你的项目/
 ├── GDCefGlue/
-└── CefGlue/          # 克隆的仓库
+│   ├── GDExtension/
+│   │   ├── Extension/     # C# GDExtension 源代码
+│   │   └── Project/       # Godot 测试项目
+│   ├── NormalProject/     # 普通 C# 项目示例
+│   ├── img/
+│   └── README*.md
+└── CefGlue/               # 克隆的仓库
 ```
 
+## 项目类型
+
+### GDExtension 项目（实验性）
+
+位于 `GDExtension/` 目录。适用于 Godot 4.6+。
+
+> **警告：** 该项目目前不稳定，不推荐用于生产环境。
+
+**特点：**
+- 使用 Godot 的 GDExtension 系统
+- 编译为原生 AOT 库
+- 性能更好，文件体积更小
+- 导出时需要手动复制 CEF 文件
+- 入口点：`gdcefglue_library_init`
+
+**结构：**
+- `GDExtension/Extension/` - GDExtension 的 C# 源代码
+- `GDExtension/Extension/Dll/` - Godot .NET 绑定（来自 [godot-dotnet](https://github.com/raulsntos/godot-dotnet)）
+- `GDExtension/Project/` - 用于测试的 Godot 项目
+
+**构建说明：**
+
+1. **获取 Godot .NET 绑定：**
+   ```bash
+   git clone https://github.com/raulsntos/godot-dotnet.git
+   cd godot-dotnet
+   dotnet build -p:GenerateGodotBindings=true
+   ```
+   将生成的 `Godot.Bindings.dll` 及相关文件复制到 `GDExtension/Extension/Dll/`。
+
+2. **构建 GDExtension：**
+   ```bash
+   cd GDExtension/Extension
+   dotnet publish -c Debug -r win-x64 --self-contained true
+   ```
+
+3. **部署：**
+   将 `Debug/net9.0/win-x64/publish/` 中的所有文件复制到 `GDExtension/Project/lib/`。
+
+4. **运行：**
+   使用 Godot 4.6 打开项目并运行。
+
+### 普通 C# 项目
+
+位于 `NormalProject/` 目录。传统的 Godot C# 项目方式。
+
+**特点：**
+- 标准 Godot .NET SDK 项目
+- 使用 `Godot.NET.Sdk`
+- 使用 NuGet 包时 CEF 文件自动复制
+- 导出后可能需要手动复制资源（NuGet 包除外）
+- 源代码位于 `addons/GCefGlue/`
+
+**适用场景：**
+- 如果你偏好传统的 Godot C# 开发方式
+- 如果 GDExtension 不能满足你的需求
+
 更新 `.csproj` 引用项目：
+
 ```xml
 <ItemGroup>
   <ProjectReference Include="..\CefGlue\CefGlue\CefGlue.csproj" />
@@ -80,10 +149,10 @@ git clone https://github.com/OutSystems/CefGlue.git
 
 ### CefGlue 来源
 
-| 来源 | CEF 版本 | 状态 | NuGet | GitHub |
-|------|----------|------|-------|--------|
-| youfch/CefGlue | 134 | 非官方（推荐） | `CefGlue.Common 134.6998.178` | [GitHub](https://github.com/youfch/CefGlue) |
-| OutSystems/CefGlue | 120 | 官方 | `CefGlue.Common 120.6099.0` | [GitHub](https://github.com/OutSystems/CefGlue) |
+| 来源                 | CEF 版本 | 状态      | NuGet                         | GitHub                                          |
+| ------------------ | ------ | ------- | ----------------------------- | ----------------------------------------------- |
+| youfch/CefGlue     | 134    | 非官方（推荐） | `CefGlue.Common 134.6998.178` | [GitHub](https://github.com/youfch/CefGlue)     |
+| OutSystems/CefGlue | 120    | 官方      | `CefGlue.Common 120.6099.0`   | [GitHub](https://github.com/OutSystems/CefGlue) |
 
 ## 构建说明
 
@@ -115,17 +184,20 @@ dotnet build
 成功构建后，将生成以下文件：
 
 **核心文件：**
+
 - `GDCefGlue.dll` - 主插件程序集
 - `Xilium.CefGlue.dll` - CefGlue 包装器
 - `Xilium.CefGlue.Common.dll` - 通用功能
 
 **CEF 原生文件：**
+
 - `libcef.dll` - Chromium 核心库
 - `chrome_*.pak` - UI 资源
 - `resources.pak` - 应用程序资源
 - `locales\*.pak` - 语言包
 
 **BrowserProcess 文件：**
+
 - `CefGlueBrowserProcess\` - 浏览器子进程文件
 
 ## 导出分发
@@ -136,24 +208,24 @@ dotnet build
 
 ### 使用源码
 
-使用源码依赖时，导出后需要手动复制文件。详见 [CEF_EXPORT_GUIDE.md](CEF_EXPORT_GUIDE.md)。
+使用源码依赖时，导出后需要手动复制文件。详见 [CEF\_EXPORT\_GUIDE.md](CEF_EXPORT_GUIDE.md)。
 
 ## CefGlueControl 属性
 
-| 属性 | 类型 | 默认值 | 描述 |
-|------|------|--------|------|
-| `InitialUrl` | string | "about:blank" | 浏览器创建时加载的 URL |
-| `OpenPopupInCurrentBrowser` | bool | true | 如果为 true，弹窗在当前浏览器中导航 |
-| `GpuAcceleration` | bool | true | 如果为 true，启用 GPU 硬件加速 |
+| 属性                          | 类型     | 默认值           | 描述                   |
+| --------------------------- | ------ | ------------- | -------------------- |
+| `InitialUrl`                | string | "about:blank" | 浏览器创建时加载的 URL        |
+| `OpenPopupInCurrentBrowser` | bool   | true          | 如果为 true，弹窗在当前浏览器中导航 |
+| `GpuAcceleration`           | bool   | true          | 如果为 true，启用 GPU 硬件加速 |
 
 ## CefGlueControl 方法
 
-| 方法 | 描述 |
-|------|------|
-| `GoBack()` | 后退 |
-| `GoForward()` | 前进 |
+| 方法                          | 描述        |
+| --------------------------- | --------- |
+| `GoBack()`                  | 后退        |
+| `GoForward()`               | 前进        |
 | `NavigateToUrl(string url)` | 导航到指定 URL |
-| `Refresh()` | 刷新当前页面 |
+| `Refresh()`                 | 刷新当前页面    |
 
 ## GPU 配置
 
@@ -194,3 +266,4 @@ dotnet build
 - [CefGlue](https://github.com/youfch/CefGlue) - BSD-3-Clause
 - [CEF](https://bitbucket.org/chromiumembedded/cef) - BSD-3-Clause
 - [Godot Engine](https://godotengine.org) - MIT
+

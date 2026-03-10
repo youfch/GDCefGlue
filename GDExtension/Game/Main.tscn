@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://6jrj6bl3rch"]
+
+[ext_resource type="Script" uid="uid://gwffkhkqsmis" path="res://Main.gd" id="1_main"]
+
+[node name="Main" type="Control" unique_id=1310186517]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+focus_mode = 1
+script = ExtResource("1_main")
+metadata/_edit_use_anchors_ = true
+
+[node name="CefGlueControl" type="CefGlueControl" parent="." unique_id=1737422712]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+focus_mode = 1
+metadata/_edit_use_anchors_ = true

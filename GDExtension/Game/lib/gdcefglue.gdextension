@@ -1,0 +1,9 @@
+[configuration]
+
+entry_symbol = "gdcefglue_library_init"
+compatibility_minimum = 4.1
+
+[libraries]
+
+windows.x86_64.debug = "res://lib/GDCefGlueExtension.dll"
+windows.x86_64.release = "res://lib/GDCefGlueExtension.dll"

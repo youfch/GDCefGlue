@@ -1,0 +1,38 @@
+.import/
+*.translation
+.mono/
+data*/
+mono_crash.*.json
+*.import
+
+# Godot-specific ignores
+.export/
+export.cfg
+export_presets.cfg
+
+# Imported translations (automatically generated from CSV files)
+*.translation
+
+# Mono-specific ignores
+.mono/
+data*/
+mono_crash.*.json
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+[Bb]in/
+[Oo]bj/
+
+# CEF runtime files
+runtimes/
+locales/
+CefGlueBrowserProcess/
+*.pak
+*.dll
+*.so
+*.dylib
+
+# Keep the gdextension file
+!*.gdextension
