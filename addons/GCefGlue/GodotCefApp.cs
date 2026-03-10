@@ -3,6 +3,9 @@ using Xilium.CefGlue;
 
 namespace GDCefGlue
 {
+    /// <summary>
+    /// CEF application class that handles command line processing and provides the browser process handler.
+    /// </summary>
     internal class GodotCefApp : CefApp
     {
         private readonly GodotBrowserProcessHandler _browserProcessHandler;
@@ -12,6 +15,11 @@ namespace GDCefGlue
             _browserProcessHandler = new GodotBrowserProcessHandler();
         }
 
+        /// <summary>
+        /// Called before command line processing. Configures GPU acceleration and other settings.
+        /// </summary>
+        /// <param name="processType">The process type, empty for the main browser process.</param>
+        /// <param name="commandLine">The command line to modify.</param>
         protected override void OnBeforeCommandLineProcessing(string processType, CefCommandLine commandLine)
         {
             if (string.IsNullOrEmpty(processType))

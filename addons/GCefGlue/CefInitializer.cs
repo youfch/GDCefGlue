@@ -8,11 +8,19 @@ using Xilium.CefGlue;
 
 namespace GDCefGlue
 {
+    /// <summary>
+    /// Static class responsible for initializing and configuring the CEF runtime.
+    /// Should be called once before creating any browser instances.
+    /// </summary>
     public static class CefInitializer
     {
         private static bool _initialized;
         private static GodotBrowserProcessHandler _browserProcessHandler;
 
+        /// <summary>
+        /// Initializes the CEF runtime with default settings.
+        /// This method is idempotent - subsequent calls will be ignored.
+        /// </summary>
         public static void Initialize()
         {
             if (_initialized) return;
@@ -83,6 +91,10 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Searches for the browser subprocess executable in common locations.
+        /// </summary>
+        /// <returns>Path to the subprocess executable, or null if not found.</returns>
         private static string FindBrowserSubprocessPath()
         {
             var basePath = AppContext.BaseDirectory;
@@ -111,6 +123,10 @@ namespace GDCefGlue
             return null;
         }
 
+        /// <summary>
+        /// Locates the CEF resources directory containing resources.pak and locales.
+        /// </summary>
+        /// <returns>Path to the resources directory.</returns>
         private static string FindResourcesDirPath()
         {
             var basePath = AppContext.BaseDirectory;
