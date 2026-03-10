@@ -1,5 +1,8 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using System.Threading.Tasks;
 using Godot;
 using Xilium.CefGlue;
@@ -344,22 +347,53 @@ namespace GDCefGlue
                     _pixelBuffer = new byte[bufferSize];
                 }
 
-                unsafe
-                {
-                    Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
+                Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
+                ConvertBgraToRgba(_pixelBuffer, width * height);
+                _isDirty = true;
+            }
+        }
 
-                    for (int i = 0; i < width * height; i++)
+        /// <summary>
+        /// Converts BGRA pixel data to RGBA format using SIMD when available.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe void ConvertBgraToRgba(byte[] buffer, int pixelCount)
+        {
+            if (Ssse3.IsSupported)
+            {
+                int vectorSize = 16;
+                int vectorCount = pixelCount / 4;
+                
+                var shuffleMask = Vector128.Create((byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
+                
+                fixed (byte* ptr = buffer)
+                {
+                    for (int i = 0; i < vectorCount; i++)
+                    {
+                        int offset = i * vectorSize;
+                        var data = Sse2.LoadVector128(ptr + offset);
+                        var shuffled = Ssse3.Shuffle(data, shuffleMask);
+                        Sse2.Store(ptr + offset, shuffled);
+                    }
+                    
+                    for (int i = vectorCount * 4; i < pixelCount; i++)
                     {
                         int offset = i * 4;
-                        byte b = _pixelBuffer[offset];
-                        byte r = _pixelBuffer[offset + 2];
-
-                        _pixelBuffer[offset] = r;
-                        _pixelBuffer[offset + 2] = b;
+                        byte b = ptr[offset];
+                        ptr[offset] = ptr[offset + 2];
+                        ptr[offset + 2] = b;
                     }
                 }
-
-                _isDirty = true;
+            }
+            else
+            {
+                for (int i = 0; i < pixelCount; i++)
+                {
+                    int offset = i * 4;
+                    byte b = buffer[offset];
+                    buffer[offset] = buffer[offset + 2];
+                    buffer[offset + 2] = b;
+                }
             }
         }
 
@@ -369,48 +403,36 @@ namespace GDCefGlue
         /// </summary>
         public override void _Process(double delta)
         {
-            GetWindow().SetImeActive(true);
-
             _cachedGlobalPosition = GlobalPosition;
 
-            bool needUpdate = false;
-            int updateWidth = 0;
-            int updateHeight = 0;
-            
-            lock (_bufferLock)
+            if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
             {
-                if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
+                int expectedBufferSize = _width * _height * 4;
+                if (_pixelBuffer.Length == expectedBufferSize)
                 {
-                    int expectedBufferSize = _width * _height * 4;
-                    if (_pixelBuffer.Length == expectedBufferSize)
+                    if (_renderBuffer == null || _renderBuffer.Length != expectedBufferSize)
                     {
-                        if (_renderBuffer == null || _renderBuffer.Length != expectedBufferSize)
-                        {
-                            _renderBuffer = new byte[expectedBufferSize];
-                        }
-                        
-                        Buffer.BlockCopy(_pixelBuffer, 0, _renderBuffer, 0, expectedBufferSize);
-                        updateWidth = _width;
-                        updateHeight = _height;
-                        needUpdate = true;
+                        _renderBuffer = new byte[expectedBufferSize];
                     }
-                    _isDirty = false;
+                    
+                    lock (_bufferLock)
+                    {
+                        Buffer.BlockCopy(_pixelBuffer, 0, _renderBuffer, 0, expectedBufferSize);
+                    }
+                    
+                    if (_texture.GetSize().X != _width || _texture.GetSize().Y != _height)
+                    {
+                        _image.SetData(_width, _height, false, Image.Format.Rgba8, _renderBuffer);
+                        _texture = ImageTexture.CreateFromImage(_image);
+                    }
+                    else
+                    {
+                        _image.SetData(_width, _height, false, Image.Format.Rgba8, _renderBuffer);
+                        _texture.Update(_image);
+                    }
+                    QueueRedraw();
                 }
-            }
-
-            if (needUpdate && updateWidth > 0 && updateHeight > 0)
-            {
-                if (_texture.GetSize().X != updateWidth || _texture.GetSize().Y != updateHeight)
-                {
-                    _image.SetData(updateWidth, updateHeight, false, Image.Format.Rgba8, _renderBuffer);
-                    _texture = ImageTexture.CreateFromImage(_image);
-                }
-                else
-                {
-                    _image.SetData(updateWidth, updateHeight, false, Image.Format.Rgba8, _renderBuffer);
-                    _texture.Update(_image);
-                }
-                QueueRedraw();
+                _isDirty = false;
             }
 
             if (!_browserCreated && Size.X > 0 && Size.Y > 0)
