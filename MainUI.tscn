@@ -1,0 +1,103 @@
+[gd_scene format=3 uid="uid://dvcw8m1iaeejo"]
+
+[ext_resource type="Script" uid="uid://byqhkcubr2vf" path="res://MainUi.cs" id="1_vfs0v"]
+[ext_resource type="Script" uid="uid://cg5el7klakawp" path="res://CefGlueControl.cs" id="2_cef"]
+
+[node name="MainUI" type="Control" unique_id=74461486]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_vfs0v")
+
+[node name="Browser" type="Control" parent="." unique_id=1118790718]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 40.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_cef")
+OpenPopupInCurrentBrowser = false
+
+[node name="Toolbar" type="Panel" parent="." unique_id=1161862796]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 40.0
+grow_horizontal = 2
+
+[node name="BackButton" type="Button" parent="Toolbar" unique_id=1096007130]
+layout_mode = 1
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 40.0
+offset_bottom = 36.0
+text = "◀"
+
+[node name="ForwardButton" type="Button" parent="Toolbar" unique_id=1773684049]
+layout_mode = 1
+offset_left = 44.0
+offset_top = 4.0
+offset_right = 80.0
+offset_bottom = 36.0
+text = "▶"
+
+[node name="ReloadButton" type="Button" parent="Toolbar" unique_id=56314966]
+layout_mode = 1
+offset_left = 84.0
+offset_top = 4.0
+offset_right = 120.0
+offset_bottom = 36.0
+text = "↻"
+
+[node name="UrlInput" type="LineEdit" parent="Toolbar" unique_id=584345537]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.120659724
+anchor_top = 0.1
+anchor_right = 0.9210069
+anchor_bottom = 0.9
+grow_vertical = 2
+placeholder_text = "Enter URL..."
+metadata/_edit_use_anchors_ = true
+
+[node name="GoButton" type="Button" parent="Toolbar" unique_id=1911961512]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -54.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = 36.0
+grow_horizontal = 0
+text = "Go"
+
+[node name="StatusBar" type="Panel" parent="." unique_id=1622732083]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="StatusLabel" type="Label" parent="StatusBar" unique_id=190342983]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Initializing..."
+vertical_alignment = 1
