@@ -8,7 +8,16 @@
     <DotnetVersion>net8.0</DotnetVersion>
     <CefGlueCommonVersion>134.6998.178</CefGlueCommonVersion>
     <CefRuntimeVersion>134.3.9</CefRuntimeVersion>
+
+    <!-- 启用AOT -->
+    <PublishAOT>true</PublishAOT>
   </PropertyGroup>
+
+<ItemGroup>
+<!-- 避免裁剪程序集 -->
+<TrimmerRootAssembly Include="GodotSharp" />
+<TrimmerRootAssembly Include="$(TargetName)" />
+</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />

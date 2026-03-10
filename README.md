@@ -58,8 +58,71 @@ Place the cloned repository in your project directory:
 ```
 YourProject/
 ├── GDCefGlue/
-└── CefGlue/          # Cloned repository
+│   ├── GDExtension/
+│   │   ├── Extension/     # C# GDExtension source code
+│   │   └── Project/       # Godot test project
+│   ├── NormalProject/     # Normal C# project example
+│   ├── img/
+│   └── README*.md
+└── CefGlue/               # Cloned repository
 ```
+
+## Project Types
+
+### GDExtension Project (Experimental)
+
+Located in `GDExtension/` directory. For Godot 4.6+.
+
+> **Warning:** This project is currently unstable and not recommended for production use.
+
+**Features:**
+- Uses Godot's GDExtension system
+- Compiled as native AOT library
+- Better performance and smaller file size
+- Requires manual CEF file copying during export
+- Entry point: `gdcefglue_library_init`
+
+**Structure:**
+- `GDExtension/Extension/` - C# source code for GDExtension
+- `GDExtension/Extension/Dll/` - Godot .NET bindings (from [godot-dotnet](https://github.com/raulsntos/godot-dotnet))
+- `GDExtension/Project/` - Godot project for testing
+
+**Build Instructions:**
+
+1. **Get Godot .NET Bindings:**
+   ```bash
+   git clone https://github.com/raulsntos/godot-dotnet.git
+   cd godot-dotnet
+   dotnet build -p:GenerateGodotBindings=true
+   ```
+   Copy the generated `Godot.Bindings.dll` and related files to `GDExtension/Extension/Dll/`.
+
+2. **Build GDExtension:**
+   ```bash
+   cd GDExtension/Extension
+   dotnet publish -c Debug -r win-x64 --self-contained true
+   ```
+
+3. **Deploy:**
+   Copy all files from `Debug/net9.0/win-x64/publish/` to `GDExtension/Project/lib/`.
+
+4. **Run:**
+   Open the project with Godot 4.6 and run.
+
+### Normal C# Project
+
+Located in `NormalProject/` directory. Traditional Godot C# project approach.
+
+**Features:**
+- Standard Godot .NET SDK project
+- Uses `Godot.NET.Sdk`
+- CEF files are automatically copied when using NuGet packages
+- May need manual resource copying after export (except NuGet packages)
+- Source code in `addons/GCefGlue/`
+
+**When to use:**
+- If you prefer traditional Godot C# development
+- If GDExtension doesn't meet your needs
 
 Update your `.csproj` to reference the projects:
 ```xml
