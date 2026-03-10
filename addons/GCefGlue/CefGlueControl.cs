@@ -20,6 +20,8 @@ namespace GDCefGlue
         private Image _image;
         private ImageTexture _texture;
         private byte[] _pixelBuffer;
+        private byte[] _renderBuffer;
+        private readonly object _bufferLock = new object();
         internal int _width;
         internal int _height;
         internal Vector2 _cachedGlobalPosition;
@@ -46,6 +48,11 @@ namespace GDCefGlue
         /// Gets or sets whether GPU acceleration is enabled. Exposed to the Godot inspector.
         /// </summary>
         [Export] public bool GpuAcceleration { get; set; } = true;
+        
+        /// <summary>
+        /// Gets or sets the browser frame rate in frames per second. Default is 60, max is 360.
+        /// </summary>
+        [Export] public int FrameRate { get; set; } = 60;
         
         private static bool _useGpuAcceleration = true;
         
@@ -197,14 +204,15 @@ namespace GDCefGlue
             _width = width;
             _height = height;
 
-            GD.Print($"CefGlueControl: Creating browser {width}x{height}");
+            var frameRate = Math.Clamp(FrameRate, 1, 360);
+            GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps");
 
             var windowInfo = CefWindowInfo.Create();
             windowInfo.SetAsWindowless(IntPtr.Zero, true);
 
             var settings = new CefBrowserSettings
             {
-                WindowlessFrameRate = 60
+                WindowlessFrameRate = frameRate
             };
 
             _client = new GodotCefClient(this);
@@ -314,6 +322,7 @@ namespace GDCefGlue
 
         /// <summary>
         /// Called when CEF renders a new frame. Copies pixel data and converts BGRA to RGBA.
+        /// Uses double buffering to prevent color flickering during rendering.
         /// </summary>
         /// <param name="buffer">Pointer to the pixel buffer in BGRA format.</param>
         /// <param name="width">Width of the rendered frame.</param>
@@ -325,41 +334,38 @@ namespace GDCefGlue
             
             int bufferSize = width * height * 4;
             
-            if (width != _width || height != _height)
+            lock (_bufferLock)
             {
                 _width = width;
                 _height = height;
-                _pixelBuffer = new byte[bufferSize];
-            }
-            else if (_pixelBuffer == null || _pixelBuffer.Length < bufferSize)
-            {
-                _pixelBuffer = new byte[bufferSize];
-            }
-
-            unsafe
-            {
-                Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
-
-                for (int i = 0; i < width * height; i++)
+                
+                if (_pixelBuffer == null || _pixelBuffer.Length != bufferSize)
                 {
-                    int offset = i * 4;
-                    byte b = _pixelBuffer[offset];
-                    byte g = _pixelBuffer[offset + 1];
-                    byte r = _pixelBuffer[offset + 2];
-                    byte a = _pixelBuffer[offset + 3];
-
-                    _pixelBuffer[offset] = r;
-                    _pixelBuffer[offset + 1] = g;
-                    _pixelBuffer[offset + 2] = b;
-                    _pixelBuffer[offset + 3] = a;
+                    _pixelBuffer = new byte[bufferSize];
                 }
-            }
 
-            _isDirty = true;
+                unsafe
+                {
+                    Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
+
+                    for (int i = 0; i < width * height; i++)
+                    {
+                        int offset = i * 4;
+                        byte b = _pixelBuffer[offset];
+                        byte r = _pixelBuffer[offset + 2];
+
+                        _pixelBuffer[offset] = r;
+                        _pixelBuffer[offset + 2] = b;
+                    }
+                }
+
+                _isDirty = true;
+            }
         }
 
         /// <summary>
         /// Called every frame. Updates the texture with new pixel data and handles browser creation.
+        /// Uses double buffering to prevent color flickering.
         /// </summary>
         public override void _Process(double delta)
         {
@@ -367,27 +373,44 @@ namespace GDCefGlue
 
             _cachedGlobalPosition = GlobalPosition;
 
-            if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
+            bool needUpdate = false;
+            int updateWidth = 0;
+            int updateHeight = 0;
+            
+            lock (_bufferLock)
             {
-                int expectedBufferSize = _width * _height * 4;
-                if (_pixelBuffer.Length != expectedBufferSize)
+                if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
                 {
+                    int expectedBufferSize = _width * _height * 4;
+                    if (_pixelBuffer.Length == expectedBufferSize)
+                    {
+                        if (_renderBuffer == null || _renderBuffer.Length != expectedBufferSize)
+                        {
+                            _renderBuffer = new byte[expectedBufferSize];
+                        }
+                        
+                        Buffer.BlockCopy(_pixelBuffer, 0, _renderBuffer, 0, expectedBufferSize);
+                        updateWidth = _width;
+                        updateHeight = _height;
+                        needUpdate = true;
+                    }
                     _isDirty = false;
-                    return;
                 }
-                
-                if (_texture.GetSize().X != _width || _texture.GetSize().Y != _height)
+            }
+
+            if (needUpdate && updateWidth > 0 && updateHeight > 0)
+            {
+                if (_texture.GetSize().X != updateWidth || _texture.GetSize().Y != updateHeight)
                 {
-                    _image.SetData(_width, _height, false, Image.Format.Rgba8, _pixelBuffer);
+                    _image.SetData(updateWidth, updateHeight, false, Image.Format.Rgba8, _renderBuffer);
                     _texture = ImageTexture.CreateFromImage(_image);
                 }
                 else
                 {
-                    _image.SetData(_width, _height, false, Image.Format.Rgba8, _pixelBuffer);
+                    _image.SetData(updateWidth, updateHeight, false, Image.Format.Rgba8, _renderBuffer);
                     _texture.Update(_image);
                 }
                 QueueRedraw();
-                _isDirty = false;
             }
 
             if (!_browserCreated && Size.X > 0 && Size.Y > 0)
