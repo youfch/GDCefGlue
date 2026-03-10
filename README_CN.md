@@ -12,6 +12,14 @@
 - 完整的键盘和鼠标支持
 - 易于集成到 Godot 4.x
 
+## 性能演示
+
+### WebGL 水族馆
+
+支持 WebGL 渲染，20000 条鱼稳定 120fps：
+
+![WebGL水族馆](img/WebGL水族馆.png)
+
 ## 环境要求
 
 - **Godot Engine**: 4.6.0 或更高版本（需要 .NET/Mono 支持）

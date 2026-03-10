@@ -1,0 +1,3 @@
+[resource]
+
+resource_ignore_patterns=res://img/*
