@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dvcw8m1iaeejo"]
 
 [ext_resource type="Script" uid="uid://byqhkcubr2vf" path="res://MainUi.cs" id="1_vfs0v"]
-[ext_resource type="Script" uid="uid://cg5el7klakawp" path="res://CefGlueControl.cs" id="2_cef"]
+[ext_resource type="Script" uid="uid://d25hmir240bvt" path="res://addons/GCefGlue/CefGlueControl.cs" id="2_guh61"]
 
 [node name="MainUI" type="Control" unique_id=74461486]
 layout_mode = 3
@@ -21,7 +21,7 @@ offset_top = 40.0
 offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("2_cef")
+script = ExtResource("2_guh61")
 OpenPopupInCurrentBrowser = false
 
 [node name="Toolbar" type="Panel" parent="." unique_id=1161862796]
