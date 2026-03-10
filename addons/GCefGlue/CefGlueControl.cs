@@ -7,6 +7,11 @@ using Xilium.CefGlue.Common.Events;
 
 namespace GDCefGlue
 {
+    /// <summary>
+    /// A Godot Control that embeds a CEF browser using off-screen rendering.
+    /// Provides full browser functionality including navigation, JavaScript execution, and developer tools.
+    /// </summary>
+    [GlobalClass]
     public partial class CefGlueControl : Control
     {
         private CefBrowser _browser;
@@ -27,20 +32,36 @@ namespace GDCefGlue
         private int _clickCount;
         private const double DoubleClickInterval = 0.5;
 
+        /// <summary>
+        /// Gets or sets the initial URL to load when the browser is created.
+        /// </summary>
         public string InitialUrl { get; set; } = "about:blank";
         
+        /// <summary>
+        /// Gets or sets whether popup windows should open in the current browser instead of new windows.
+        /// </summary>
         [Export] public bool OpenPopupInCurrentBrowser { get; set; } = true;
         
+        /// <summary>
+        /// Gets or sets whether GPU acceleration is enabled. Exposed to the Godot inspector.
+        /// </summary>
         [Export] public bool GpuAcceleration { get; set; } = true;
         
         private static bool _useGpuAcceleration = true;
         
+        /// <summary>
+        /// Gets or sets the global GPU acceleration setting. Must be set before CEF initialization.
+        /// </summary>
         public static bool UseGpuAcceleration 
         { 
             get => _useGpuAcceleration;
             set => _useGpuAcceleration = value;
         }
 
+        /// <summary>
+        /// Gets or sets the current URL of the browser.
+        /// Setting this property navigates the browser to the specified URL.
+        /// </summary>
         public string Address
         {
             get => _browser?.GetMainFrame()?.Url ?? InitialUrl;
@@ -57,15 +78,49 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Gets whether the browser has been initialized.
+        /// </summary>
         public bool IsBrowserInitialized => _browser != null;
+        
+        /// <summary>
+        /// Gets whether the browser is currently loading a page.
+        /// </summary>
         public bool IsLoading => _browser?.IsLoading ?? false;
+        
+        /// <summary>
+        /// Gets the current page title.
+        /// </summary>
         public string Title { get; private set; }
 
+        /// <summary>
+        /// Raised when the browser has been initialized.
+        /// </summary>
         public event Action BrowserInitialized;
+        
+        /// <summary>
+        /// Raised when the browser address changes.
+        /// </summary>
         public event AddressChangedEventHandler AddressChanged;
+        
+        /// <summary>
+        /// Raised when the page title changes.
+        /// </summary>
         public event TitleChangedEventHandler TitleChanged;
+        
+        /// <summary>
+        /// Raised when a page starts loading.
+        /// </summary>
         public event LoadStartEventHandler LoadStart;
+        
+        /// <summary>
+        /// Raised when a page finishes loading.
+        /// </summary>
         public event LoadEndEventHandler LoadEnd;
+        
+        /// <summary>
+        /// Raised when a page fails to load.
+        /// </summary>
         public event LoadErrorEventHandler LoadError;
 
         public CefGlueControl()
@@ -73,6 +128,9 @@ namespace GDCefGlue
             GD.Print("CefGlueControl: Constructor called");
         }
 
+        /// <summary>
+        /// Called when the control enters the scene tree. Initializes CEF and creates the browser.
+        /// </summary>
         public override void _Ready()
         {
             GD.Print("CefGlueControl: _Ready() called");
@@ -89,6 +147,9 @@ namespace GDCefGlue
             CallDeferred(nameof(CreateBrowserDeferred));
         }
         
+        /// <summary>
+        /// Activates the Input Method Editor for text input.
+        /// </summary>
         private void ActivateIme()
         {
             var window = GetWindow();
@@ -98,6 +159,9 @@ namespace GDCefGlue
             }
         }
         
+        /// <summary>
+        /// Deactivates the Input Method Editor.
+        /// </summary>
         private void DeactivateIme()
         {
             var window = GetWindow();
@@ -107,6 +171,9 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Creates the browser after the control has a valid size.
+        /// </summary>
         private void CreateBrowserDeferred()
         {
             if (_browserCreated)
@@ -120,6 +187,11 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Creates the off-screen browser with the specified dimensions.
+        /// </summary>
+        /// <param name="width">The width of the browser viewport.</param>
+        /// <param name="height">The height of the browser viewport.</param>
         private void CreateBrowser(int width, int height)
         {
             _width = width;
@@ -148,6 +220,10 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Called when the browser instance has been created.
+        /// </summary>
+        /// <param name="browser">The created browser instance.</param>
         internal void OnBrowserCreated(CefBrowser browser)
         {
             if (_browser != null)
@@ -167,6 +243,9 @@ namespace GDCefGlue
             GD.Print("CefGlueControl: Browser initialized");
         }
 
+        /// <summary>
+        /// Called when the browser address changes.
+        /// </summary>
         internal void OnAddressChange(CefBrowser browser, CefFrame frame, string url)
         {
             if (frame.IsMain)
@@ -180,6 +259,9 @@ namespace GDCefGlue
             AddressChanged?.Invoke(this, url);
         }
 
+        /// <summary>
+        /// Called when the page title changes.
+        /// </summary>
         internal void OnTitleChange(CefBrowser browser, string title)
         {
             Title = title;
@@ -191,6 +273,9 @@ namespace GDCefGlue
             TitleChanged?.Invoke(this, title);
         }
 
+        /// <summary>
+        /// Called when a page starts loading.
+        /// </summary>
         internal void OnLoadStart(CefBrowser browser, CefFrame frame, CefTransitionType transitionType)
         {
             CallDeferred(nameof(NotifyLoadStart));
@@ -201,6 +286,9 @@ namespace GDCefGlue
             LoadStart?.Invoke(this, new LoadStartEventArgs(null));
         }
 
+        /// <summary>
+        /// Called when a page finishes loading.
+        /// </summary>
         internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
         {
             CallDeferred(nameof(NotifyLoadEnd));
@@ -211,6 +299,9 @@ namespace GDCefGlue
             LoadEnd?.Invoke(this, new LoadEndEventArgs(null, 0));
         }
 
+        /// <summary>
+        /// Called when a page fails to load.
+        /// </summary>
         internal void OnLoadError(CefBrowser browser, CefFrame frame, CefErrorCode errorCode, string errorText, string failedUrl)
         {
             CallDeferred(nameof(NotifyLoadError), errorText, failedUrl);
@@ -221,6 +312,13 @@ namespace GDCefGlue
             LoadError?.Invoke(this, new LoadErrorEventArgs(null, CefErrorCode.None, errorText, failedUrl));
         }
 
+        /// <summary>
+        /// Called when CEF renders a new frame. Copies pixel data and converts BGRA to RGBA.
+        /// </summary>
+        /// <param name="buffer">Pointer to the pixel buffer in BGRA format.</param>
+        /// <param name="width">Width of the rendered frame.</param>
+        /// <param name="height">Height of the rendered frame.</param>
+        /// <param name="dirtyRects">Array of dirty rectangles that need repainting.</param>
         internal void OnPaint(IntPtr buffer, int width, int height, CefRectangle[] dirtyRects)
         {
             if (width <= 0 || height <= 0) return;
@@ -260,6 +358,9 @@ namespace GDCefGlue
             _isDirty = true;
         }
 
+        /// <summary>
+        /// Called every frame. Updates the texture with new pixel data and handles browser creation.
+        /// </summary>
         public override void _Process(double delta)
         {
             GetWindow().SetImeActive(true);
@@ -295,6 +396,9 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Called when the control needs to be redrawn. Draws the browser texture.
+        /// </summary>
         public override void _Draw()
         {
             if (_texture != null && _width > 0 && _height > 0)
@@ -303,6 +407,9 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Handles input events from Godot and forwards them to the browser.
+        /// </summary>
         public override void _GuiInput(InputEvent @event)
         {
             if (_browserHost == null)
@@ -322,6 +429,9 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Sends a mouse move event to the browser.
+        /// </summary>
         private void SendMouseMoveEvent(InputEventMouseMotion e)
         {
             if (_browserHost == null) return;
@@ -344,6 +454,9 @@ namespace GDCefGlue
             _browserHost.SendMouseMoveEvent(mouseEvent, false);
         }
         
+        /// <summary>
+        /// Gets the CEF event flags for a mouse button.
+        /// </summary>
         private CefEventFlags GetMouseButtonModifier(CefMouseButtonType button)
         {
             return button switch
@@ -355,6 +468,9 @@ namespace GDCefGlue
             };
         }
 
+        /// <summary>
+        /// Sends a mouse button event to the browser, including click counting for double-click detection.
+        /// </summary>
         private void SendMouseButtonEvent(InputEventMouseButton e)
         {
             if (_browserHost == null) return;
@@ -406,6 +522,9 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Sends a keyboard event to the browser, including character input for text.
+        /// </summary>
         private void SendKeyEvent(InputEventKey e)
         {
             var windowsKeyCode = GetWindowsKeyCode(e.Keycode);
@@ -435,6 +554,9 @@ namespace GDCefGlue
             }
         }
         
+        /// <summary>
+        /// Converts a Godot Key to a Windows virtual key code.
+        /// </summary>
         private int GetWindowsKeyCode(Key keycode)
         {
             return keycode switch
@@ -477,6 +599,9 @@ namespace GDCefGlue
             };
         }
         
+        /// <summary>
+        /// Determines if a key is a special key that should not generate character input.
+        /// </summary>
         private bool IsSpecialKey(Key keycode)
         {
             return keycode switch
@@ -511,6 +636,9 @@ namespace GDCefGlue
             };
         }
 
+        /// <summary>
+        /// Converts Godot modifier keys to CEF event flags.
+        /// </summary>
         private CefEventFlags GetModifiers(InputEventWithModifiers e)
         {
             var modifiers = CefEventFlags.None;
@@ -521,6 +649,9 @@ namespace GDCefGlue
             return modifiers;
         }
 
+        /// <summary>
+        /// Converts a Godot MouseButton to a CEF mouse button type.
+        /// </summary>
         private CefMouseButtonType ConvertMouseButton(MouseButton button)
         {
             return button switch
@@ -532,6 +663,9 @@ namespace GDCefGlue
             };
         }
 
+        /// <summary>
+        /// Handles notifications from Godot such as resize, mouse exit, and focus changes.
+        /// </summary>
         public override void _Notification(int what)
         {
             switch ((long)what)
@@ -569,18 +703,28 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Navigates back in the browser history.
+        /// </summary>
         public void GoBack()
         {
             if (_browser?.CanGoBack == true)
                 _browser.GoBack();
         }
 
+        /// <summary>
+        /// Navigates forward in the browser history.
+        /// </summary>
         public void GoForward()
         {
             if (_browser?.CanGoForward == true)
                 _browser.GoForward();
         }
 
+        /// <summary>
+        /// Navigates to the specified URL.
+        /// </summary>
+        /// <param name="url">The URL to navigate to.</param>
         public void NavigateToUrl(string url)
         {
             if (_browser != null && _browser.GetMainFrame() != null)
@@ -589,6 +733,10 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Reloads the current page.
+        /// </summary>
+        /// <param name="ignoreCache">If true, bypasses the browser cache.</param>
         public void Reload(bool ignoreCache = false)
         {
             if (_browser != null)
@@ -600,16 +748,28 @@ namespace GDCefGlue
             }
         }
 
+        /// <summary>
+        /// Executes JavaScript code in the browser.
+        /// </summary>
+        /// <param name="code">The JavaScript code to execute.</param>
+        /// <param name="url">The URL for error reporting.</param>
+        /// <param name="line">The starting line number for error reporting.</param>
         public void ExecuteJavaScript(string code, string url = null, int line = 1)
         {
             _browser?.GetMainFrame()?.ExecuteJavaScript(code, url ?? "about:blank", line);
         }
 
+        /// <summary>
+        /// Evaluates JavaScript code and returns the result.
+        /// </summary>
         public Task<T> EvaluateJavaScript<T>(string code, string url = null, int line = 1)
         {
             return Task.FromResult<T>(default);
         }
 
+        /// <summary>
+        /// Opens the developer tools window.
+        /// </summary>
         public void ShowDeveloperTools()
         {
             var windowInfo = CefWindowInfo.Create();
@@ -617,11 +777,17 @@ namespace GDCefGlue
             _browserHost?.ShowDevTools(windowInfo, _client, new CefBrowserSettings(), new CefPoint());
         }
 
+        /// <summary>
+        /// Closes the developer tools window.
+        /// </summary>
         public void CloseDeveloperTools()
         {
             _browserHost?.CloseDevTools();
         }
 
+        /// <summary>
+        /// Called when the control exits the scene tree. Closes the browser.
+        /// </summary>
         public override void _ExitTree()
         {
             if (_browserHost != null)

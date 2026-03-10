@@ -2,6 +2,9 @@ using Xilium.CefGlue;
 
 namespace GDCefGlue
 {
+    /// <summary>
+    /// CEF client that provides handlers for rendering, lifespan, display, and load events.
+    /// </summary>
     internal class GodotCefClient : CefClient
     {
         private readonly GodotRenderHandler _renderHandler;
