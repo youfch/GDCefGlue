@@ -23,6 +23,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_guh61")
 OpenPopupInCurrentBrowser = false
+FrameRate = 120
 
 [node name="Toolbar" type="Panel" parent="." unique_id=1161862796]
 layout_mode = 1
