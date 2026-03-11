@@ -39,13 +39,21 @@ public partial class CefGlueControl : Control
     public bool OpenPopupInCurrentBrowser { get; set; } = true;
     public bool GpuAcceleration { get; set; } = true;
     public int FrameRate { get; set; } = 60;
+    public bool Transparent { get; set; } = false;
     
     private static bool _useGpuAcceleration = true;
+    private static bool _useTransparent = false;
     
     public static bool UseGpuAcceleration 
     { 
         get => _useGpuAcceleration;
         set => _useGpuAcceleration = value;
+    }
+    
+    public static bool UseTransparent 
+    { 
+        get => _useTransparent;
+        set => _useTransparent = value;
     }
 
     public string Address
@@ -91,6 +99,7 @@ public partial class CefGlueControl : Control
         }
         
         UseGpuAcceleration = GpuAcceleration;
+        UseTransparent = Transparent;
         CefInitializer.Initialize();
 
         CustomMinimumSize = new Vector2(100, 100);
@@ -139,10 +148,10 @@ public partial class CefGlueControl : Control
         _height = height;
 
         var frameRate = Math.Clamp(FrameRate, 1, 360);
-        GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps");
+        GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (Transparent: {Transparent})");
 
         var windowInfo = CefWindowInfo.Create();
-        windowInfo.SetAsWindowless(IntPtr.Zero, true);
+        windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
 
         var settings = new CefBrowserSettings
         {
@@ -344,7 +353,14 @@ public partial class CefGlueControl : Control
     {
         if (_texture != null && _width > 0 && _height > 0)
         {
-            DrawTexture(_texture, Vector2.Zero);
+            if (Transparent)
+            {
+                DrawTextureRect(_texture, new Rect2(Vector2.Zero, _width, _height), false);
+            }
+            else
+            {
+                DrawTexture(_texture, Vector2.Zero);
+            }
         }
     }
 
@@ -714,6 +730,14 @@ public partial class CefGlueControl : Control
             },
             static (CefGlueControl instance) => instance.FrameRate,
             static (CefGlueControl instance, int value) => instance.FrameRate = value);
+
+        context.BindProperty(
+            new PropertyInfo(new StringName(nameof(Transparent)), VariantType.Bool)
+            {
+                Usage = PropertyUsageFlags.Default
+            },
+            static (CefGlueControl instance) => instance.Transparent,
+            static (CefGlueControl instance, bool value) => instance.Transparent = value);
 
         context.BindMethod(new StringName(nameof(GoBack)),
             static (CefGlueControl instance) =>
