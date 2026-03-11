@@ -3,6 +3,19 @@
 [ext_resource type="Script" uid="uid://byqhkcubr2vf" path="res://MainUi.cs" id="1_vfs0v"]
 [ext_resource type="Script" uid="uid://d25hmir240bvt" path="res://addons/GCefGlue/CefGlueControl.cs" id="2_guh61"]
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_guh61"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_skpw3"]
+sky_material = SubResource("ProceduralSkyMaterial_guh61")
+
+[sub_resource type="Environment" id="Environment_j4ict"]
+background_mode = 2
+sky = SubResource("Sky_skpw3")
+tonemap_mode = 2
+glow_enabled = true
+
 [node name="MainUI" type="Control" unique_id=74461486]
 layout_mode = 3
 anchors_preset = 15
@@ -21,9 +34,10 @@ offset_top = 40.0
 offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 1
 script = ExtResource("2_guh61")
-OpenPopupInCurrentBrowser = false
 FrameRate = 120
+Transparent = true
 
 [node name="Toolbar" type="Panel" parent="." unique_id=1161862796]
 layout_mode = 1
@@ -102,3 +116,14 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "Initializing..."
 vertical_alignment = 1
+
+[node name="Node3D" type="Node3D" parent="." unique_id=279211760]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Node3D" unique_id=1491318967]
+environment = SubResource("Environment_j4ict")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Node3D" unique_id=451715941]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="Node3D" unique_id=1391687196]

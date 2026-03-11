@@ -194,6 +194,8 @@ When using source code dependencies, you need to manually copy files after expor
 | `InitialUrl` | string | "about:blank" | The URL to load when the browser is created |
 | `OpenPopupInCurrentBrowser` | bool | true | If true, popup windows navigate in the current browser |
 | `GpuAcceleration` | bool | true | If true, enables GPU hardware acceleration |
+| `FrameRate` | int | 60 | Browser frame rate, range 1-360 |
+| `Transparent` | bool | false | If true, enables transparent background support |
 
 ## CefGlueControl Methods
 

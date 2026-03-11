@@ -57,7 +57,13 @@ namespace GDCefGlue
         /// </summary>
         [Export] public int FrameRate { get; set; } = 60;
         
+        /// <summary>
+        /// Gets or sets whether the browser background is transparent. Default is false (opaque).
+        /// </summary>
+        [Export] public bool Transparent { get; set; } = false;
+        
         private static bool _useGpuAcceleration = true;
+        private static bool _useTransparent = false;
         
         /// <summary>
         /// Gets or sets the global GPU acceleration setting. Must be set before CEF initialization.
@@ -66,6 +72,15 @@ namespace GDCefGlue
         { 
             get => _useGpuAcceleration;
             set => _useGpuAcceleration = value;
+        }
+        
+        /// <summary>
+        /// Gets or sets the global transparency setting. Must be set before CEF initialization.
+        /// </summary>
+        public static bool UseTransparent 
+        { 
+            get => _useTransparent;
+            set => _useTransparent = value;
         }
 
         /// <summary>
@@ -146,6 +161,7 @@ namespace GDCefGlue
             GD.Print("CefGlueControl: _Ready() called");
             
             UseGpuAcceleration = GpuAcceleration;
+            UseTransparent = Transparent;
             CefInitializer.Initialize();
 
             CustomMinimumSize = new Vector2(100, 100);
@@ -208,10 +224,10 @@ namespace GDCefGlue
             _height = height;
 
             var frameRate = Math.Clamp(FrameRate, 1, 360);
-            GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps");
+            GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (Transparent: {Transparent})");
 
             var windowInfo = CefWindowInfo.Create();
-            windowInfo.SetAsWindowless(IntPtr.Zero, true);
+            windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
 
             var settings = new CefBrowserSettings
             {
@@ -448,7 +464,14 @@ namespace GDCefGlue
         {
             if (_texture != null && _width > 0 && _height > 0)
             {
-                DrawTexture(_texture, Vector2.Zero);
+                if (Transparent)
+                {
+                    DrawTextureRect(_texture, new Rect2(Vector2.Zero, _width, _height), false, Colors.White, false);
+                }
+                else
+                {
+                    DrawTexture(_texture, Vector2.Zero);
+                }
             }
         }
 
