@@ -31,10 +31,14 @@ namespace GDCefGlue
                     commandLine.AppendSwitch("use-angle", "swiftshader");
                 }
                 
-                commandLine.AppendSwitch("enable-begin-frame-scheduling");
+                if (CefGlueControl.UseTransparent)
+                {
+                    commandLine.AppendSwitch("enable-begin-frame-scheduling");
+                }
+                
                 commandLine.AppendSwitch("disable-smooth-scrolling");
                 
-                GD.Print($"GodotCefApp: Command line switches added (GPU Acceleration: {CefGlueControl.UseGpuAcceleration})");
+                GD.Print($"GodotCefApp: Command line switches added (GPU Acceleration: {CefGlueControl.UseGpuAcceleration}, Transparent: {CefGlueControl.UseTransparent})");
             }
         }
 

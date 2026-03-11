@@ -217,6 +217,8 @@ dotnet build
 | `InitialUrl`                | string | "about:blank" | 浏览器创建时加载的 URL        |
 | `OpenPopupInCurrentBrowser` | bool   | true          | 如果为 true，弹窗在当前浏览器中导航 |
 | `GpuAcceleration`           | bool   | true          | 如果为 true，启用 GPU 硬件加速 |
+| `FrameRate`                 | int    | 60            | 浏览器帧率，范围 1-360       |
+| `Transparent`               | bool   | false         | 如果为 true，启用透明背景支持    |
 
 ## CefGlueControl 方法
 
