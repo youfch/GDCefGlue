@@ -1,8 +1,10 @@
 using System;
+using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using Xilium.CefGlue;
@@ -24,7 +26,9 @@ namespace GDCefGlue
         private ImageTexture _texture;
         private byte[] _pixelBuffer;
         private byte[] _renderBuffer;
-        private readonly object _bufferLock = new object();
+        private int _pixelBufferSize;
+        private int _renderBufferSize;
+        private SpinLock _spinLock = new SpinLock(false);
         internal int _width;
         internal int _height;
         internal Vector2 _cachedGlobalPosition;
@@ -342,6 +346,7 @@ namespace GDCefGlue
         /// <summary>
         /// Called when CEF renders a new frame. Copies pixel data and converts BGRA to RGBA.
         /// Uses double buffering to prevent color flickering during rendering.
+        /// Optimized with ArrayPool for reduced GC pressure.
         /// </summary>
         /// <param name="buffer">Pointer to the pixel buffer in BGRA format.</param>
         /// <param name="width">Width of the rendered frame.</param>
@@ -353,29 +358,71 @@ namespace GDCefGlue
             
             int bufferSize = width * height * 4;
             
-            lock (_bufferLock)
+            bool lockTaken = false;
+            try
             {
+                _spinLock.Enter(ref lockTaken);
+                
                 _width = width;
                 _height = height;
                 
-                if (_pixelBuffer == null || _pixelBuffer.Length != bufferSize)
+                if (_pixelBuffer == null || _pixelBufferSize != bufferSize)
                 {
-                    _pixelBuffer = new byte[bufferSize];
+                    if (_pixelBuffer != null && _pixelBufferSize > 0)
+                    {
+                        ArrayPool<byte>.Shared.Return(_pixelBuffer);
+                    }
+                    _pixelBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+                    _pixelBufferSize = bufferSize;
                 }
 
                 Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
                 ConvertBgraToRgba(_pixelBuffer, width * height);
                 _isDirty = true;
             }
+            finally
+            {
+                if (lockTaken) _spinLock.Exit();
+            }
         }
 
         /// <summary>
         /// Converts BGRA pixel data to RGBA format using SIMD when available.
+        /// Supports AVX2 (8 pixels at once) and SSSE3 (4 pixels at once).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe void ConvertBgraToRgba(byte[] buffer, int pixelCount)
         {
-            if (Ssse3.IsSupported)
+            if (Avx2.IsSupported)
+            {
+                int vectorSize = 32;
+                int vectorCount = pixelCount / 8;
+                
+                var shuffleMask = Vector256.Create(
+                    (byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15,
+                    (byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15
+                );
+                
+                fixed (byte* ptr = buffer)
+                {
+                    for (int i = 0; i < vectorCount; i++)
+                    {
+                        int offset = i * vectorSize;
+                        var data = Avx.LoadVector256(ptr + offset);
+                        var shuffled = Avx2.Shuffle(data, shuffleMask);
+                        Avx.Store(ptr + offset, shuffled);
+                    }
+                    
+                    for (int i = vectorCount * 8; i < pixelCount; i++)
+                    {
+                        int offset = i * 4;
+                        byte b = ptr[offset];
+                        ptr[offset] = ptr[offset + 2];
+                        ptr[offset + 2] = b;
+                    }
+                }
+            }
+            else if (Ssse3.IsSupported)
             {
                 int vectorSize = 16;
                 int vectorCount = pixelCount / 4;
@@ -415,7 +462,7 @@ namespace GDCefGlue
 
         /// <summary>
         /// Called every frame. Updates the texture with new pixel data and handles browser creation.
-        /// Uses double buffering to prevent color flickering.
+        /// Uses double buffering with ArrayPool for reduced GC pressure.
         /// </summary>
         public override void _Process(double delta)
         {
@@ -424,16 +471,23 @@ namespace GDCefGlue
             if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
             {
                 int expectedBufferSize = _width * _height * 4;
-                if (_pixelBuffer.Length == expectedBufferSize)
+                if (_pixelBufferSize >= expectedBufferSize)
                 {
-                    if (_renderBuffer == null || _renderBuffer.Length != expectedBufferSize)
+                    if (_renderBuffer == null || _renderBufferSize != expectedBufferSize)
                     {
                         _renderBuffer = new byte[expectedBufferSize];
+                        _renderBufferSize = expectedBufferSize;
                     }
                     
-                    lock (_bufferLock)
+                    bool lockTaken = false;
+                    try
                     {
+                        _spinLock.Enter(ref lockTaken);
                         Buffer.BlockCopy(_pixelBuffer, 0, _renderBuffer, 0, expectedBufferSize);
+                    }
+                    finally
+                    {
+                        if (lockTaken) _spinLock.Exit();
                     }
                     
                     if (_texture.GetSize().X != _width || _texture.GetSize().Y != _height)
@@ -854,7 +908,7 @@ namespace GDCefGlue
         }
 
         /// <summary>
-        /// Called when the control exits the scene tree. Closes the browser.
+        /// Called when the control exits the scene tree. Closes the browser and returns buffers to pool.
         /// </summary>
         public override void _ExitTree()
         {
@@ -865,6 +919,16 @@ namespace GDCefGlue
                 _browser = null;
             }
             _client = null;
+            
+            if (_pixelBuffer != null && _pixelBufferSize > 0)
+            {
+                ArrayPool<byte>.Shared.Return(_pixelBuffer);
+                _pixelBuffer = null;
+                _pixelBufferSize = 0;
+            }
+            _renderBuffer = null;
+            _renderBufferSize = 0;
+            
             base._ExitTree();
         }
     }
