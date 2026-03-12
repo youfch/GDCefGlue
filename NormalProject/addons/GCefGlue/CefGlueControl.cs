@@ -31,6 +31,8 @@ namespace GDCefGlue
         private SpinLock _spinLock = new SpinLock(false);
         internal int _width;
         internal int _height;
+        internal int _controlWidth;
+        internal int _controlHeight;
         internal Vector2 _cachedGlobalPosition;
         private bool _isFocused;
         private bool _browserCreated;
@@ -226,6 +228,8 @@ namespace GDCefGlue
         {
             _width = width;
             _height = height;
+            _controlWidth = width;
+            _controlHeight = height;
 
             var frameRate = Math.Clamp(FrameRate, 1, 360);
             GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (Transparent: {Transparent})");
@@ -795,8 +799,8 @@ namespace GDCefGlue
                 case NotificationResized:
                     if (_browserHost != null && Size.X > 0 && Size.Y > 0)
                     {
-                        _width = (int)Size.X;
-                        _height = (int)Size.Y;
+                        _controlWidth = (int)Size.X;
+                        _controlHeight = (int)Size.Y;
                         _browserHost.WasResized();
                     }
                     break;
