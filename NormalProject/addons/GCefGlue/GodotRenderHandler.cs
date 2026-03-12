@@ -24,7 +24,7 @@ namespace GDCefGlue
         /// </summary>
         protected override void GetViewRect(CefBrowser browser, out CefRectangle rect)
         {
-            rect = new CefRectangle(0, 0, Math.Max(1, _control._width), Math.Max(1, _control._height));
+            rect = new CefRectangle(0, 0, Math.Max(1, _control._controlWidth), Math.Max(1, _control._controlHeight));
         }
 
         /// <summary>
