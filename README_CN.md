@@ -267,14 +267,34 @@ dotnet build
 | `FrameRate`                 | int    | 60            | 浏览器帧率，范围 1-360       |
 | `Transparent`               | bool   | false         | 如果为 true，启用透明背景支持    |
 
+### 静态属性
+
+| 属性                | 类型   | 描述                          |
+| ----------------- | ---- | --------------------------- |
+| `UseGpuAcceleration` | bool | 全局 GPU 加速设置，需在 CEF 初始化前设置    |
+| `UseTransparent`     | bool | 全局透明背景设置，需在 CEF 初始化前设置       |
+
+### 只读属性
+
+| 属性                    | 类型     | 描述             |
+| --------------------- | ------ | -------------- |
+| `Address`             | string | 当前页面 URL       |
+| `IsBrowserInitialized` | bool   | 浏览器是否已初始化      |
+| `IsLoading`           | bool   | 页面是否正在加载       |
+| `Title`               | string | 当前页面标题         |
+
 ## CefGlueControl 方法
 
-| 方法                          | 描述        |
-| --------------------------- | --------- |
-| `GoBack()`                  | 后退        |
-| `GoForward()`               | 前进        |
-| `NavigateToUrl(string url)` | 导航到指定 URL |
-| `Refresh()`                 | 刷新当前页面    |
+| 方法                                      | 描述                  |
+| --------------------------------------- | ------------------- |
+| `GoBack()`                              | 后退                  |
+| `GoForward()`                           | 前进                  |
+| `NavigateToUrl(string url)`             | 导航到指定 URL           |
+| `Reload(bool ignoreCache = false)`      | 刷新当前页面，可选忽略缓存       |
+| `ExecuteJavaScript(string code, ...)`   | 执行 JavaScript 代码    |
+| `EvaluateJavaScript<T>(string code, ...)` | 执行 JavaScript 并返回结果 |
+| `ShowDeveloperTools()`                  | 打开开发者工具             |
+| `CloseDeveloperTools()`                 | 关闭开发者工具             |
 
 ## GPU 配置
 
