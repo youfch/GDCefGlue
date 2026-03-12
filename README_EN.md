@@ -252,6 +252,22 @@ When using source code dependencies, you need to manually copy files after expor
 | `FrameRate` | int | 60 | Browser frame rate, range 1-360 |
 | `Transparent` | bool | false | If true, enables transparent background support |
 
+### Static Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `UseGpuAcceleration` | bool | Global GPU acceleration setting, must be set before CEF initialization |
+| `UseTransparent` | bool | Global transparent background setting, must be set before CEF initialization |
+
+### Read-only Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Address` | string | Current page URL |
+| `IsBrowserInitialized` | bool | Whether the browser is initialized |
+| `IsLoading` | bool | Whether the page is loading |
+| `Title` | string | Current page title |
+
 ## CefGlueControl Methods
 
 | Method | Description |
@@ -259,7 +275,11 @@ When using source code dependencies, you need to manually copy files after expor
 | `GoBack()` | Navigate back in history |
 | `GoForward()` | Navigate forward in history |
 | `NavigateToUrl(string url)` | Navigate to the specified URL |
-| `Refresh()` | Reload the current page |
+| `Reload(bool ignoreCache = false)` | Reload the current page, optionally ignoring cache |
+| `ExecuteJavaScript(string code, ...)` | Execute JavaScript code |
+| `EvaluateJavaScript<T>(string code, ...)` | Execute JavaScript and return result |
+| `ShowDeveloperTools()` | Open developer tools |
+| `CloseDeveloperTools()` | Close developer tools |
 
 ## GPU Configuration
 
