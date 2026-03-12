@@ -39,6 +39,7 @@ packages/
 CefGlue.Interop.Gen/Classes.Handlers.tmpl/
 CefGlue.Interop.Gen/Classes.Proxies.tmpl/
 **/.DS_Store
+!Nuget/*.nupkg
 *.nupkg
 
 # Godot 4+ specific ignores

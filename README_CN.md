@@ -82,13 +82,12 @@ git clone https://github.com/OutSystems/CefGlue.git
 
 ## 项目类型
 
-### GDExtension 项目（实验性）
+### GDExtension 项目
 
 位于 `GDExtension/` 目录。适用于 Godot 4.6+。
 
-> **警告：** 该项目目前不稳定，不推荐用于生产环境。
-
 **特点：**
+
 - 使用 Godot 的 GDExtension 系统
 - 编译为原生 AOT 库
 - 性能更好，文件体积更小
@@ -96,6 +95,7 @@ git clone https://github.com/OutSystems/CefGlue.git
 - 入口点：`gdcefglue_library_init`
 
 **结构：**
+
 - `GDExtension/Extension/` - GDExtension 的 C# 源代码
 - `GDExtension/Extension/Dll/` - Godot .NET 绑定（来自 [godot-dotnet](https://github.com/raulsntos/godot-dotnet)）
 - `GDExtension/Project/` - 用于测试的 Godot 项目
@@ -103,30 +103,76 @@ git clone https://github.com/OutSystems/CefGlue.git
 **构建说明：**
 
 1. **获取 Godot .NET 绑定：**
+
+   不同 Godot 版本需要对应版本的 godot-dotnet：
+   | Godot 版本 | godot-dotnet 分支 |
+   | -------- | --------------- |
+   | 4.6.x    | master 或对应标签    |
+   | 4.5.x    | 检查对应 release 标签 |
+   | 4.4.x    | 检查对应 release 标签 |
+   > **注意：** godot-dotnet 没有发布 release 包，需要查看历史提交，下载对应 Godot 版本的源码后手动编译。
    ```bash
    git clone https://github.com/raulsntos/godot-dotnet.git
    cd godot-dotnet
+   # 切换到对应 Godot 版本的分支/标签（如需要）
+   # git checkout <godot-version-tag>
    dotnet build -p:GenerateGodotBindings=true
    ```
    将生成的 `Godot.Bindings.dll` 及相关文件复制到 `GDExtension/Extension/Dll/`。
+2. **CEF 依赖（跨平台）：**
+   - **Windows：** 通过 NuGet 包自动获取 `chromiumembeddedframework.runtime.win-x64`
+   - **Linux：** 需要添加 [cef.redist.linux](https://github.com/OutSystems/cef.redist.linux) 依赖
+   - **macOS：** 需要添加 [cef.redist.osx](https://github.com/OutSystems/cef.redist.osx) 依赖
+   查看 [CefGlue 仓库](https://github.com/youfch/CefGlue) 了解如何添加跨平台依赖。
+3. **构建 GDExtension：**
 
-2. **构建 GDExtension：**
+   进入 `GDExtension/Extension` 目录执行：
+
+   **Windows x64：**
    ```bash
-   cd GDExtension/Extension
+   # Debug 版本
    dotnet publish -c Debug -r win-x64 --self-contained true
+
+   # Release 版本
+   dotnet publish -c Release -r win-x64 --self-contained true
    ```
+   **Linux x64：**
+   ```bash
+   dotnet publish -c Release -r linux-x64 --self-contained true
+   ```
+   **macOS x64/ARM64：**
+   ```bash
+   # Intel Mac
+   dotnet publish -c Release -r osx-x64 --self-contained true
 
-3. **部署：**
-   将 `Debug/net9.0/win-x64/publish/` 中的所有文件复制到 `GDExtension/Project/lib/`。
+   # Apple Silicon Mac
+   dotnet publish -c Release -r osx-arm64 --self-contained true
+   ```
+4. **部署：**
 
-4. **运行：**
-   使用 Godot 4.6 打开项目并运行。
+   编译输出位于 `bin\Release(Debug)\net9.0\win-x64\publish\`（Windows）或对应平台目录。
+
+   将 publish 目录中的所有文件复制到 `GDExtension/Game/lib/` 目录。
+5. **运行：**
+   使用 Godot 4.6 打开 `GDExtension/Game/` 项目并运行。
+
+**不同 CEF 版本支持：**
+
+如需使用不同版本的 CEF，有两种方式：
+
+1. **NuGet 包方式（推荐）：** 修改 `.csproj` 中的 NuGet 包版本
+   ```xml
+   <PackageReference Include="CefGlue.Common" Version="xxx.xxxx.x" />
+   <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="xxx.x.x" />
+   ```
+2. **手动编译：** 从 [CefGlue 仓库](https://github.com/youfch/CefGlue) 下载对应 CEF 版本的源码，手动编译 NuGet 包后引用。
 
 ### 普通 C# 项目
 
 位于 `NormalProject/` 目录。传统的 Godot C# 项目方式。
 
 **特点：**
+
 - 标准 Godot .NET SDK 项目
 - 使用 `Godot.NET.Sdk`
 - 使用 NuGet 包时 CEF 文件自动复制
@@ -134,6 +180,7 @@ git clone https://github.com/OutSystems/CefGlue.git
 - 源代码位于 `addons/GCefGlue/`
 
 **适用场景：**
+
 - 如果你偏好传统的 Godot C# 开发方式
 - 如果 GDExtension 不能满足你的需求
 
@@ -268,4 +315,5 @@ dotnet build
 - [CefGlue](https://github.com/youfch/CefGlue) - BSD-3-Clause
 - [CEF](https://bitbucket.org/chromiumembedded/cef) - BSD-3-Clause
 - [Godot Engine](https://godotengine.org) - MIT
+- [godot-dotnet](https://github.com/raulsntos/godot-dotnet) - MIT
 

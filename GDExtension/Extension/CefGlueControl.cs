@@ -36,6 +36,10 @@ public partial class CefGlueControl : Control
     private double _lastClickTime;
     private int _clickCount;
     private const double DoubleClickInterval = 0.5;
+    private int _pendingWidth;
+    private int _pendingHeight;
+    private int _resizeStableCount;
+    private const int ResizeStableThreshold = 2;
 
     public string InitialUrl { get; set; } = "about:blank";
     public bool OpenPopupInCurrentBrowser { get; set; } = true;
@@ -311,9 +315,44 @@ public partial class CefGlueControl : Control
         }
     }
 
+    /// <summary>
+    /// Called every frame. Updates the texture with new pixel data and handles browser creation.
+    /// Implements a delayed resize mechanism to prevent flickering during rapid window resizing.
+    /// </summary>
     protected override void _Process(double delta)
     {
         _cachedGlobalPosition = GlobalPosition;
+
+        if (_browserHost != null && Size.X > 0 && Size.Y > 0)
+        {
+            int newWidth = (int)Size.X;
+            int newHeight = (int)Size.Y;
+            
+            if (newWidth != _controlWidth || newHeight != _controlHeight)
+            {
+                _controlWidth = newWidth;
+                _controlHeight = newHeight;
+                _pendingWidth = newWidth;
+                _pendingHeight = newHeight;
+                _resizeStableCount = 0;
+                QueueRedraw();
+            }
+            else if (_pendingWidth > 0 && _pendingHeight > 0)
+            {
+                _resizeStableCount++;
+                if (_resizeStableCount >= ResizeStableThreshold)
+                {
+                    _browserHost.WasResized();
+                    _browserHost.Invalidate(CefPaintElementType.View);
+                    _pendingWidth = 0;
+                    _pendingHeight = 0;
+                }
+            }
+            else if (_width != _controlWidth || _height != _controlHeight)
+            {
+                _browserHost.Invalidate(CefPaintElementType.View);
+            }
+        }
 
         if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
         {
@@ -353,17 +392,28 @@ public partial class CefGlueControl : Control
         }
     }
 
+    /// <summary>
+    /// Called when the control needs to be redrawn. Draws the browser texture.
+    /// Uses control size for drawing to ensure proper scaling during resize operations.
+    /// </summary>
     protected override void _Draw()
     {
-        if (_texture != null && _width > 0 && _height > 0)
+        if (_texture != null && _controlWidth > 0 && _controlHeight > 0)
         {
             if (Transparent)
             {
-                DrawTextureRect(_texture, new Rect2(Vector2.Zero, _width, _height), false);
+                DrawTextureRect(_texture, new Rect2(Vector2.Zero, _controlWidth, _controlHeight), false);
             }
             else
             {
-                DrawTexture(_texture, Vector2.Zero);
+                if (_width == _controlWidth && _height == _controlHeight)
+                {
+                    DrawTexture(_texture, Vector2.Zero);
+                }
+                else
+                {
+                    DrawTextureRect(_texture, new Rect2(Vector2.Zero, _controlWidth, _controlHeight), false);
+                }
             }
         }
     }
@@ -597,17 +647,15 @@ public partial class CefGlueControl : Control
         };
     }
 
+    /// <summary>
+    /// Handles notifications from Godot such as resize, mouse exit, and focus changes.
+    /// Note: Resize handling is done in _Process for smoother resizing experience.
+    /// </summary>
     protected override void _Notification(int what)
     {
         switch ((long)what)
         {
             case NotificationResized:
-                if (_browserHost != null && Size.X > 0 && Size.Y > 0)
-                {
-                    _controlWidth = (int)Size.X;
-                    _controlHeight = (int)Size.Y;
-                    _browserHost.WasResized();
-                }
                 break;
 
             case NotificationMouseExit:

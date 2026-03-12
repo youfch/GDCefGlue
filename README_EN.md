@@ -65,11 +65,9 @@ If you need the latest version or want to customize CefGlue:
 
 ## Project Types
 
-### GDExtension Project (Experimental)
+### GDExtension Project
 
 Located in `GDExtension/` directory. For Godot 4.6+.
-
-> **Warning:** This project is currently unstable and not recommended for production use.
 
 **Features:**
 - Uses Godot's GDExtension system
@@ -86,24 +84,81 @@ Located in `GDExtension/` directory. For Godot 4.6+.
 **Build Instructions:**
 
 1. **Get Godot .NET Bindings:**
+   
+   Different Godot versions require corresponding godot-dotnet versions:
+   
+   | Godot Version | godot-dotnet Branch |
+   |---------------|---------------------|
+   | 4.6.x         | master or corresponding tag |
+   | 4.5.x         | Check corresponding release tag |
+   | 4.4.x         | Check corresponding release tag |
+   
+   > **Note:** godot-dotnet does not publish release packages. You need to check the commit history, download the source code for your Godot version, and compile manually.
+   
    ```bash
    git clone https://github.com/raulsntos/godot-dotnet.git
    cd godot-dotnet
+   # Checkout the branch/tag for your Godot version (if needed)
+   # git checkout <godot-version-tag>
    dotnet build -p:GenerateGodotBindings=true
    ```
    Copy the generated `Godot.Bindings.dll` and related files to `GDExtension/Extension/Dll/`.
 
-2. **Build GDExtension:**
+2. **CEF Dependencies (Cross-Platform):**
+   
+   - **Windows:** Automatically obtained via NuGet package `chromiumembeddedframework.runtime.win-x64`
+   - **Linux:** Requires [cef.redist.linux](https://github.com/OutSystems/cef.redist.linux) dependency
+   - **macOS:** Requires [cef.redist.osx](https://github.com/OutSystems/cef.redist.osx) dependency
+   
+   See [CefGlue repository](https://github.com/youfch/CefGlue) for how to add cross-platform dependencies.
+
+3. **Build GDExtension:**
+   
+   Navigate to `GDExtension/Extension` directory and run:
+   
+   **Windows x64:**
    ```bash
-   cd GDExtension/Extension
+   # Debug build
    dotnet publish -c Debug -r win-x64 --self-contained true
+   
+   # Release build
+   dotnet publish -c Release -r win-x64 --self-contained true
+   ```
+   
+   **Linux x64:**
+   ```bash
+   dotnet publish -c Release -r linux-x64 --self-contained true
+   ```
+   
+   **macOS x64/ARM64:**
+   ```bash
+   # Intel Mac
+   dotnet publish -c Release -r osx-x64 --self-contained true
+   
+   # Apple Silicon Mac
+   dotnet publish -c Release -r osx-arm64 --self-contained true
    ```
 
-3. **Deploy:**
-   Copy all files from `Debug/net9.0/win-x64/publish/` to `GDExtension/Project/lib/`.
+4. **Deploy:**
+   
+   Build output is located at `bin\Release(Debug)\net9.0\win-x64\publish\` (Windows) or corresponding platform directory.
+   
+   Copy all files from the publish directory to `GDExtension/Game/lib/`.
 
-4. **Run:**
-   Open the project with Godot 4.6 and run.
+5. **Run:**
+   Open `GDExtension/Game/` project with Godot 4.6 and run.
+
+**Different CEF Version Support:**
+
+To use different CEF versions, there are two options:
+
+1. **NuGet Package (Recommended):** Modify the NuGet package version in `.csproj`
+   ```xml
+   <PackageReference Include="CefGlue.Common" Version="xxx.xxxx.x" />
+   <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="xxx.x.x" />
+   ```
+
+2. **Manual Build:** Download the source code for the corresponding CEF version from [CefGlue repository](https://github.com/youfch/CefGlue), manually compile the NuGet package, and reference it.
 
 ### Normal C# Project
 
@@ -245,3 +300,4 @@ When using source code dependencies, you need to manually copy files after expor
 - [CefGlue](https://github.com/youfch/CefGlue) - BSD-3-Clause
 - [CEF](https://bitbucket.org/chromiumembedded/cef) - BSD-3-Clause
 - [Godot Engine](https://godotengine.org) - MIT
+- [godot-dotnet](https://github.com/raulsntos/godot-dotnet) - MIT

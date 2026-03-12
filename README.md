@@ -249,3 +249,4 @@ When using source code dependencies, you need to manually copy files after expor
 - [CefGlue](https://github.com/youfch/CefGlue) - BSD-3-Clause
 - [CEF](https://bitbucket.org/chromiumembedded/cef) - BSD-3-Clause
 - [Godot Engine](https://godotengine.org) - MIT
+- [godot-dotnet](https://github.com/raulsntos/godot-dotnet) - MIT
