@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="CefGlue.Common" Version="134.6998.178" />
-    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="134.3.9" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="145.0.26" />
   </ItemGroup>
 
   <Target Name="CopyCefFilesToOutput" AfterTargets="Build">

@@ -2,6 +2,19 @@
 
 [ext_resource type="Script" uid="uid://gwffkhkqsmis" path="res://Main.gd" id="1_main"]
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_glv2v"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_uu6xs"]
+sky_material = SubResource("ProceduralSkyMaterial_glv2v")
+
+[sub_resource type="Environment" id="Environment_r0du0"]
+background_mode = 2
+sky = SubResource("Sky_uu6xs")
+tonemap_mode = 2
+glow_enabled = true
+
 [node name="Main" type="Control" unique_id=1310186517]
 custom_minimum_size = Vector2(100, 100)
 layout_mode = 3
@@ -24,3 +37,14 @@ grow_horizontal = 2
 grow_vertical = 2
 focus_mode = 1
 metadata/_edit_use_anchors_ = true
+
+[node name="Node3D" type="Node3D" parent="." unique_id=1828296503]
+
+[node name="Camera3D" type="Camera3D" parent="Node3D" unique_id=38891528]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Node3D" unique_id=608167488]
+environment = SubResource("Environment_r0du0")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Node3D" unique_id=1792211325]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
