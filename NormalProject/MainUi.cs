@@ -22,7 +22,7 @@ public partial class MainUi : Control
         _reloadButton = GetNode<Button>("Toolbar/ReloadButton");
         _statusLabel = GetNode<Label>("StatusBar/StatusLabel");
 
-        _browser.InitialUrl = "https://www.baidu.com";
+        _browser.InitialUrl = "https://www.bing.com";
         _browser.BrowserInitialized += OnBrowserInitialized;
         _browser.AddressChanged += OnAddressChanged;
         _browser.LoadStart += OnLoadStart;
