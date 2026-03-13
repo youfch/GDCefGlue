@@ -40,7 +40,7 @@ public static class CefInitializer
             var cefLibraryPath = FindCefLibraryPath();
             if (cefLibraryPath == null)
             {
-                GD.PrintErr("CefInitializer: libcef.dll not found!");
+                GD.PrintErr("CefInitializer: libcef not found!");
                 return;
             }
             GD.Print($"CefInitializer: CefLibraryPath = {cefLibraryPath}");
@@ -64,7 +64,7 @@ public static class CefInitializer
             };
 
             var libcefHandle = NativeLibrary.Load(cefLibraryPath);
-            GD.Print($"CefInitializer: libcef.dll loaded, handle = {libcefHandle}");
+            GD.Print($"CefInitializer: libcef loaded, handle = {libcefHandle}");
 
             CefRuntime.Load();
             GD.Print("CefInitializer: CefRuntime.Load() completed");
@@ -105,16 +105,25 @@ public static class CefInitializer
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return;
 
-        var dllFiles = new[]
+        string[] dllFiles;
+        
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            "libcef.dll",
-            "chrome_elf.dll",
-            "d3dcompiler_47.dll",
-            "libEGL.dll",
-            "libGLESv2.dll",
-            "vk_swiftshader.dll",
-            "vulkan-1.dll"
-        };
+            dllFiles = new[]
+            {
+                "libcef.dll",
+                "chrome_elf.dll",
+                "d3dcompiler_47.dll",
+                "libEGL.dll",
+                "libGLESv2.dll",
+                "vk_swiftshader.dll",
+                "vulkan-1.dll"
+            };
+        }
+        else
+        {
+            return;
+        }
 
         foreach (var dll in dllFiles)
         {
@@ -165,17 +174,42 @@ public static class CefInitializer
 
     private static string FindCefLibraryPath()
     {
-        var searchPaths = new List<string>
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+        var isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+        
+        var cefLibNames = new List<string>();
+        
+        if (isWindows)
         {
-            Path.Combine(_extensionDirectory, "libcef.dll"),
-            Path.Combine(_extensionDirectory, "runtimes", "win-x64", "native", "libcef.dll"),
-            Path.Combine(AppContext.BaseDirectory, "libcef.dll"),
-            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native", "libcef.dll")
-        };
+            cefLibNames.Add("libcef.dll");
+            cefLibNames.Add(Path.Combine("runtimes", "win-x64", "native", "libcef.dll"));
+        }
+        else if (isLinux)
+        {
+            cefLibNames.Add("libcef.so");
+            cefLibNames.Add("cef.so");
+            cefLibNames.Add(Path.Combine("runtimes", "linux-x64", "native", "libcef.so"));
+            cefLibNames.Add(Path.Combine("runtimes", "linux-x64", "native", "cef.so"));
+        }
+        else if (isMac)
+        {
+            cefLibNames.Add("libcef.dylib");
+            cefLibNames.Add("cef.dylib");
+            cefLibNames.Add(Path.Combine("runtimes", "osx-x64", "native", "libcef.dylib"));
+        }
+
+        var searchPaths = new List<string>();
+        
+        foreach (var cefLib in cefLibNames)
+        {
+            searchPaths.Add(Path.Combine(_extensionDirectory, cefLib));
+            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, cefLib));
+        }
 
         foreach (var path in searchPaths)
         {
-            GD.Print($"CefInitializer: Checking libcef.dll path: {path}");
+            GD.Print($"CefInitializer: Checking libcef path: {path}");
             if (File.Exists(path))
             {
                 return path;
@@ -187,12 +221,18 @@ public static class CefInitializer
 
     private static string FindBrowserSubprocessPath()
     {
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        
+        var browserProcessFileName = isWindows 
+            ? "Xilium.CefGlue.BrowserProcess.exe" 
+            : "Xilium.CefGlue.BrowserProcess";
+
         var searchPaths = new List<string>
         {
-            Path.Combine(_extensionDirectory, "CefGlueBrowserProcess", "Xilium.CefGlue.BrowserProcess.exe"),
-            Path.Combine(_extensionDirectory, "Xilium.CefGlue.BrowserProcess.exe"),
-            Path.Combine(AppContext.BaseDirectory, "CefGlueBrowserProcess", "Xilium.CefGlue.BrowserProcess.exe"),
-            Path.Combine(AppContext.BaseDirectory, "Xilium.CefGlue.BrowserProcess.exe")
+            Path.Combine(_extensionDirectory, "CefGlueBrowserProcess", browserProcessFileName),
+            Path.Combine(_extensionDirectory, browserProcessFileName),
+            Path.Combine(AppContext.BaseDirectory, "CefGlueBrowserProcess", browserProcessFileName),
+            Path.Combine(AppContext.BaseDirectory, browserProcessFileName)
         };
 
         foreach (var path in searchPaths)
@@ -209,13 +249,33 @@ public static class CefInitializer
 
     private static string FindResourcesDirPath()
     {
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+        var isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+
         var searchPaths = new List<string>
         {
             _extensionDirectory,
-            Path.Combine(_extensionDirectory, "runtimes", "win-x64", "native"),
-            AppContext.BaseDirectory,
-            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native")
+            AppContext.BaseDirectory
         };
+
+        if (isWindows)
+        {
+            searchPaths.Add(Path.Combine(_extensionDirectory, "runtimes", "win-x64", "native"));
+            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native"));
+        }
+        else if (isLinux)
+        {
+            searchPaths.Add(Path.Combine(_extensionDirectory, "runtimes", "linux-x64", "native"));
+            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64", "native"));
+        }
+        else if (isMac)
+        {
+            searchPaths.Add(Path.Combine(_extensionDirectory, "runtimes", "osx-x64", "native"));
+            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "runtimes", "osx-x64", "native"));
+            searchPaths.Add(Path.Combine(_extensionDirectory, "Resources"));
+            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources"));
+        }
 
         foreach (var path in searchPaths)
         {
