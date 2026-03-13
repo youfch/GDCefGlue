@@ -82,7 +82,9 @@
     <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
     
     <!-- Set execute permissions on Linux/macOS -->
-    <Exec Command="chmod +x &quot;$(TargetDir)libcef.so&quot; &quot;$(BrowserProcessSubDir)Xilium.CefGlue.BrowserProcess&quot; &quot;$(TargetDir)Xilium.CefGlue.BrowserProcess&quot;" Condition=" '$(OS)' != 'Windows_NT' " />
+    <Exec Command="chmod +x &quot;$(TargetDir)libcef.so&quot;" Condition=" '$(OS)' != 'Windows_NT' And Exists('$(TargetDir)libcef.so') " />
+    <Exec Command="chmod +x &quot;$(BrowserProcessSubDir)Xilium.CefGlue.BrowserProcess&quot;" Condition=" '$(OS)' != 'Windows_NT' And Exists('$(BrowserProcessSubDir)Xilium.CefGlue.BrowserProcess') " />
+    <Exec Command="chmod +x &quot;$(TargetDir)Xilium.CefGlue.BrowserProcess&quot;" Condition=" '$(OS)' != 'Windows_NT' And Exists('$(TargetDir)Xilium.CefGlue.BrowserProcess') " />
     
     <Message Text="=== CEF Copy Complete ===" Importance="high" />
   </Target>
@@ -138,7 +140,9 @@
     <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
     
     <!-- Set execute permissions on Linux/macOS -->
-    <Exec Command="chmod +x &quot;$(PublishDir)libcef.so&quot; &quot;$(BrowserProcessSubDir)Xilium.CefGlue.BrowserProcess&quot; &quot;$(PublishDir)Xilium.CefGlue.BrowserProcess&quot;" Condition=" '$(OS)' != 'Windows_NT' " />
+    <Exec Command="chmod +x &quot;$(PublishDir)libcef.so&quot;" Condition=" '$(OS)' != 'Windows_NT' And Exists('$(PublishDir)libcef.so') " />
+    <Exec Command="chmod +x &quot;$(BrowserProcessSubDir)Xilium.CefGlue.BrowserProcess&quot;" Condition=" '$(OS)' != 'Windows_NT' And Exists('$(BrowserProcessSubDir)Xilium.CefGlue.BrowserProcess') " />
+    <Exec Command="chmod +x &quot;$(PublishDir)Xilium.CefGlue.BrowserProcess&quot;" Condition=" '$(OS)' != 'Windows_NT' And Exists('$(PublishDir)Xilium.CefGlue.BrowserProcess') " />
     
     <Message Text="=== CEF Publish Complete ===" Importance="high" />
   </Target>
