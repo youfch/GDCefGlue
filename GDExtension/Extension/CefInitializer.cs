@@ -15,6 +15,25 @@ public static class CefInitializer
     private static GodotBrowserProcessHandler _browserProcessHandler;
     private static string _extensionDirectory;
 
+    private static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+    private static bool IsLinux => RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+    private static bool IsMacOS => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+
+    private static string CefLibraryName => IsWindows ? "libcef.dll" : IsLinux ? "libcef.so" : "libcef.dylib";
+    
+    private static string BrowserSubprocessName => IsWindows ? "Xilium.CefGlue.BrowserProcess.exe" : "Xilium.CefGlue.BrowserProcess";
+
+    private static string RuntimeIdentifier
+    {
+        get
+        {
+            if (IsWindows) return RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "win-arm64" : "win-x64";
+            if (IsLinux) return RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "linux-arm64" : "linux-x64";
+            if (IsMacOS) return RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64" : "osx-x64";
+            return "unknown";
+        }
+    }
+
     public static void Initialize()
     {
         if (_initialized) return;
@@ -23,6 +42,7 @@ public static class CefInitializer
         try
         {
             GD.Print("CefInitializer: Starting CEF initialization...");
+            GD.Print($"CefInitializer: Platform = {RuntimeIdentifier}");
 
             _extensionDirectory = GetExtensionDirectory();
             GD.Print($"CefInitializer: ExtensionDirectory = {_extensionDirectory}");
@@ -40,7 +60,7 @@ public static class CefInitializer
             var cefLibraryPath = FindCefLibraryPath();
             if (cefLibraryPath == null)
             {
-                GD.PrintErr("CefInitializer: libcef.dll not found!");
+                GD.PrintErr($"CefInitializer: {CefLibraryName} not found!");
                 return;
             }
             GD.Print($"CefInitializer: CefLibraryPath = {cefLibraryPath}");
@@ -64,11 +84,11 @@ public static class CefInitializer
             };
 
             var libcefHandle = NativeLibrary.Load(cefLibraryPath);
-            GD.Print($"CefInitializer: libcef.dll loaded, handle = {libcefHandle}");
+            GD.Print($"CefInitializer: {CefLibraryName} loaded, handle = {libcefHandle}");
 
             CefRuntime.Load();
             GD.Print("CefInitializer: CefRuntime.Load() completed");
-            GD.Print($"CefInitializer: Platform = {CefRuntime.Platform}");
+            GD.Print($"CefInitializer: CEF Platform = {CefRuntime.Platform}");
 
             var subProcessPath = FindBrowserSubprocessPath();
             if (subProcessPath == null)
@@ -102,33 +122,75 @@ public static class CefInitializer
 
     private static void PreloadCefDependencies(string directory)
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            return;
-
-        var dllFiles = new[]
+        if (IsWindows)
         {
-            "libcef.dll",
-            "chrome_elf.dll",
-            "d3dcompiler_47.dll",
-            "libEGL.dll",
-            "libGLESv2.dll",
-            "vk_swiftshader.dll",
-            "vulkan-1.dll"
-        };
+            var dllFiles = new[]
+            {
+                "libcef.dll",
+                "chrome_elf.dll",
+                "d3dcompiler_47.dll",
+                "libEGL.dll",
+                "libGLESv2.dll",
+                "vk_swiftshader.dll",
+                "vulkan-1.dll"
+            };
 
-        foreach (var dll in dllFiles)
+            foreach (var dll in dllFiles)
+            {
+                var dllPath = Path.Combine(directory, dll);
+                if (File.Exists(dllPath))
+                {
+                    try
+                    {
+                        var handle = NativeLibrary.Load(dllPath);
+                        GD.Print($"CefInitializer: Preloaded {dll}");
+                    }
+                    catch (Exception ex)
+                    {
+                        GD.Print($"CefInitializer: Failed to preload {dll}: {ex.Message}");
+                    }
+                }
+            }
+        }
+        else if (IsLinux)
         {
-            var dllPath = Path.Combine(directory, dll);
-            if (File.Exists(dllPath))
+            var soFiles = new[]
+            {
+                "libcef.so",
+                "libvulkan.so.1",
+                "libvk_swiftshader.so"
+            };
+
+            foreach (var so in soFiles)
+            {
+                var soPath = Path.Combine(directory, so);
+                if (File.Exists(soPath))
+                {
+                    try
+                    {
+                        var handle = NativeLibrary.Load(soPath);
+                        GD.Print($"CefInitializer: Preloaded {so}");
+                    }
+                    catch (Exception ex)
+                    {
+                        GD.Print($"CefInitializer: Failed to preload {so}: {ex.Message}");
+                    }
+                }
+            }
+        }
+        else if (IsMacOS)
+        {
+            var frameworkPath = Path.Combine(directory, "Chromium Embedded Framework.framework", "Chromium Embedded Framework");
+            if (File.Exists(frameworkPath))
             {
                 try
                 {
-                    var handle = NativeLibrary.Load(dllPath);
-                    GD.Print($"CefInitializer: Preloaded {dll}");
+                    var handle = NativeLibrary.Load(frameworkPath);
+                    GD.Print($"CefInitializer: Preloaded Chromium Embedded Framework");
                 }
                 catch (Exception ex)
                 {
-                    GD.Print($"CefInitializer: Failed to preload {dll}: {ex.Message}");
+                    GD.Print($"CefInitializer: Failed to preload framework: {ex.Message}");
                 }
             }
         }
@@ -143,7 +205,9 @@ public static class CefInitializer
             if (Directory.Exists(libPath))
             {
                 var dllPath = Path.Combine(libPath, "GDCefGlueExtension.dll");
-                if (File.Exists(dllPath))
+                var soPath = Path.Combine(libPath, "GDCefGlueExtension.so");
+                var dylibPath = Path.Combine(libPath, "GDCefGlueExtension.dylib");
+                if (File.Exists(dllPath) || File.Exists(soPath) || File.Exists(dylibPath))
                 {
                     GD.Print($"CefInitializer: Found extension at: {libPath}");
                     return libPath;
@@ -167,15 +231,21 @@ public static class CefInitializer
     {
         var searchPaths = new List<string>
         {
-            Path.Combine(_extensionDirectory, "libcef.dll"),
-            Path.Combine(_extensionDirectory, "runtimes", "win-x64", "native", "libcef.dll"),
-            Path.Combine(AppContext.BaseDirectory, "libcef.dll"),
-            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native", "libcef.dll")
+            Path.Combine(_extensionDirectory, CefLibraryName),
+            Path.Combine(_extensionDirectory, "runtimes", RuntimeIdentifier, "native", CefLibraryName),
+            Path.Combine(AppContext.BaseDirectory, CefLibraryName),
+            Path.Combine(AppContext.BaseDirectory, "runtimes", RuntimeIdentifier, "native", CefLibraryName)
         };
+
+        if (IsMacOS)
+        {
+            searchPaths.Insert(0, Path.Combine(_extensionDirectory, "Chromium Embedded Framework.framework", "Chromium Embedded Framework"));
+            searchPaths.Insert(1, Path.Combine(_extensionDirectory, "Frameworks", "Chromium Embedded Framework.framework", "Chromium Embedded Framework"));
+        }
 
         foreach (var path in searchPaths)
         {
-            GD.Print($"CefInitializer: Checking libcef.dll path: {path}");
+            GD.Print($"CefInitializer: Checking {CefLibraryName} path: {path}");
             if (File.Exists(path))
             {
                 return path;
@@ -189,10 +259,10 @@ public static class CefInitializer
     {
         var searchPaths = new List<string>
         {
-            Path.Combine(_extensionDirectory, "CefGlueBrowserProcess", "Xilium.CefGlue.BrowserProcess.exe"),
-            Path.Combine(_extensionDirectory, "Xilium.CefGlue.BrowserProcess.exe"),
-            Path.Combine(AppContext.BaseDirectory, "CefGlueBrowserProcess", "Xilium.CefGlue.BrowserProcess.exe"),
-            Path.Combine(AppContext.BaseDirectory, "Xilium.CefGlue.BrowserProcess.exe")
+            Path.Combine(_extensionDirectory, "CefGlueBrowserProcess", BrowserSubprocessName),
+            Path.Combine(_extensionDirectory, BrowserSubprocessName),
+            Path.Combine(AppContext.BaseDirectory, "CefGlueBrowserProcess", BrowserSubprocessName),
+            Path.Combine(AppContext.BaseDirectory, BrowserSubprocessName)
         };
 
         foreach (var path in searchPaths)
@@ -212,9 +282,9 @@ public static class CefInitializer
         var searchPaths = new List<string>
         {
             _extensionDirectory,
-            Path.Combine(_extensionDirectory, "runtimes", "win-x64", "native"),
+            Path.Combine(_extensionDirectory, "runtimes", RuntimeIdentifier, "native"),
             AppContext.BaseDirectory,
-            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native")
+            Path.Combine(AppContext.BaseDirectory, "runtimes", RuntimeIdentifier, "native")
         };
 
         foreach (var path in searchPaths)
