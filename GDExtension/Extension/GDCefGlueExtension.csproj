@@ -11,6 +11,16 @@
     <ExcludeFromProductBuild>true</ExcludeFromProductBuild>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <CefGlueCommonVersion>134.6998.178</CefGlueCommonVersion>
+    <CefRuntimeVersion>145.0.26</CefRuntimeVersion>
+    
+    <CefGlueTargetPlatform Condition=" '$(CefGlueTargetPlatform)' == '' And '$(OS)' == 'Windows_NT' ">win-x64</CefGlueTargetPlatform>
+    <CefGlueTargetPlatform Condition=" '$(CefGlueTargetPlatform)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true' ">linux-x64</CefGlueTargetPlatform>
+    <CefGlueTargetPlatform Condition=" '$(CefGlueTargetPlatform)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true' ">osx-x64</CefGlueTargetPlatform>
+    <CefGlueTargetPlatform Condition=" '$(CefGlueTargetPlatform)' == '' ">win-x64</CefGlueTargetPlatform>
+  </PropertyGroup>
+
   <ItemGroup>
     <Reference Include="Godot.Bindings">
       <HintPath>Dll\Godot.Bindings.dll</HintPath>
@@ -18,21 +28,26 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CefGlue.Common" Version="134.6998.178" />
-    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="145.0.26" />
+    <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'win-x64' " />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-arm64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'win-arm64' " />
   </ItemGroup>
 
   <Target Name="CopyCefFilesToOutput" AfterTargets="Build">
     <PropertyGroup>
       <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\134.3.9\runtimes\win-x64\native\</CefPackagePath>
-      <CefLocalesPath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\134.3.9\CEF\win-x64\locales\</CefLocalesPath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\134.6998.178\bin\win-x64\</BrowserProcessPath>
-      <CefOutputPath>$(TargetDir)runtimes\win-x64\native\</CefOutputPath>
-      <CefLocalesOutputPath>$(TargetDir)runtimes\win-x64\native\locales\</CefLocalesOutputPath>
+      <CefPackagePath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.$(CefGlueTargetPlatform)\$(CefRuntimeVersion)\runtimes\$(CefGlueTargetPlatform)\native\</CefPackagePath>
+      <CefLocalesPath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.$(CefGlueTargetPlatform)\$(CefRuntimeVersion)\CEF\$(CefGlueTargetPlatform)\locales\</CefLocalesPath>
+      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\$(CefGlueTargetPlatform)\</BrowserProcessPath>
+      <CefOutputPath>$(TargetDir)runtimes\$(CefGlueTargetPlatform)\native\</CefOutputPath>
+      <CefLocalesOutputPath>$(TargetDir)runtimes\$(CefGlueTargetPlatform)\native\locales\</CefLocalesOutputPath>
       <BrowserProcessSubDir>$(TargetDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
       <RootLocalesPath>$(TargetDir)locales\</RootLocalesPath>
     </PropertyGroup>
+    
+    <Message Text="=== CEF Build Configuration ===" Importance="high" />
+    <Message Text="CefGlueTargetPlatform: $(CefGlueTargetPlatform)" Importance="high" />
+    <Message Text="CefPackagePath: $(CefPackagePath)" Importance="high" />
     
     <MakeDir Directories="$(CefOutputPath)" />
     <MakeDir Directories="$(CefLocalesOutputPath)" />
@@ -43,35 +58,41 @@
       <CefNativeFiles Include="$(CefPackagePath)*.*" />
     </ItemGroup>
     
-    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(CefOutputPath)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(CefOutputPath)" SkipUnchangedFiles="true" Condition="Exists('$(CefPackagePath)')" />
+    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(CefPackagePath)')" />
     
     <ItemGroup>
       <CefLocaleFiles Include="$(CefLocalesPath)*.pak" />
     </ItemGroup>
     
-    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(CefLocalesOutputPath)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(RootLocalesPath)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(CefLocalesOutputPath)" SkipUnchangedFiles="true" Condition="Exists('$(CefLocalesPath)')" />
+    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(RootLocalesPath)" SkipUnchangedFiles="true" Condition="Exists('$(CefLocalesPath)')" />
     
     <ItemGroup>
       <BrowserProcessFiles Include="$(BrowserProcessPath)**\*.*" />
     </ItemGroup>
     
-    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(BrowserProcessSubDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(BrowserProcessSubDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
+    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
+    
+    <Message Text="=== CEF Copy Complete ===" Importance="high" />
   </Target>
 
   <Target Name="CopyCefFilesForPublish" AfterTargets="Publish">
     <PropertyGroup>
       <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\134.3.9\runtimes\win-x64\native\</CefPackagePath>
-      <CefLocalesPath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\134.3.9\CEF\win-x64\locales\</CefLocalesPath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\134.6998.178\bin\win-x64\</BrowserProcessPath>
-      <CefOutputPath>$(PublishDir)runtimes\win-x64\native\</CefOutputPath>
-      <CefLocalesOutputPath>$(PublishDir)runtimes\win-x64\native\locales\</CefLocalesOutputPath>
+      <CefPackagePath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.$(CefGlueTargetPlatform)\$(CefRuntimeVersion)\runtimes\$(CefGlueTargetPlatform)\native\</CefPackagePath>
+      <CefLocalesPath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.$(CefGlueTargetPlatform)\$(CefRuntimeVersion)\CEF\$(CefGlueTargetPlatform)\locales\</CefLocalesPath>
+      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\$(CefGlueTargetPlatform)\</BrowserProcessPath>
+      <CefOutputPath>$(PublishDir)runtimes\$(CefGlueTargetPlatform)\native\</CefOutputPath>
+      <CefLocalesOutputPath>$(PublishDir)runtimes\$(CefGlueTargetPlatform)\native\locales\</CefLocalesOutputPath>
       <BrowserProcessSubDir>$(PublishDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
       <RootLocalesPath>$(PublishDir)locales\</RootLocalesPath>
     </PropertyGroup>
+    
+    <Message Text="=== CEF Publish Configuration ===" Importance="high" />
+    <Message Text="CefGlueTargetPlatform: $(CefGlueTargetPlatform)" Importance="high" />
+    <Message Text="PublishDir: $(PublishDir)" Importance="high" />
     
     <MakeDir Directories="$(CefOutputPath)" />
     <MakeDir Directories="$(CefLocalesOutputPath)" />
@@ -82,22 +103,24 @@
       <CefNativeFiles Include="$(CefPackagePath)*.*" />
     </ItemGroup>
     
-    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(CefOutputPath)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(CefOutputPath)" SkipUnchangedFiles="true" Condition="Exists('$(CefPackagePath)')" />
+    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="Exists('$(CefPackagePath)')" />
     
     <ItemGroup>
       <CefLocaleFiles Include="$(CefLocalesPath)*.pak" />
     </ItemGroup>
     
-    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(CefLocalesOutputPath)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(RootLocalesPath)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(CefLocalesOutputPath)" SkipUnchangedFiles="true" Condition="Exists('$(CefLocalesPath)')" />
+    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(RootLocalesPath)" SkipUnchangedFiles="true" Condition="Exists('$(CefLocalesPath)')" />
     
     <ItemGroup>
       <BrowserProcessFiles Include="$(BrowserProcessPath)**\*.*" />
     </ItemGroup>
     
-    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(BrowserProcessSubDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(BrowserProcessSubDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
+    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
+    
+    <Message Text="=== CEF Publish Complete ===" Importance="high" />
   </Target>
 
 </Project>
