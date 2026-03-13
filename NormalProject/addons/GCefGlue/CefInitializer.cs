@@ -98,17 +98,32 @@ namespace GDCefGlue
         private static string FindBrowserSubprocessPath()
         {
             var basePath = AppContext.BaseDirectory;
+            
+            // Determine the browser process filename based on platform
+            string browserProcessFileName;
+            switch (CefRuntime.Platform)
+            {
+                case CefRuntimePlatform.Windows:
+                    browserProcessFileName = "Xilium.CefGlue.BrowserProcess.exe";
+                    break;
+                case CefRuntimePlatform.Linux:
+                case CefRuntimePlatform.MacOS:
+                default:
+                    browserProcessFileName = "Xilium.CefGlue.BrowserProcess";
+                    break;
+            }
+            
             var searchPaths = new List<string>
             {
-                Path.Combine(basePath, "CefGlueBrowserProcess", "Xilium.CefGlue.BrowserProcess.exe"),
-                Path.Combine(basePath, "Xilium.CefGlue.BrowserProcess.exe")
+                Path.Combine(basePath, "CefGlueBrowserProcess", browserProcessFileName),
+                Path.Combine(basePath, browserProcessFileName)
             };
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if (!string.IsNullOrEmpty(assemblyDir) && assemblyDir != basePath)
             {
-                searchPaths.Add(Path.Combine(assemblyDir, "CefGlueBrowserProcess", "Xilium.CefGlue.BrowserProcess.exe"));
-                searchPaths.Add(Path.Combine(assemblyDir, "Xilium.CefGlue.BrowserProcess.exe"));
+                searchPaths.Add(Path.Combine(assemblyDir, "CefGlueBrowserProcess", browserProcessFileName));
+                searchPaths.Add(Path.Combine(assemblyDir, browserProcessFileName));
             }
 
             foreach (var path in searchPaths)
@@ -137,6 +152,19 @@ namespace GDCefGlue
                 Path.Combine(basePath, "runtimes", "win-x64", "native"),
                 Path.Combine(basePath, "..", "runtimes", "win-x64", "native")
             };
+
+            switch (CefRuntime.Platform)
+            {
+                case CefRuntimePlatform.Linux:
+                    searchPaths.Add(Path.Combine(basePath, "runtimes", "linux-x64", "native"));
+                    searchPaths.Add(Path.Combine(basePath, "..", "runtimes", "linux-x64", "native"));
+                    break;
+                case CefRuntimePlatform.MacOS:
+                    searchPaths.Add(Path.Combine(basePath, "runtimes", "osx-x64", "native"));
+                    searchPaths.Add(Path.Combine(basePath, "..", "runtimes", "osx-x64", "native"));
+                    searchPaths.Add(Path.Combine(basePath, "Resources"));
+                    break;
+            }
 
             foreach (var path in searchPaths)
             {
