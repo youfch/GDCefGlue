@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using Godot;
 using Xilium.CefGlue;
 
@@ -18,25 +17,6 @@ namespace GDCefGlue
         private static bool _initialized;
         private static GodotBrowserProcessHandler _browserProcessHandler;
 
-        private static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        private static bool IsLinux => RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-        private static bool IsMacOS => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-
-        private static string CefLibraryName => IsWindows ? "libcef.dll" : IsLinux ? "libcef.so" : "libcef.dylib";
-        
-        private static string BrowserSubprocessName => IsWindows ? "Xilium.CefGlue.BrowserProcess.exe" : "Xilium.CefGlue.BrowserProcess";
-
-        private static string RuntimeIdentifier
-        {
-            get
-            {
-                if (IsWindows) return RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "win-arm64" : "win-x64";
-                if (IsLinux) return RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "linux-arm64" : "linux-x64";
-                if (IsMacOS) return RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64" : "osx-x64";
-                return "unknown";
-            }
-        }
-
         /// <summary>
         /// Initializes the CEF runtime with default settings.
         /// This method is idempotent - subsequent calls will be ignored.
@@ -49,7 +29,6 @@ namespace GDCefGlue
             try
             {
                 GD.Print("CefInitializer: Starting CEF initialization...");
-                GD.Print($"CefInitializer: Platform = {RuntimeIdentifier}");
 
                 var basePath = AppContext.BaseDirectory;
                 var cachePath = Path.Combine(OS.GetUserDataDir(), "cef_cache");
@@ -80,7 +59,7 @@ namespace GDCefGlue
 
                 CefRuntime.Load();
                 GD.Print("CefInitializer: CefRuntime.Load() completed");
-                GD.Print($"CefInitializer: CEF Platform = {CefRuntime.Platform}");
+                GD.Print($"CefInitializer: Platform = {CefRuntime.Platform}");
 
                 var subProcessPath = FindBrowserSubprocessPath();
                 if (subProcessPath == null)
@@ -119,17 +98,32 @@ namespace GDCefGlue
         private static string FindBrowserSubprocessPath()
         {
             var basePath = AppContext.BaseDirectory;
+            
+            // Determine the browser process filename based on platform
+            string browserProcessFileName;
+            switch (CefRuntime.Platform)
+            {
+                case CefRuntimePlatform.Windows:
+                    browserProcessFileName = "Xilium.CefGlue.BrowserProcess.exe";
+                    break;
+                case CefRuntimePlatform.Linux:
+                case CefRuntimePlatform.MacOS:
+                default:
+                    browserProcessFileName = "Xilium.CefGlue.BrowserProcess";
+                    break;
+            }
+            
             var searchPaths = new List<string>
             {
-                Path.Combine(basePath, "CefGlueBrowserProcess", BrowserSubprocessName),
-                Path.Combine(basePath, BrowserSubprocessName)
+                Path.Combine(basePath, "CefGlueBrowserProcess", browserProcessFileName),
+                Path.Combine(basePath, browserProcessFileName)
             };
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if (!string.IsNullOrEmpty(assemblyDir) && assemblyDir != basePath)
             {
-                searchPaths.Add(Path.Combine(assemblyDir, "CefGlueBrowserProcess", BrowserSubprocessName));
-                searchPaths.Add(Path.Combine(assemblyDir, BrowserSubprocessName));
+                searchPaths.Add(Path.Combine(assemblyDir, "CefGlueBrowserProcess", browserProcessFileName));
+                searchPaths.Add(Path.Combine(assemblyDir, browserProcessFileName));
             }
 
             foreach (var path in searchPaths)
@@ -155,9 +149,22 @@ namespace GDCefGlue
             var searchPaths = new List<string>
             {
                 basePath,
-                Path.Combine(basePath, "runtimes", RuntimeIdentifier, "native"),
-                Path.Combine(basePath, "..", "runtimes", RuntimeIdentifier, "native")
+                Path.Combine(basePath, "runtimes", "win-x64", "native"),
+                Path.Combine(basePath, "..", "runtimes", "win-x64", "native")
             };
+
+            switch (CefRuntime.Platform)
+            {
+                case CefRuntimePlatform.Linux:
+                    searchPaths.Add(Path.Combine(basePath, "runtimes", "linux-x64", "native"));
+                    searchPaths.Add(Path.Combine(basePath, "..", "runtimes", "linux-x64", "native"));
+                    break;
+                case CefRuntimePlatform.MacOS:
+                    searchPaths.Add(Path.Combine(basePath, "runtimes", "osx-x64", "native"));
+                    searchPaths.Add(Path.Combine(basePath, "..", "runtimes", "osx-x64", "native"));
+                    searchPaths.Add(Path.Combine(basePath, "Resources"));
+                    break;
+            }
 
             foreach (var path in searchPaths)
             {
