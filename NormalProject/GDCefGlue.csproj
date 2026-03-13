@@ -20,10 +20,13 @@
     <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
     <!-- Windows CEF -->
     <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'win-x64' " />
-    <!-- Linux CEF - requires cef.redist.linux package -->
-    <!-- <PackageReference Include="chromiumembeddedframework.runtime.linux-x64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'linux-x64' " /> -->
-    <!-- macOS CEF - requires cef.redist.osx package -->
-    <!-- <PackageReference Include="chromiumembeddedframework.runtime.osx-x64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'osx-x64' " /> -->
+    <PackageReference Include="chromiumembeddedframework.runtime.win-arm64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'win-arm64' " />
+    <!-- Linux CEF -->
+    <PackageReference Include="chromiumembeddedframework.runtime.linux-x64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'linux-x64' " />
+    <PackageReference Include="chromiumembeddedframework.runtime.linux-arm64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'linux-arm64' " />
+    <!-- macOS CEF -->
+    <PackageReference Include="chromiumembeddedframework.runtime.osx-x64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'osx-x64' " />
+    <PackageReference Include="chromiumembeddedframework.runtime.osx-arm64" Version="$(CefRuntimeVersion)" Condition=" '$(CefGlueTargetPlatform)' == 'osx-arm64' " />
   </ItemGroup>
 
   <Target Name="CopyCefFilesToOutput" AfterTargets="Build">
