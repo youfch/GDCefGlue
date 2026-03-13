@@ -82,6 +82,9 @@
     <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(BrowserProcessSubDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
     <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
     
+    <!-- Set execute permissions on Linux/macOS -->
+    <Exec Command="chmod +x &quot;$(TargetDir)libcef.so&quot; &quot;$(BrowserProcessSubDir)Xilium.CefGlue.BrowserProcess&quot; &quot;$(TargetDir)Xilium.CefGlue.BrowserProcess&quot;" Condition=" '$(OS)' != 'Windows_NT' " />
+    
     <Message Text="=== CEF Copy Complete ===" Importance="high" />
   </Target>
 
@@ -126,6 +129,9 @@
     
     <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(BrowserProcessSubDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
     <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="Exists('$(BrowserProcessPath)')" />
+    
+    <!-- Set execute permissions on Linux/macOS -->
+    <Exec Command="chmod +x &quot;$(PublishDir)libcef.so&quot; &quot;$(BrowserProcessSubDir)Xilium.CefGlue.BrowserProcess&quot; &quot;$(PublishDir)Xilium.CefGlue.BrowserProcess&quot;" Condition=" '$(OS)' != 'Windows_NT' " />
     
     <Message Text="=== CEF Publish Complete ===" Importance="high" />
   </Target>
