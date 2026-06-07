@@ -1,0 +1,110 @@
+﻿name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normal-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare NormalProject variant
+        run: |
+          mkdir -p release/normal-project/addons/gdcefglue
+          cp NormalProject/addons/GCefGlue/*.cs release/normal-project/addons/gdcefglue/
+          cp NormalProject/addons/GCefGlue/*.uid release/normal-project/addons/gdcefglue/
+          cp LICENSE release/normal-project/addons/gdcefglue/
+          cp README_EN.md release/normal-project/addons/gdcefglue/README.md
+
+      - name: Create zip
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd release/normal-project && zip -r "../../gdcefglue-normal-project-v${VERSION}.zip" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdcefglue-normal-project
+          path: gdcefglue-normal-project-*.zip
+
+  gdextension:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Add local NuGet source
+        run: dotnet nuget add source "${{ github.workspace }}\Nuget" --name local-nuget
+
+      - name: Build GDExtension (win-x64)
+        run: |
+          dotnet restore GDExtension\Extension\GDCefGlueExtension.csproj
+          dotnet publish GDExtension\Extension\GDCefGlueExtension.csproj -c Release -r win-x64 --self-contained true -p:PublishDir="${{ github.workspace }}\release\gdextension\addons\gdcefglue\"
+
+      - name: Cleanup unnecessary files
+        run: |
+          $pub = "${{ github.workspace }}\release\gdextension\addons\gdcefglue"
+          Write-Host "Before cleanup: $((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum / 1MB) MB"
+          Get-ChildItem $pub -Recurse -Filter "*.pdb" | Remove-Item -Force
+          Get-ChildItem $pub -Recurse -Filter "System.*.dll" | Remove-Item -Force
+          Get-ChildItem $pub -Recurse -Filter "Microsoft.*.dll" | Remove-Item -Force
+          Get-ChildItem $pub -Recurse -Filter "Microsoft.*.xml" | Remove-Item -Force
+          Get-ChildItem $pub -Recurse -Filter "System.*.xml" | Remove-Item -Force
+          Write-Host "After cleanup: $((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum / 1MB) MB"
+
+      - name: Prepare GDExtension variant
+        shell: bash
+        run: |
+          cat > release/gdextension/addons/gdcefglue/gdcefglue.gdextension << 'EOF'
+          [configuration]
+          entry_symbol = "gdcefglue_library_init"
+          compatibility_minimum = 4.1
+
+          [libraries]
+          windows.x86_64.debug = "res://addons/gdcefglue/GDCefGlueExtension.dll"
+          windows.x86_64.release = "res://addons/gdcefglue/GDCefGlueExtension.dll"
+          EOF
+          cp LICENSE release/gdextension/addons/gdcefglue/
+
+      - name: Create zip
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          Compress-Archive -Path release\gdextension\* -DestinationPath "gdcefglue-gdextension-v$version.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdcefglue-gdextension
+          path: gdcefglue-gdextension-*.zip
+
+  release:
+    needs: [normal-project, gdextension]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: GDCefGlue ${{ github.ref_name }}
+          files: |
+            gdcefglue-normal-project-*.zip
+            gdcefglue-gdextension-*.zip
+          generate_release_notes: true

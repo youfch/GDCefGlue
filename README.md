@@ -12,6 +12,14 @@ A CEF (Chromium Embedded Framework) browser control for Godot 4.x using CefGlue.
 - Complete keyboard and mouse support
 - Easy integration with Godot 4.x
 
+## Performance Demo
+
+### WebGL Aquarium
+
+Supports WebGL rendering with 20,000 fish at stable 120fps:
+
+![WebGL Aquarium](img/WebGL水族馆.png)
+
 ## Requirements
 
 - **Godot Engine**: 4.6.0 or later (with .NET/Mono support)
@@ -268,6 +276,9 @@ When using source code dependencies, you need to manually copy files after expor
 
 ## License
 
+GDCefGlue is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+Third-party dependencies:
 - [CefGlue](https://github.com/youfch/CefGlue) - BSD-3-Clause
 - [CEF](https://bitbucket.org/chromiumembedded/cef) - BSD-3-Clause
 - [Godot Engine](https://godotengine.org) - MIT

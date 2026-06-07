@@ -317,6 +317,9 @@ When using source code dependencies, you need to manually copy files after expor
 
 ## License
 
+GDCefGlue is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+Third-party dependencies:
 - [CefGlue](https://github.com/youfch/CefGlue) - BSD-3-Clause
 - [CEF](https://bitbucket.org/chromiumembedded/cef) - BSD-3-Clause
 - [Godot Engine](https://godotengine.org) - MIT
