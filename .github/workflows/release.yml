@@ -107,3 +107,4 @@ jobs:
             GDCefGlue_Normal.zip
             GDCefGlue_GDE_win64.zip
           generate_release_notes: true
+          prerelease: true
