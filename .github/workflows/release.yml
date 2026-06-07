@@ -25,14 +25,13 @@ jobs:
 
       - name: Create zip
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          cd release/normal-project && zip -r "../../GDCefGlue_Normal_v${VERSION}.zip" .
+          cd release/normal-project && zip -r ../../GDCefGlue_Normal.zip .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: gdcefglue-normal
-          path: GDCefGlue_Normal_*.zip
+          path: GDCefGlue_Normal.zip
 
   gdextension:
     runs-on: windows-latest
@@ -81,14 +80,13 @@ jobs:
 
       - name: Create zip
         run: |
-          $version = $env:GITHUB_REF_NAME -replace '^v', ''
-          Compress-Archive -Path release\gdextension\* -DestinationPath "GDCefGlue_GDE_win64_v$version.zip"
+          Compress-Archive -Path release\gdextension\* -DestinationPath GDCefGlue_GDE_win64.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: gdcefglue-gde
-          path: GDCefGlue_GDE_win64_*.zip
+          path: GDCefGlue_GDE_win64.zip
 
   release:
     needs: [normal-project, gdextension]
@@ -105,6 +103,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: GDCefGlue ${{ github.ref_name }}
           files: |
-            GDCefGlue_Normal_*.zip
-            GDCefGlue_GDE_win64_*.zip
+            GDCefGlue_Normal.zip
+            GDCefGlue_GDE_win64.zip
           generate_release_notes: true
