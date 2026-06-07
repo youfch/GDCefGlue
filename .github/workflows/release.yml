@@ -53,6 +53,17 @@ jobs:
           dotnet restore GDExtension\Extension\GDCefGlueExtension.csproj
           dotnet publish GDExtension\Extension\GDCefGlueExtension.csproj -c Release -r win-x64 --self-contained true -p:PublishDir="${{ github.workspace }}\release\gdextension\addons\gdcefglue\"
 
+      - name: Cleanup unnecessary files
+        run: |
+          $pub = "${{ github.workspace }}\release\gdextension\addons\gdcefglue"
+          Write-Host "Before: $([math]::Round((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum/1MB,1)) MB"
+          Get-ChildItem $pub -Filter "*.pdb" | Remove-Item -Force
+          Get-ChildItem $pub -Filter "System.*.dll" | Remove-Item -Force
+          Get-ChildItem $pub -Filter "Microsoft.*.dll" | Remove-Item -Force
+          Get-ChildItem $pub -Filter "Microsoft.*.xml" | Remove-Item -Force
+          Get-ChildItem $pub -Filter "System.*.xml" | Remove-Item -Force
+          Write-Host "After: $([math]::Round((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum/1MB,1)) MB"
+
       - name: Prepare GDExtension variant
         shell: bash
         run: |
