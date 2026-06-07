@@ -5,7 +5,6 @@
     <PublishAot>true</PublishAot>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <IlcGenerateCompleteTypeMetadata>true</IlcGenerateCompleteTypeMetadata>
     
     <!-- CEF Versions: Windows uses 145, Linux/macOS use 134 -->
     <CefGlueCommonVersion>134.6998.178</CefGlueCommonVersion>
