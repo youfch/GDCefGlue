@@ -148,6 +148,14 @@ public static class CefInitializer
         var projectPath = Godot.ProjectSettings.Singleton.GlobalizePath("res://");
         if (!string.IsNullOrEmpty(projectPath) && Directory.Exists(projectPath))
         {
+            // Check addons/gdcefglue (GDExtension release package)
+            var gdeAddonsPath = Path.Combine(projectPath, "addons", "gdcefglue");
+            if (Directory.Exists(gdeAddonsPath))
+            {
+                GD.Print($"CefInitializer: Found extension at: {gdeAddonsPath}");
+                return gdeAddonsPath;
+            }
+
             var libPath = Path.Combine(projectPath, "lib");
             if (Directory.Exists(libPath))
             {
