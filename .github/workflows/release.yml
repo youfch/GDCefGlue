@@ -56,13 +56,9 @@ jobs:
       - name: Cleanup unnecessary files
         run: |
           $pub = "${{ github.workspace }}\release\gdextension\addons\gdcefglue"
-          Write-Host "Before cleanup: $((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum / 1MB) MB"
+          Write-Host "Size before cleanup: $([math]::Round((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)) MB"
           Get-ChildItem $pub -Recurse -Filter "*.pdb" | Remove-Item -Force
-          Get-ChildItem $pub -Recurse -Filter "System.*.dll" | Remove-Item -Force
-          Get-ChildItem $pub -Recurse -Filter "Microsoft.*.dll" | Remove-Item -Force
-          Get-ChildItem $pub -Recurse -Filter "Microsoft.*.xml" | Remove-Item -Force
-          Get-ChildItem $pub -Recurse -Filter "System.*.xml" | Remove-Item -Force
-          Write-Host "After cleanup: $((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum / 1MB) MB"
+          Write-Host "Size after cleanup: $([math]::Round((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)) MB"
 
       - name: Prepare GDExtension variant
         shell: bash
