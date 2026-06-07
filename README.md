@@ -20,6 +20,16 @@ Supports WebGL rendering with 20,000 fish at stable 120fps:
 
 ![WebGL Aquarium](img/WebGL水族馆.png)
 
+## Quick Start
+
+Add a `CefGlueControl` node to your scene as a browser control:
+
+```csharp
+var browser = new CefGlueControl();
+browser.InitialUrl = "https://godotengine.org";
+AddChild(browser);
+```
+
 ## Requirements
 
 - **Godot Engine**: 4.6.0 or later (with .NET/Mono support)
@@ -112,7 +122,7 @@ Located in `GDExtension/` directory. For Godot 4.6+.
    ```
 
 3. **Deploy:**
-   Copy all files from `Debug/net9.0/win-x64/publish/` to `GDExtension/Project/lib/`.
+   Copy all files from `Debug/net10.0/win-x64/publish/` to `GDExtension/Project/lib/`.
 
 4. **Run:**
    Open the project with Godot 4.6 and run.

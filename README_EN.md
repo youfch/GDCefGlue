@@ -141,7 +141,7 @@ Located in `GDExtension/` directory. For Godot 4.6+.
 
 4. **Deploy:**
    
-   Build output is located at `bin\Release(Debug)\net9.0\win-x64\publish\` (Windows) or corresponding platform directory.
+   Build output is located at `bin\Release(Debug)\net10.0\win-x64\publish\` (Windows)
    
    Copy all files from the publish directory to `GDExtension/Game/lib/`.
 
