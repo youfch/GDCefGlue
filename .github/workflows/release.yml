@@ -18,8 +18,8 @@ jobs:
       - name: Prepare NormalProject variant
         run: |
           mkdir -p release/normal-project/addons/gdcefglue
-          cp NormalProject/addons/GCefGlue/*.cs release/normal-project/addons/gdcefglue/
-          cp NormalProject/addons/GCefGlue/*.uid release/normal-project/addons/gdcefglue/
+          cp plugin/addons/GCefGlue/*.cs release/normal-project/addons/gdcefglue/
+          cp plugin/addons/GCefGlue/*.uid release/normal-project/addons/gdcefglue/
           cp LICENSE release/normal-project/addons/gdcefglue/
           cp README_EN.md release/normal-project/addons/gdcefglue/README.md
 
@@ -50,8 +50,8 @@ jobs:
 
       - name: Build GDExtension (win-x64)
         run: |
-          dotnet restore GDExtension\Extension\GDCefGlueExtension.csproj
-          dotnet publish GDExtension\Extension\GDCefGlueExtension.csproj -c Release -r win-x64 --self-contained true -p:PublishDir="${{ github.workspace }}\release\gdextension\addons\gdcefglue\"
+          dotnet restore extension\GDCefGlueExtension.csproj
+          dotnet publish extension\GDCefGlueExtension.csproj -c Release -r win-x64 --self-contained true -p:PublishDir="${{ github.workspace }}\release\gdextension\addons\gdcefglue\"
 
       - name: Cleanup unnecessary files
         run: |

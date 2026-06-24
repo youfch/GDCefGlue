@@ -53,21 +53,23 @@ If you need the latest version or want to customize CefGlue:
 2. Place it in your project directory:
    ```
    YourProject/
-   ├── GDCefGlue/
-   │   ├── GDExtension/
-   │   │   ├── Extension/     # C# GDExtension source code
-   │   │   └── Project/       # Godot test project
-   │   ├── NormalProject/     # Normal C# project example
+   ├── GDCefGlue/                    ← This repository
+   │   ├── plugin/                   ← Godot .NET project (addon source + demo)
+   │   │   └── addons/GCefGlue/     ←    CefGlueControl C# scripts
+   │   ├── extension/                ← GDExtension C# project (AOT native lib)
+   │   │   └── Dll/                  ←    godot-dotnet bindings
+   │   ├── test/GDExtensionGame/     ← Godot project for testing GDExtension
+   │   ├── Nuget/                    ← Local NuGet packages (LFS)
    │   ├── img/
    │   └── README*.md
-   └── CefGlue/               # Cloned repository
+   └── CefGlue/                      ← Cloned CefGlue repository
    ```
 
 ## Project Types
 
 ### GDExtension Project
 
-Located in `GDExtension/` directory. For Godot 4.6+.
+Located in `extension/` directory. For Godot 4.6+.
 
 **Features:**
 - Uses Godot's GDExtension system
@@ -77,9 +79,9 @@ Located in `GDExtension/` directory. For Godot 4.6+.
 - Entry point: `gdcefglue_library_init`
 
 **Structure:**
-- `GDExtension/Extension/` - C# source code for GDExtension
-- `GDExtension/Extension/Dll/` - Godot .NET bindings (from [godot-dotnet](https://github.com/raulsntos/godot-dotnet))
-- `GDExtension/Project/` - Godot project for testing
+- `extension/` - C# source code for GDExtension
+- `extension/Dll/` - Godot .NET bindings (from [godot-dotnet](https://github.com/raulsntos/godot-dotnet))
+- `test/GDExtensionGame/` - Godot project for testing
 
 **Build Instructions:**
 
@@ -102,7 +104,7 @@ Located in `GDExtension/` directory. For Godot 4.6+.
    # git checkout <godot-version-tag>
    dotnet build -p:GenerateGodotBindings=true
    ```
-   Copy the generated `Godot.Bindings.dll` and related files to `GDExtension/Extension/Dll/`.
+   Copy the generated `Godot.Bindings.dll` and related files to `extension/Dll/`.
 
 2. **CEF Dependencies (Cross-Platform):**
    
@@ -114,7 +116,7 @@ Located in `GDExtension/` directory. For Godot 4.6+.
 
 3. **Build GDExtension:**
    
-   Navigate to `GDExtension/Extension` directory and run:
+   Navigate to `extension` directory and run:
    
    **Windows x64:**
    ```bash
@@ -143,10 +145,10 @@ Located in `GDExtension/` directory. For Godot 4.6+.
    
    Build output is located at `bin\Release(Debug)\net10.0\win-x64\publish\` (Windows)
    
-   Copy all files from the publish directory to `GDExtension/Game/lib/`.
+    Copy all files from the publish directory to `test/GDExtensionGame/lib/`.
 
 5. **Run:**
-   Open `GDExtension/Game/` project with Godot 4.6 and run.
+    Open `test/GDExtensionGame/` project with Godot 4.6 and run.
 
 **Different CEF Version Support:**
 
@@ -162,7 +164,7 @@ To use different CEF versions, there are two options:
 
 ### Normal C# Project
 
-Located in `NormalProject/` directory. Traditional Godot C# project approach.
+Located in `plugin/` directory. Traditional Godot C# project approach.
 
 **Features:**
 - Standard Godot .NET SDK project

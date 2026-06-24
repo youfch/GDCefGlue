@@ -1,0 +1,129 @@
+[gd_scene format=3 uid="uid://6jrj6bl3rch"]
+
+[ext_resource type="Script" uid="uid://gwffkhkqsmis" path="res://Main.gd" id="1_main"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_glv2v"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_uu6xs"]
+sky_material = SubResource("ProceduralSkyMaterial_glv2v")
+
+[sub_resource type="Environment" id="Environment_r0du0"]
+background_mode = 2
+sky = SubResource("Sky_uu6xs")
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="Main" type="Control"]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+metadata/_edit_use_anchors_ = true
+
+[node name="CefGlueControl" type="CefGlueControl" parent="."]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 40.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="Toolbar" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 40.0
+grow_horizontal = 2
+
+[node name="BackButton" type="Button" parent="Toolbar"]
+layout_mode = 1
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 40.0
+offset_bottom = 36.0
+text = "◀"
+
+[node name="ForwardButton" type="Button" parent="Toolbar"]
+layout_mode = 1
+offset_left = 44.0
+offset_top = 4.0
+offset_right = 80.0
+offset_bottom = 36.0
+text = "▶"
+
+[node name="ReloadButton" type="Button" parent="Toolbar"]
+layout_mode = 1
+offset_left = 84.0
+offset_top = 4.0
+offset_right = 120.0
+offset_bottom = 36.0
+text = "↻"
+
+[node name="UrlInput" type="LineEdit" parent="Toolbar"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.120659724
+anchor_top = 0.1
+anchor_right = 0.9210069
+anchor_bottom = 0.9
+grow_vertical = 2
+placeholder_text = "Enter URL..."
+metadata/_edit_use_anchors_ = true
+
+[node name="GoButton" type="Button" parent="Toolbar"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -54.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = 36.0
+grow_horizontal = 0
+text = "Go"
+
+[node name="StatusBar" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="StatusLabel" type="Label" parent="StatusBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Initializing..."
+vertical_alignment = 1
+
+[node name="Node3D" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Node3D"]
+environment = SubResource("Environment_r0du0")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Node3D"]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true

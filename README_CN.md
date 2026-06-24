@@ -20,6 +20,33 @@
 
 !\[WebGL水族馆]\(img/WebGL水族馆.png null)
 
+## 快速开始
+
+### C#（插件模式）
+
+在场景中添加 `CefGlueControl` 节点：
+
+```csharp
+var browser = new CefGlueControl();
+browser.InitialUrl = "https://godotengine.org";
+AddChild(browser);
+```
+
+### GDScript（GDExtension 模式）
+
+```gdscript
+var browser: CefGlueControl = $CefGlueControl
+browser.InitialUrl = "https://godotengine.org"
+browser.FrameRate = 120
+
+# 连接信号
+browser.BrowserInitialized.connect(_on_ready)
+browser.AddressChanged.connect(_on_address_changed)
+browser.LoadStart.connect(_on_loading)
+browser.LoadEnd.connect(_on_done)
+browser.LoadError.connect(_on_error)
+```
+
 ## 环境要求
 
 - **Godot Engine**: 4.6.0 或更高版本（需要 .NET/Mono 支持）
@@ -69,22 +96,22 @@ git clone https://github.com/OutSystems/CefGlue.git
 将克隆的仓库放置到项目目录：
 
 ```
-你的项目/
-├── GDCefGlue/
-│   ├── GDExtension/
-│   │   ├── Extension/     # C# GDExtension 源代码
-│   │   └── Project/       # Godot 测试项目
-│   ├── NormalProject/     # 普通 C# 项目示例
-│   ├── img/
-│   └── README*.md
-└── CefGlue/               # 克隆的仓库
+GDCefGlue/                        ← 本仓库
+├── plugin/                       ← Godot .NET 项目（插件源码 + 演示）
+│   └── addons/GCefGlue/         ←    CefGlueControl C# 脚本
+├── extension/                    ← GDExtension C# 项目（AOT 原生库）
+│   └── Dll/                      ←    godot-dotnet 绑定文件
+├── test/GDExtensionGame/         ← GDExtension 测试用的 Godot 项目
+├── Nuget/                        ← 本地 NuGet 包（LFS）
+├── img/
+└── README*.md
 ```
 
 ## 项目类型
 
 ### GDExtension 项目
 
-位于 `GDExtension/` 目录。适用于 Godot 4.6+。
+位于 `extension/` 目录。适用于 Godot 4.6+。
 
 **特点：**
 
@@ -96,9 +123,9 @@ git clone https://github.com/OutSystems/CefGlue.git
 
 **结构：**
 
-- `GDExtension/Extension/` - GDExtension 的 C# 源代码
-- `GDExtension/Extension/Dll/` - Godot .NET 绑定（来自 [godot-dotnet](https://github.com/raulsntos/godot-dotnet)）
-- `GDExtension/Project/` - 用于测试的 Godot 项目
+- `extension/` - GDExtension 的 C# 源代码
+- `extension/Dll/` - Godot .NET 绑定（来自 [godot-dotnet](https://github.com/raulsntos/godot-dotnet)）
+- `test/GDExtensionGame/` - 用于测试的 Godot 项目
 
 **构建说明：**
 
@@ -118,7 +145,7 @@ git clone https://github.com/OutSystems/CefGlue.git
    # git checkout <godot-version-tag>
    dotnet build -p:GenerateGodotBindings=true
    ```
-   将生成的 `Godot.Bindings.dll` 及相关文件复制到 `GDExtension/Extension/Dll/`。
+   将生成的 `Godot.Bindings.dll` 及相关文件复制到 `extension/Dll/`。
 2. **CEF 依赖（跨平台）：**
    - **Windows：** 通过 NuGet 包自动获取 `chromiumembeddedframework.runtime.win-x64`
    - **Linux：** 需要添加 [cef.redist.linux](https://github.com/OutSystems/cef.redist.linux) 依赖
@@ -126,7 +153,7 @@ git clone https://github.com/OutSystems/CefGlue.git
    查看 [CefGlue 仓库](https://github.com/youfch/CefGlue) 了解如何添加跨平台依赖。
 3. **构建 GDExtension：**
 
-   进入 `GDExtension/Extension` 目录执行：
+    进入 `extension` 目录执行：
 
    **Windows x64：**
    ```bash
@@ -152,9 +179,9 @@ git clone https://github.com/OutSystems/CefGlue.git
 
    编译输出位于 `bin\Release(Debug)\net9.0\win-x64\publish\`（Windows）或对应平台目录。
 
-   将 publish 目录中的所有文件复制到 `GDExtension/Game/lib/` 目录。
+将 publish 目录中的所有文件复制到 `test/GDExtensionGame/lib/` 目录。
 5. **运行：**
-   使用 Godot 4.6 打开 `GDExtension/Game/` 项目并运行。
+    使用 Godot 4.6 打开 `test/GDExtensionGame/` 项目并运行。
 
 **不同 CEF 版本支持：**
 
@@ -169,7 +196,7 @@ git clone https://github.com/OutSystems/CefGlue.git
 
 ### 普通 C# 项目
 
-位于 `NormalProject/` 目录。传统的 Godot C# 项目方式。
+位于 `plugin/` 目录。传统的 Godot C# 项目方式。
 
 **特点：**
 
@@ -295,6 +322,17 @@ dotnet build
 | `EvaluateJavaScript<T>(string code, ...)` | 执行 JavaScript 并返回结果 |
 | `ShowDeveloperTools()`                  | 打开开发者工具             |
 | `CloseDeveloperTools()`                 | 关闭开发者工具             |
+
+## CefGlueControl 信号
+
+| 信号 | 参数 | 描述 |
+|------|------|------|
+| `BrowserInitialized` | — | 浏览器初始化完成 |
+| `AddressChanged` | `url: string` | 当前页面 URL 变化 |
+| `TitleChanged` | `title: string` | 页面标题变化 |
+| `LoadStart` | — | 页面开始加载 |
+| `LoadEnd` | — | 页面加载完成 |
+| `LoadError` | `errorText: string, failedUrl: string` | 页面加载失败 |
 
 ## GPU 配置
 

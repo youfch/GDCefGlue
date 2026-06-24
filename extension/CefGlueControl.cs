@@ -195,6 +195,7 @@ public partial class CefGlueControl : Control
     private void NotifyBrowserInitialized()
     {
         BrowserInitialized?.Invoke();
+        EmitSignal(new StringName(nameof(BrowserInitialized)));
         GD.Print("CefGlueControl: Browser initialized");
     }
 
@@ -209,6 +210,7 @@ public partial class CefGlueControl : Control
     private void NotifyAddressChanged(string url)
     {
         AddressChanged?.Invoke(this, url);
+        EmitSignal(new StringName(nameof(AddressChanged)), url);
     }
 
     internal void OnTitleChange(CefBrowser browser, string title)
@@ -220,6 +222,7 @@ public partial class CefGlueControl : Control
     private void NotifyTitleChanged(string title)
     {
         TitleChanged?.Invoke(this, title);
+        EmitSignal(new StringName(nameof(TitleChanged)), title);
     }
 
     internal void OnLoadStart(CefBrowser browser, CefFrame frame, CefTransitionType transitionType)
@@ -230,6 +233,7 @@ public partial class CefGlueControl : Control
     private void NotifyLoadStart()
     {
         LoadStart?.Invoke(this, new LoadStartEventArgs(null));
+        EmitSignal(new StringName(nameof(LoadStart)));
     }
 
     internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
@@ -240,6 +244,7 @@ public partial class CefGlueControl : Control
     private void NotifyLoadEnd()
     {
         LoadEnd?.Invoke(this, new LoadEndEventArgs(null, 0));
+        EmitSignal(new StringName(nameof(LoadEnd)));
     }
 
     internal void OnLoadError(CefBrowser browser, CefFrame frame, CefErrorCode errorCode, string errorText, string failedUrl)
@@ -250,6 +255,7 @@ public partial class CefGlueControl : Control
     private void NotifyLoadError(string errorText, string failedUrl)
     {
         LoadError?.Invoke(this, new LoadErrorEventArgs(null, CefErrorCode.None, errorText, failedUrl));
+        EmitSignal(new StringName(nameof(LoadError)), errorText, failedUrl);
     }
 
     internal void OnPaint(IntPtr buffer, int width, int height, CefRectangle[] dirtyRects)
@@ -883,5 +889,46 @@ public partial class CefGlueControl : Control
             {
                 instance.NotifyLoadError(errorText, failedUrl);
             });
+
+        // Signals
+        context.BindSignal(new SignalInfo(new StringName(nameof(BrowserInitialized))));
+        context.BindSignal(new SignalInfo(new StringName(nameof(AddressChanged))));
+        context.BindSignal(new SignalInfo(new StringName(nameof(TitleChanged))));
+        context.BindSignal(new SignalInfo(new StringName(nameof(LoadStart))));
+        context.BindSignal(new SignalInfo(new StringName(nameof(LoadEnd))));
+        context.BindSignal(new SignalInfo(new StringName(nameof(LoadError))));
+
+        // Read-only properties
+        context.BindProperty(
+            new PropertyInfo(new StringName(nameof(Address)), VariantType.String)
+            {
+                Usage = PropertyUsageFlags.ReadOnly | PropertyUsageFlags.Default
+            },
+            static (CefGlueControl instance) => instance.Address,
+            static (CefGlueControl instance, string value) => { });
+
+        context.BindProperty(
+            new PropertyInfo(new StringName(nameof(IsBrowserInitialized)), VariantType.Bool)
+            {
+                Usage = PropertyUsageFlags.ReadOnly | PropertyUsageFlags.Default
+            },
+            static (CefGlueControl instance) => instance.IsBrowserInitialized,
+            static (CefGlueControl instance, bool value) => { });
+
+        context.BindProperty(
+            new PropertyInfo(new StringName(nameof(IsLoading)), VariantType.Bool)
+            {
+                Usage = PropertyUsageFlags.ReadOnly | PropertyUsageFlags.Default
+            },
+            static (CefGlueControl instance) => instance.IsLoading,
+            static (CefGlueControl instance, bool value) => { });
+
+        context.BindProperty(
+            new PropertyInfo(new StringName(nameof(Title)), VariantType.String)
+            {
+                Usage = PropertyUsageFlags.ReadOnly | PropertyUsageFlags.Default
+            },
+            static (CefGlueControl instance) => instance.Title,
+            static (CefGlueControl instance, string value) => { });
     }
 }

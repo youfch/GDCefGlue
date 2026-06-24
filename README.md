@@ -22,12 +22,29 @@ Supports WebGL rendering with 20,000 fish at stable 120fps:
 
 ## Quick Start
 
-Add a `CefGlueControl` node to your scene as a browser control:
+### C# (Plugin)
+
+Add a `CefGlueControl` node to your scene:
 
 ```csharp
 var browser = new CefGlueControl();
 browser.InitialUrl = "https://godotengine.org";
 AddChild(browser);
+```
+
+### GDScript (GDExtension)
+
+```gdscript
+var browser: CefGlueControl = $CefGlueControl
+browser.InitialUrl = "https://godotengine.org"
+browser.FrameRate = 120
+
+# Connect to signals
+browser.BrowserInitialized.connect(_on_ready)
+browser.AddressChanged.connect(_on_address_changed)
+browser.LoadStart.connect(_on_loading)
+browser.LoadEnd.connect(_on_done)
+browser.LoadError.connect(_on_error)
 ```
 
 ## Requirements
@@ -75,21 +92,23 @@ git clone https://github.com/OutSystems/CefGlue.git
 Place the cloned repository in your project directory:
 ```
 YourProject/
-├── GDCefGlue/
-│   ├── GDExtension/
-│   │   ├── Extension/     # C# GDExtension source code
-│   │   └── Project/       # Godot test project
-│   ├── NormalProject/     # Normal C# project example
+├── GDCefGlue/                    ← This repository
+│   ├── plugin/                   ← Godot .NET project (addon source + demo)
+│   │   └── addons/GCefGlue/     ←    CefGlueControl C# scripts
+│   ├── extension/                ← GDExtension C# project (AOT native lib)
+│   │   └── Dll/                  ←    godot-dotnet bindings
+│   ├── test/GDExtensionGame/     ← Godot project for testing GDExtension
+│   ├── Nuget/                    ← Local NuGet packages (LFS)
 │   ├── img/
 │   └── README*.md
-└── CefGlue/               # Cloned repository
+└── CefGlue/                      ← Cloned CefGlue repository
 ```
 
 ## Project Types
 
 ### GDExtension Project (Experimental)
 
-Located in `GDExtension/` directory. For Godot 4.6+.
+Located in `extension/` directory. For Godot 4.6+.
 
 > **Warning:** This project is currently unstable and not recommended for production use.
 
@@ -101,9 +120,9 @@ Located in `GDExtension/` directory. For Godot 4.6+.
 - Entry point: `gdcefglue_library_init`
 
 **Structure:**
-- `GDExtension/Extension/` - C# source code for GDExtension
-- `GDExtension/Extension/Dll/` - Godot .NET bindings (from [godot-dotnet](https://github.com/raulsntos/godot-dotnet))
-- `GDExtension/Project/` - Godot project for testing
+- `extension/` - C# source code for GDExtension
+- `extension/Dll/` - Godot .NET bindings (from [godot-dotnet](https://github.com/raulsntos/godot-dotnet))
+- `test/GDExtensionGame/` - Godot project for testing
 
 **Build Instructions:**
 
@@ -113,23 +132,23 @@ Located in `GDExtension/` directory. For Godot 4.6+.
    cd godot-dotnet
    dotnet build -p:GenerateGodotBindings=true
    ```
-   Copy the generated `Godot.Bindings.dll` and related files to `GDExtension/Extension/Dll/`.
+   Copy the generated `Godot.Bindings.dll` and related files to `extension/Dll/`.
 
 2. **Build GDExtension:**
    ```bash
-   cd GDExtension/Extension
+   cd extension
    dotnet publish -c Debug -r win-x64 --self-contained true
    ```
 
 3. **Deploy:**
-   Copy all files from `Debug/net10.0/win-x64/publish/` to `GDExtension/Project/lib/`.
+   Copy all files from `Debug/net10.0/win-x64/publish/` to `test/GDExtensionGame/lib/`.
 
 4. **Run:**
    Open the project with Godot 4.6 and run.
 
 ### Normal C# Project
 
-Located in `NormalProject/` directory. Traditional Godot C# project approach.
+Located in `plugin/` directory. Traditional Godot C# project approach.
 
 **Features:**
 - Standard Godot .NET SDK project
@@ -249,6 +268,17 @@ When using source code dependencies, you need to manually copy files after expor
 | `EvaluateJavaScript<T>(string code, ...)` | Execute JavaScript and return result |
 | `ShowDeveloperTools()` | Open developer tools |
 | `CloseDeveloperTools()` | Close developer tools |
+
+## CefGlueControl Signals
+
+| Signal | Parameters | Description |
+|--------|-----------|-------------|
+| `BrowserInitialized` | — | Emitted when the browser is fully initialized and ready |
+| `AddressChanged` | `url: string` | Emitted when the current page URL changes |
+| `TitleChanged` | `title: string` | Emitted when the page title changes |
+| `LoadStart` | — | Emitted when a page starts loading |
+| `LoadEnd` | — | Emitted when a page finishes loading |
+| `LoadError` | `errorText: string, failedUrl: string` | Emitted when a page fails to load |
 
 ## GPU Configuration
 
