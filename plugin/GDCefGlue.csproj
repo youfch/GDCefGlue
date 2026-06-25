@@ -6,40 +6,33 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DotnetVersion>net8.0</DotnetVersion>
     
-    <!-- CEF Versions: Windows uses 145, Linux/macOS use 134 -->
-    <CefGlueCommonVersion>134.6998.178</CefGlueCommonVersion>
-    <CefRuntimeVersionWin>145.0.26</CefRuntimeVersionWin>
-    <CefRuntimeVersionUnix>134.3.9</CefRuntimeVersionUnix>
+    <!-- CEF versions are resolved automatically from the PackageReference versions below -->
+    <!-- MSBuild exposes $(Pkg<PackageNameWithDots>) properties after restore -->
   </PropertyGroup>
 
-  <!-- Platform-specific CEF runtime packages -->
+  <!-- Platform-specific CEF runtime packages (change versions here, everything else auto-resolves) -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
-    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
+    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" GeneratePathProperty="true" />
   </ItemGroup>
   
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-    <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
-    <PackageReference Include="cef.redist.linux64" Version="$(CefRuntimeVersionUnix)" />
+    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
+    <PackageReference Include="cef.redist.linux64" Version="149.0.4" GeneratePathProperty="true" />
   </ItemGroup>
   
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
-    <PackageReference Include="cef.redist.osx64" Version="$(CefRuntimeVersionUnix)" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="cef.redist.linux64" Version="149.0.4" />
-    <PackageReference Include="cef.redist.osx64" Version="149.0.4" />
+    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
+    <PackageReference Include="cef.redist.osx64" Version="149.0.4" GeneratePathProperty="true" />
   </ItemGroup>
 
   <!-- Windows: Copy CEF files -->
   <Target Name="CopyCefFilesToOutput_Windows" Condition="$([MSBuild]::IsOSPlatform('Windows'))" AfterTargets="Build">
     <PropertyGroup>
-      <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\$(CefRuntimeVersionWin)\runtimes\win-x64\native\</CefPackagePath>
-      <CefLocalesPath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\$(CefRuntimeVersionWin)\CEF\win-x64\locales\</CefLocalesPath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\win-x64\</BrowserProcessPath>
+      <!-- $(Pkg...) auto-resolved by MSBuild after NuGet restore -->
+      <CefPackagePath>$(Pkgchromiumembeddedframework_runtime_win-x64)\runtimes\win-x64\native\</CefPackagePath>
+      <CefLocalesPath>$(Pkgchromiumembeddedframework_runtime_win-x64)\CEF\win-x64\locales\</CefLocalesPath>
+      <BrowserProcessPath>$(PkgCefGlue_Common)\bin\win-x64\</BrowserProcessPath>
       <CefOutputPath>$(TargetDir)runtimes\win-x64\native\</CefOutputPath>
       <CefLocalesOutputPath>$(TargetDir)runtimes\win-x64\native\locales\</CefLocalesOutputPath>
       <BrowserProcessSubDir>$(TargetDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
@@ -47,7 +40,6 @@
     </PropertyGroup>
     
     <Message Text="=== CEF Build Configuration (Windows) ===" Importance="high" />
-    <Message Text="NuGetPackagesPath: $(NuGetPackagesPath)" Importance="high" />
     <Message Text="CefPackagePath: $(CefPackagePath)" Importance="high" />
     <Message Text="BrowserProcessPath: $(BrowserProcessPath)" Importance="high" />
     <Message Text="TargetDir: $(TargetDir)" Importance="high" />
@@ -84,15 +76,13 @@
   <!-- Linux: Copy CEF files and set permissions -->
   <Target Name="CopyCefFilesToOutput_Linux" Condition="$([MSBuild]::IsOSPlatform('Linux'))" AfterTargets="Build">
     <PropertyGroup>
-      <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)cef.redist.linux64\$(CefRuntimeVersionUnix)\CEF\</CefPackagePath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\linux-x64\</BrowserProcessPath>
+      <CefPackagePath>$(Pkgcef_redist_linux64)\CEF\</CefPackagePath>
+      <BrowserProcessPath>$(PkgCefGlue_Common)\bin\linux-x64\</BrowserProcessPath>
       <BrowserProcessSubDir>$(TargetDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
       <RootLocalesPath>$(TargetDir)locales\</RootLocalesPath>
     </PropertyGroup>
     
     <Message Text="=== CEF Build Configuration (Linux) ===" Importance="high" />
-    <Message Text="NuGetPackagesPath: $(NuGetPackagesPath)" Importance="high" />
     <Message Text="CefPackagePath: $(CefPackagePath)" Importance="high" />
     <Message Text="BrowserProcessPath: $(BrowserProcessPath)" Importance="high" />
     <Message Text="TargetDir: $(TargetDir)" Importance="high" />
@@ -127,15 +117,13 @@
   <!-- macOS: Copy CEF files and set permissions -->
   <Target Name="CopyCefFilesToOutput_macOS" Condition="$([MSBuild]::IsOSPlatform('OSX'))" AfterTargets="Build">
     <PropertyGroup>
-      <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)cef.redist.osx64\$(CefRuntimeVersionUnix)\CEF\</CefPackagePath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\osx-x64\</BrowserProcessPath>
+      <CefPackagePath>$(Pkgcef_redist_osx64)\CEF\</CefPackagePath>
+      <BrowserProcessPath>$(PkgCefGlue_Common)\bin\osx-x64\</BrowserProcessPath>
       <BrowserProcessSubDir>$(TargetDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
       <RootLocalesPath>$(TargetDir)locales\</RootLocalesPath>
     </PropertyGroup>
     
     <Message Text="=== CEF Build Configuration (macOS) ===" Importance="high" />
-    <Message Text="NuGetPackagesPath: $(NuGetPackagesPath)" Importance="high" />
     <Message Text="CefPackagePath: $(CefPackagePath)" Importance="high" />
     <Message Text="BrowserProcessPath: $(BrowserProcessPath)" Importance="high" />
     <Message Text="TargetDir: $(TargetDir)" Importance="high" />
@@ -171,10 +159,9 @@
   <!-- Windows: Publish CEF files -->
   <Target Name="CopyCefFilesForPublish_Windows" Condition="$([MSBuild]::IsOSPlatform('Windows'))" AfterTargets="Publish">
     <PropertyGroup>
-      <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\$(CefRuntimeVersionWin)\runtimes\win-x64\native\</CefPackagePath>
-      <CefLocalesPath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\$(CefRuntimeVersionWin)\CEF\win-x64\locales\</CefLocalesPath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\win-x64\</BrowserProcessPath>
+      <CefPackagePath>$(Pkgchromiumembeddedframework_runtime_win-x64)\runtimes\win-x64\native\</CefPackagePath>
+      <CefLocalesPath>$(Pkgchromiumembeddedframework_runtime_win-x64)\CEF\win-x64\locales\</CefLocalesPath>
+      <BrowserProcessPath>$(PkgCefGlue_Common)\bin\win-x64\</BrowserProcessPath>
       <CefOutputPath>$(PublishDir)runtimes\win-x64\native\</CefOutputPath>
       <CefLocalesOutputPath>$(PublishDir)runtimes\win-x64\native\locales\</CefLocalesOutputPath>
       <BrowserProcessSubDir>$(PublishDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
@@ -182,7 +169,7 @@
     </PropertyGroup>
     
     <Message Text="=== CEF Publish Configuration (Windows) ===" Importance="high" />
-    <Message Text="NuGetPackagesPath: $(NuGetPackagesPath)" Importance="high" />
+    <Message Text="CefPackagePath: $(CefPackagePath)" Importance="high" />
     <Message Text="PublishDir: $(PublishDir)" Importance="high" />
     
     <MakeDir Directories="$(CefOutputPath)" />
@@ -217,15 +204,14 @@
   <!-- Linux: Publish CEF files and set permissions -->
   <Target Name="CopyCefFilesForPublish_Linux" Condition="$([MSBuild]::IsOSPlatform('Linux'))" AfterTargets="Publish">
     <PropertyGroup>
-      <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)cef.redist.linux64\$(CefRuntimeVersionUnix)\CEF\</CefPackagePath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\linux-x64\</BrowserProcessPath>
+      <CefPackagePath>$(Pkgcef_redist_linux64)\CEF\</CefPackagePath>
+      <BrowserProcessPath>$(PkgCefGlue_Common)\bin\linux-x64\</BrowserProcessPath>
       <BrowserProcessSubDir>$(PublishDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
       <RootLocalesPath>$(PublishDir)locales\</RootLocalesPath>
     </PropertyGroup>
     
     <Message Text="=== CEF Publish Configuration (Linux) ===" Importance="high" />
-    <Message Text="PublishDir: $(PublishDir)" Importance="high" />
+    <Message Text="CefPackagePath: $(CefPackagePath)" Importance="high" />
     
     <MakeDir Directories="$(BrowserProcessSubDir)" />
     <MakeDir Directories="$(RootLocalesPath)" />
@@ -255,15 +241,14 @@
   <!-- macOS: Publish CEF files and set permissions -->
   <Target Name="CopyCefFilesForPublish_macOS" Condition="$([MSBuild]::IsOSPlatform('OSX'))" AfterTargets="Publish">
     <PropertyGroup>
-      <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)cef.redist.osx64\$(CefRuntimeVersionUnix)\CEF\</CefPackagePath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\osx-x64\</BrowserProcessPath>
+      <CefPackagePath>$(Pkgcef_redist_osx64)\CEF\</CefPackagePath>
+      <BrowserProcessPath>$(PkgCefGlue_Common)\bin\osx-x64\</BrowserProcessPath>
       <BrowserProcessSubDir>$(PublishDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
       <RootLocalesPath>$(PublishDir)locales\</RootLocalesPath>
     </PropertyGroup>
     
     <Message Text="=== CEF Publish Configuration (macOS) ===" Importance="high" />
-    <Message Text="PublishDir: $(PublishDir)" Importance="high" />
+    <Message Text="CefPackagePath: $(CefPackagePath)" Importance="high" />
     
     <MakeDir Directories="$(BrowserProcessSubDir)" />
     <MakeDir Directories="$(RootLocalesPath)" />

@@ -6,10 +6,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     
-    <!-- CEF Versions: Windows uses 145, Linux/macOS use 134 -->
-    <CefGlueCommonVersion>134.6998.178</CefGlueCommonVersion>
-    <CefRuntimeVersionWin>145.0.26</CefRuntimeVersionWin>
-    <CefRuntimeVersionUnix>134.3.9</CefRuntimeVersionUnix>
+    <!-- CEF versions are resolved automatically from the PackageReference versions below -->
+    <!-- MSBuild exposes $(Pkg<PackageNameWithDots>) properties after restore -->
   </PropertyGroup>
 
   <PropertyGroup>
@@ -22,29 +20,28 @@
     </Reference>
   </ItemGroup>
 
-  <!-- Platform-specific CEF runtime packages -->
+  <!-- Platform-specific CEF runtime packages (change versions here, everything else auto-resolves) -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
-    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="$(CefRuntimeVersionWin)" />
+    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" GeneratePathProperty="true" />
   </ItemGroup>
   
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-    <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
-    <PackageReference Include="cef.redist.linux64" Version="$(CefRuntimeVersionUnix)" />
+    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
+    <PackageReference Include="cef.redist.linux64" Version="149.0.4" GeneratePathProperty="true" />
   </ItemGroup>
   
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
-    <PackageReference Include="cef.redist.osx64" Version="$(CefRuntimeVersionUnix)" />
+    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
+    <PackageReference Include="cef.redist.osx64" Version="149.0.4" GeneratePathProperty="true" />
   </ItemGroup>
 
   <!-- Windows: Copy CEF files -->
   <Target Name="CopyCefFilesToOutput_Windows" Condition="$([MSBuild]::IsOSPlatform('Windows'))" AfterTargets="Build">
     <PropertyGroup>
-      <NuGetPackagesPath>$(NuGetPackageRoot)</NuGetPackagesPath>
-      <CefPackagePath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\$(CefRuntimeVersionWin)\runtimes\win-x64\native\</CefPackagePath>
-      <CefLocalesPath>$(NuGetPackagesPath)chromiumembeddedframework.runtime.win-x64\$(CefRuntimeVersionWin)\CEF\win-x64\locales\</CefLocalesPath>
-      <BrowserProcessPath>$(NuGetPackagesPath)cefglue.common\$(CefGlueCommonVersion)\bin\win-x64\</BrowserProcessPath>
+      <CefPackagePath>$(Pkgchromiumembeddedframework_runtime_win-x64)\runtimes\win-x64\native\</CefPackagePath>
+      <CefLocalesPath>$(Pkgchromiumembeddedframework_runtime_win-x64)\CEF\win-x64\locales\</CefLocalesPath>
+      <BrowserProcessPath>$(PkgCefGlue_Common)\bin\win-x64\</BrowserProcessPath>
       <CefOutputPath>$(TargetDir)runtimes\win-x64\native\</CefOutputPath>
       <CefLocalesOutputPath>$(TargetDir)runtimes\win-x64\native\locales\</CefLocalesOutputPath>
       <BrowserProcessSubDir>$(TargetDir)CefGlueBrowserProcess\</BrowserProcessSubDir>
