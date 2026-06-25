@@ -5,6 +5,18 @@ using Xilium.CefGlue;
 
 namespace GDCefGlue
 {
+    // 当前音频驱动使用 Windows winmm waveOut API 直接透传 CEF PCM 数据。
+    //
+    // 已知限制：
+    //   - 同步阻塞播放（OnAudioStreamPacket 中轮询 WHDR_DONE），高负载下可能产生音频卡顿
+    //   - 仅 Windows（依赖 winmm.dll）
+    //   - CEF 默认构建不含专有编解码器（AAC/H.264/MP3），音频按钮会处于禁用状态
+    //   - 后续可考虑改用 WASAPI 或路由到 Godot AudioServer
+    //
+    // 替代方案参考：
+    //   - WASAPI 共享模式（更低延迟，需 ComImport interop）
+    //   - Godot AudioStreamGenerator（可在引擎内混音，但需手动管理缓冲队列）
+
     /// <summary>
     /// Audio handler that captures PCM audio from CEF and plays it through
     /// the Windows waveOut API. Required because in windowless rendering mode
@@ -136,6 +148,7 @@ namespace GDCefGlue
                 waveOutPrepareHeader(_hWaveOut, ref hdr, (uint)Marshal.SizeOf<WAVEHDR>());
                 waveOutWrite(_hWaveOut, ref hdr, (uint)Marshal.SizeOf<WAVEHDR>());
 
+                // 同步等待播放完成 — 简单但可能产生延迟
                 while ((hdr.dwFlags & 0x1) == 0)
                 {
                     System.Threading.Thread.Sleep(1);

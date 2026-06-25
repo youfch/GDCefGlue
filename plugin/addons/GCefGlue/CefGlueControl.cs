@@ -74,6 +74,12 @@ namespace GDCefGlue
         /// Gets or sets whether the browser background is transparent. Default is false (opaque).
         /// </summary>
         [Export] public bool Transparent { get; set; } = false;
+
+        /// <summary>
+        /// Gets or sets whether the mouse cursor follows the web page content (e.g. I-beam on text, hand on links).
+        /// Default is false (cursor stays as default arrow).
+        /// </summary>
+        [Export] public bool SyncCursor { get; set; } = false;
         
         private static bool _useGpuAcceleration = true;
         private static bool _useTransparent = false;
@@ -208,6 +214,46 @@ namespace GDCefGlue
             {
                 window.SetImeActive(false);
             }
+        }
+
+        /// <summary>
+        /// Called from GodotDisplayHandler when CEF reports a cursor type change.
+        /// Dispatches the update to the main thread since this is called from a CEF thread.
+        /// </summary>
+        internal void OnCursorChanged(CefCursorType type)
+        {
+            if (!SyncCursor)
+                return;
+            CallDeferred(nameof(UpdateCursorShape), (int)type);
+        }
+
+        /// <summary>
+        /// Maps CefCursorType to Godot CursorShape and updates the control's default cursor.
+        /// Must be called on the main thread.
+        /// </summary>
+        private void UpdateCursorShape(int cefCursorType)
+        {
+            var shape = cefCursorType switch
+            {
+                (int)CefCursorType.IBeam => CursorShape.Ibeam,
+                (int)CefCursorType.Hand => CursorShape.PointingHand,
+                (int)CefCursorType.Cross => CursorShape.Cross,
+                (int)CefCursorType.Wait or
+                (int)CefCursorType.Progress => CursorShape.Wait,
+                (int)CefCursorType.Help => CursorShape.Help,
+                (int)CefCursorType.NotAllowed => CursorShape.Forbidden,
+                (int)CefCursorType.NorthSouthResize or
+                (int)CefCursorType.NorthResize or
+                (int)CefCursorType.SouthResize or
+                (int)CefCursorType.RowResize => CursorShape.Vsize,
+                (int)CefCursorType.EastWestResize or
+                (int)CefCursorType.EastResize or
+                (int)CefCursorType.WestResize or
+                (int)CefCursorType.ColumnResize => CursorShape.Hsize,
+                (int)CefCursorType.Move => CursorShape.Move,
+                _ => Control.CursorShape.Arrow,
+            };
+            MouseDefaultCursorShape = (Control.CursorShape)shape;
         }
 
         /// <summary>
