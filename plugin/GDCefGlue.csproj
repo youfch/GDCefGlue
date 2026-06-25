@@ -14,8 +14,8 @@
 
   <!-- Platform-specific CEF runtime packages -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
-    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="$(CefRuntimeVersionWin)" />
+    <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
   </ItemGroup>
   
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
@@ -26,6 +26,11 @@
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <PackageReference Include="CefGlue.Common" Version="$(CefGlueCommonVersion)" />
     <PackageReference Include="cef.redist.osx64" Version="$(CefRuntimeVersionUnix)" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="cef.redist.linux64" Version="149.0.4" />
+    <PackageReference Include="cef.redist.osx64" Version="149.0.4" />
   </ItemGroup>
 
   <!-- Windows: Copy CEF files -->
