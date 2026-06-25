@@ -367,6 +367,7 @@ dotnet build
 
 1. **右键菜单**：暂不支持
 2. **网络通知**：`WSALookupServiceBegin failed with: 10108` 是正常警告
+3. **音频**：音频为实验性功能。CEF 离屏渲染需通过 `CefAudioHandler` 捕获 PCM 数据，再经 `winmm` waveOut API 输出到系统，可能存在延迟、稳定性或编解码器兼容性问题。
 
 ## 许可证
 

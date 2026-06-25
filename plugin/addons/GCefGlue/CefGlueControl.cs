@@ -685,6 +685,7 @@ namespace GDCefGlue
                 _isMousePressed = true;
                 _browserHost.SendMouseClickEvent(mouseEvent, button, false, _clickCount);
                 GrabFocus();
+                _browserHost?.SetFocus(true);
                 ActivateIme();
             }
             else
