@@ -307,7 +307,6 @@ When using source code dependencies, you need to manually copy files after expor
 
 1. **Right-click Context Menu**: Not supported
 2. **Network Notification**: `WSALookupServiceBegin failed with: 10108` is a normal warning
-3. **Audio**: Audio is experimental. CEF windowless rendering requires `CefAudioHandler` to capture PCM output and route it to the OS via `winmm` waveOut API. This may have latency, reliability, or codec compatibility issues.
 
 ## License
 
