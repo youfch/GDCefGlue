@@ -59,16 +59,16 @@ browser.LoadError.connect(_on_error)
 
 最简单的使用方式。构建时自动复制所有必要文件。
 
-**CEF 149（推荐）：**
+**CEF 134（推荐）：**
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
+  <PackageReference Include="CefGlue.Common" Version="134.6998.178" />
+  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="134.3.9" />
 </ItemGroup>
 ```
 
-**CEF 120（官方，不推荐——太老旧）：**
+**CEF 120（官方）：**
 
 ```xml
 <ItemGroup>
@@ -81,8 +81,16 @@ browser.LoadError.connect(_on_error)
 
 如果需要最新版本或自定义 CefGlue：
 
+**CEF 134（推荐）：**
+
 ```bash
 git clone https://github.com/youfch/CefGlue.git
+```
+
+**CEF 120（官方）：**
+
+```bash
+git clone https://github.com/OutSystems/CefGlue.git
 ```
 
 将克隆的仓库放置到项目目录：
@@ -139,16 +147,10 @@ GDCefGlue/                        ← 本仓库
    ```
    将生成的 `Godot.Bindings.dll` 及相关文件复制到 `extension/Dll/`。
 2. **CEF 依赖（跨平台）：**
-    - **Windows：** 通过 NuGet 包自动获取 `chromiumembeddedframework.runtime.win-x64`
-    - **Linux：** 添加 [youfch/cef.redist.linux](https://github.com/youfch/cef.redist.linux) 依赖
-    - **macOS：** 添加 [youfch/cef.redist.osx](https://github.com/youfch/cef.redist.osx) 依赖
-
-    **CEF 运行时包：**
-    - `chromiumembeddedframework.runtime.win-x64` — [youfch/cef-binary](https://github.com/youfch/cef-binary)（Windows x64）
-    - `cef.redist.linux64` — [youfch/cef.redist.linux](https://github.com/youfch/cef.redist.linux)（Linux x64）
-    - `cef.redist.osx64` — [youfch/cef.redist.osx](https://github.com/youfch/cef.redist.osx)（macOS x64/ARM64）
-
-    查看 [CefGlue 仓库](https://github.com/youfch/CefGlue) 了解如何添加跨平台依赖。
+   - **Windows：** 通过 NuGet 包自动获取 `chromiumembeddedframework.runtime.win-x64`
+   - **Linux：** 需要添加 [cef.redist.linux](https://github.com/OutSystems/cef.redist.linux) 依赖
+   - **macOS：** 需要添加 [cef.redist.osx](https://github.com/OutSystems/cef.redist.osx) 依赖
+   查看 [CefGlue 仓库](https://github.com/youfch/CefGlue) 了解如何添加跨平台依赖。
 3. **构建 GDExtension：**
 
     进入 `extension` 目录执行：
@@ -223,11 +225,8 @@ GDCefGlue/                        ← 本仓库
 
 | 来源                 | CEF 版本 | 状态      | NuGet                         | GitHub                                          |
 | ------------------ | ------ | ------- | ----------------------------- | ----------------------------------------------- |
-| youfch/CefGlue     | 149    | 维护中（推荐） | `CefGlue.Common 149.7827.156` | [GitHub](https://github.com/youfch/CefGlue)     |
-| youfch/cef.redist.win-x64 | 149 | Windows 运行时 | `chromiumembeddedframework.runtime.win-x64 149.0.4` | [NuGet.org](https://www.nuget.org/packages/chromiumembeddedframework.runtime.win-x64) |
-| youfch/cef.redist.osx | 149 | macOS 运行时 | `cef.redist.osx64 149.0.4` | [GitHub](https://github.com/youfch/cef.redist.osx) |
-| youfch/cef.redist.linux | 149 | Linux 运行时 | `cef.redist.linux64 149.0.4` | [GitHub](https://github.com/youfch/cef.redist.linux) |
-| OutSystems/CefGlue | 120    | 官方（旧版）      | `CefGlue.Common 120.6099.0`   | [GitHub](https://github.com/OutSystems/CefGlue) |
+| youfch/CefGlue     | 134    | 非官方（推荐） | `CefGlue.Common 134.6998.178` | [GitHub](https://github.com/youfch/CefGlue)     |
+| OutSystems/CefGlue | 120    | 官方      | `CefGlue.Common 120.6099.0`   | [GitHub](https://github.com/OutSystems/CefGlue) |
 
 ## 构建说明
 
