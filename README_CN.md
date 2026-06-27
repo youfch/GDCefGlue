@@ -59,16 +59,16 @@ browser.LoadError.connect(_on_error)
 
 最简单的使用方式。构建时自动复制所有必要文件。
 
-**CEF 134（推荐）：**
+**CEF 149（推荐）：**
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="134.6998.178" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="134.3.9" />
+  <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
+  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
 </ItemGroup>
 ```
 
-**CEF 120（官方）：**
+**CEF 120（官方，不推荐——太老旧）：**
 
 ```xml
 <ItemGroup>
@@ -81,16 +81,8 @@ browser.LoadError.connect(_on_error)
 
 如果需要最新版本或自定义 CefGlue：
 
-**CEF 134（推荐）：**
-
 ```bash
 git clone https://github.com/youfch/CefGlue.git
-```
-
-**CEF 120（官方）：**
-
-```bash
-git clone https://github.com/OutSystems/CefGlue.git
 ```
 
 将克隆的仓库放置到项目目录：
@@ -225,8 +217,10 @@ GDCefGlue/                        ← 本仓库
 
 | 来源                 | CEF 版本 | 状态      | NuGet                         | GitHub                                          |
 | ------------------ | ------ | ------- | ----------------------------- | ----------------------------------------------- |
-| youfch/CefGlue     | 134    | 非官方（推荐） | `CefGlue.Common 134.6998.178` | [GitHub](https://github.com/youfch/CefGlue)     |
-| OutSystems/CefGlue | 120    | 官方      | `CefGlue.Common 120.6099.0`   | [GitHub](https://github.com/OutSystems/CefGlue) |
+| youfch/CefGlue     | 149    | 维护中（推荐） | `CefGlue.Common 149.7827.156` | [GitHub](https://github.com/youfch/CefGlue)     |
+| youfch/cef.redist.linux | 149 | Linux 运行时 | `cef.redist.linux64 149.0.4` | [GitHub](https://github.com/youfch/cef.redist.linux) |
+| youfch/cef.redist.osx | 149 | macOS 运行时 | `cef.redist.osx64 149.0.4` | [GitHub](https://github.com/youfch/cef.redist.osx) |
+| OutSystems/CefGlue | 120    | 官方（旧版）      | `CefGlue.Common 120.6099.0`   | [GitHub](https://github.com/OutSystems/CefGlue) |
 
 ## 构建说明
 
@@ -243,10 +237,8 @@ dotnet build
 ### 使用源码
 
 ```powershell
-# 克隆 CefGlue（选择一个）
-git clone https://github.com/youfch/CefGlue.git   # CEF 134
-# 或
-git clone https://github.com/OutSystems/CefGlue.git  # CEF 120
+# 克隆 CefGlue
+git clone https://github.com/youfch/CefGlue.git
 
 # 构建
 dotnet restore

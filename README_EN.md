@@ -34,12 +34,10 @@ The easiest way to use GDCefGlue. All necessary files are automatically copied d
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="134.6998.178" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="134.3.9" />
+  <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
+  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
 </ItemGroup>
 ```
-
-**Note:** The official NuGet package only has CEF 120 version. For CEF 134 version, use the unofficial package from [youfch/CefGlue](https://github.com/youfch/CefGlue).
 
 ### Option 2: Build from Source
 
@@ -190,8 +188,10 @@ Located in `plugin/` directory. Traditional Godot C# project approach.
 
 | Source | CEF Version | Status | Link |
 |--------|-------------|--------|------|
-| youfch/CefGlue | 134 | Unofficial (Recommended) | [GitHub](https://github.com/youfch/CefGlue) |
-| OutSystems/CefGlue | 120 | Official | [GitHub](https://github.com/OutSystems/CefGlue) |
+| youfch/CefGlue | 149 | Maintained (Recommended) | [GitHub](https://github.com/youfch/CefGlue) |
+| youfch/cef.redist.linux | 149 | Linux runtime | [GitHub](https://github.com/youfch/cef.redist.linux) |
+| youfch/cef.redist.osx | 149 | macOS runtime | [GitHub](https://github.com/youfch/cef.redist.osx) |
+| OutSystems/CefGlue | 120 | Official (Legacy) | [GitHub](https://github.com/OutSystems/CefGlue) |
 
 ## Build Instructions
 
