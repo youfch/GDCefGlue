@@ -59,15 +59,15 @@ browser.LoadError.connect(_on_error)
 
 The easiest way to use GDCefGlue. All necessary files are automatically copied during build.
 
-**CEF 134 (Recommended):**
+**CEF 149 (Recommended):**
 ```xml
 <ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="134.6998.178" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="134.3.9" />
+  <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
+  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
 </ItemGroup>
 ```
 
-**CEF 120 (Official):**
+**CEF 120 (Official, not recommended — too old):**
 ```xml
 <ItemGroup>
   <PackageReference Include="CefGlue.Common" Version="120.6099.0" />
@@ -79,14 +79,8 @@ The easiest way to use GDCefGlue. All necessary files are automatically copied d
 
 If you need the latest version or want to customize CefGlue:
 
-**CEF 134 (Recommended):**
 ```bash
 git clone https://github.com/youfch/CefGlue.git
-```
-
-**CEF 120 (Official):**
-```bash
-git clone https://github.com/OutSystems/CefGlue.git
 ```
 
 Place the cloned repository in your project directory:
@@ -174,8 +168,11 @@ Update your `.csproj` to reference the projects:
 
 | Source | CEF Version | Status | NuGet | GitHub |
 |--------|-------------|--------|-------|--------|
-| youfch/CefGlue | 134 | Unofficial (Recommended) | `CefGlue.Common 134.6998.178` | [GitHub](https://github.com/youfch/CefGlue) |
-| OutSystems/CefGlue | 120 | Official | `CefGlue.Common 120.6099.0` | [GitHub](https://github.com/OutSystems/CefGlue) |
+| youfch/CefGlue | 149 | Maintained (Recommended) | `CefGlue.Common 149.7827.156` | [GitHub](https://github.com/youfch/CefGlue) |
+| youfch/cef.redist.win-x64 | 149 | Windows runtime | `chromiumembeddedframework.runtime.win-x64 149.0.4` | [NuGet.org](https://www.nuget.org/packages/chromiumembeddedframework.runtime.win-x64) |
+| youfch/cef.redist.osx | 149 | macOS runtime | `cef.redist.osx64 149.0.4` | [GitHub](https://github.com/youfch/cef.redist.osx) |
+| youfch/cef.redist.linux | 149 | Linux runtime | `cef.redist.linux64 149.0.4` | [GitHub](https://github.com/youfch/cef.redist.linux) |
+| OutSystems/CefGlue | 120 | Official (Legacy) | `CefGlue.Common 120.6099.0` | [GitHub](https://github.com/OutSystems/CefGlue) |
 
 ## Build Instructions
 
@@ -192,10 +189,8 @@ dotnet build
 ### Using Source Code
 
 ```powershell
-# Clone CefGlue (choose one)
-git clone https://github.com/youfch/CefGlue.git   # CEF 134
-# or
-git clone https://github.com/OutSystems/CefGlue.git  # CEF 120
+# Clone CefGlue
+git clone https://github.com/youfch/CefGlue.git
 
 # Build
 dotnet restore

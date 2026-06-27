@@ -34,12 +34,18 @@ The easiest way to use GDCefGlue. All necessary files are automatically copied d
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="134.6998.178" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="134.3.9" />
+  <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
+  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
 </ItemGroup>
 ```
 
-**Note:** The official NuGet package only has CEF 120 version. For CEF 134 version, use the unofficial package from [youfch/CefGlue](https://github.com/youfch/CefGlue).
+**CEF 120 (Official, not recommended — too old):**
+```xml
+<ItemGroup>
+  <PackageReference Include="CefGlue.Common" Version="120.6099.0" />
+  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="120.2.3" />
+</ItemGroup>
+```
 
 ### Option 2: Build from Source
 
@@ -107,10 +113,15 @@ Located in `extension/` directory. For Godot 4.6+.
    Copy the generated `Godot.Bindings.dll` and related files to `extension/Dll/`.
 
 2. **CEF Dependencies (Cross-Platform):**
-   
+    
    - **Windows:** Automatically obtained via NuGet package `chromiumembeddedframework.runtime.win-x64`
-   - **Linux:** Requires [cef.redist.linux](https://github.com/OutSystems/cef.redist.linux) dependency
-   - **macOS:** Requires [cef.redist.osx](https://github.com/OutSystems/cef.redist.osx) dependency
+   - **Linux:** Requires [youfch/cef.redist.linux](https://github.com/youfch/cef.redist.linux) dependency
+   - **macOS:** Requires [youfch/cef.redist.osx](https://github.com/youfch/cef.redist.osx) dependency
+   
+   **CEF Dependency Packages:**
+   - `chromiumembeddedframework.runtime.win-x64` — [youfch/cef-binary](https://github.com/youfch/cef-binary) (Windows x64)
+   - `cef.redist.linux64` — [youfch/cef.redist.linux](https://github.com/youfch/cef.redist.linux) (Linux x64)
+   - `cef.redist.osx64` — [youfch/cef.redist.osx](https://github.com/youfch/cef.redist.osx) (macOS x64/ARM64)
    
    See [CefGlue repository](https://github.com/youfch/CefGlue) for how to add cross-platform dependencies.
 
@@ -190,8 +201,11 @@ Located in `plugin/` directory. Traditional Godot C# project approach.
 
 | Source | CEF Version | Status | Link |
 |--------|-------------|--------|------|
-| youfch/CefGlue | 134 | Unofficial (Recommended) | [GitHub](https://github.com/youfch/CefGlue) |
-| OutSystems/CefGlue | 120 | Official | [GitHub](https://github.com/OutSystems/CefGlue) |
+| youfch/CefGlue | 149 | Maintained (Recommended) | [GitHub](https://github.com/youfch/CefGlue) |
+| youfch/cef.redist.win-x64 | 149 | Windows runtime | [NuGet.org](https://www.nuget.org/packages/chromiumembeddedframework.runtime.win-x64) |
+| youfch/cef.redist.osx | 149 | macOS runtime | [GitHub](https://github.com/youfch/cef.redist.osx) |
+| youfch/cef.redist.linux | 149 | Linux runtime | [GitHub](https://github.com/youfch/cef.redist.linux) |
+| OutSystems/CefGlue | 120 | Official (Legacy) | [GitHub](https://github.com/OutSystems/CefGlue) |
 
 ## Build Instructions
 
