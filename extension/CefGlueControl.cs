@@ -46,6 +46,7 @@ public partial class CefGlueControl : Control
     public bool GpuAcceleration { get; set; } = true;
     public int FrameRate { get; set; } = 60;
     public bool Transparent { get; set; } = false;
+    public bool SyncCursor { get; set; } = false;
     
     private static bool _useGpuAcceleration = true;
     private static bool _useTransparent = false;
@@ -133,6 +134,38 @@ public partial class CefGlueControl : Control
         {
             window.SetImeActive(false);
         }
+    }
+
+    internal void OnCursorChanged(CefCursorType type)
+    {
+        if (!SyncCursor)
+            return;
+        CallDeferred(nameof(UpdateCursorShape), (int)type);
+    }
+
+    private void UpdateCursorShape(int cefCursorType)
+    {
+        var shape = cefCursorType switch
+        {
+            (int)CefCursorType.IBeam => Control.CursorShape.Ibeam,
+            (int)CefCursorType.Hand => Control.CursorShape.PointingHand,
+            (int)CefCursorType.Cross => Control.CursorShape.Cross,
+            (int)CefCursorType.Wait or
+            (int)CefCursorType.Progress => Control.CursorShape.Wait,
+            (int)CefCursorType.Help => Control.CursorShape.Help,
+            (int)CefCursorType.NotAllowed => Control.CursorShape.Forbidden,
+            (int)CefCursorType.NorthSouthResize or
+            (int)CefCursorType.NorthResize or
+            (int)CefCursorType.SouthResize or
+            (int)CefCursorType.RowResize => Control.CursorShape.Vsize,
+            (int)CefCursorType.EastWestResize or
+            (int)CefCursorType.EastResize or
+            (int)CefCursorType.WestResize or
+            (int)CefCursorType.ColumnResize => Control.CursorShape.Hsize,
+            (int)CefCursorType.Move => Control.CursorShape.Move,
+            _ => Control.CursorShape.Arrow,
+        };
+        MouseDefaultCursorShape = (Control.CursorShape)shape;
     }
 
     private void CreateBrowserDeferred()
@@ -517,6 +550,7 @@ public partial class CefGlueControl : Control
             _isMousePressed = true;
             _browserHost.SendMouseClickEvent(mouseEvent, button, false, _clickCount);
             GrabFocus();
+            _browserHost?.SetFocus(true);
             ActivateIme();
         }
         else
@@ -796,6 +830,14 @@ public partial class CefGlueControl : Control
             },
             static (CefGlueControl instance) => instance.Transparent,
             static (CefGlueControl instance, bool value) => instance.Transparent = value);
+
+        context.BindProperty(
+            new PropertyInfo(new StringName(nameof(SyncCursor)), VariantType.Bool)
+            {
+                Usage = PropertyUsageFlags.Default
+            },
+            static (CefGlueControl instance) => instance.SyncCursor,
+            static (CefGlueControl instance, bool value) => instance.SyncCursor = value);
 
         context.BindMethod(new StringName(nameof(GoBack)),
             static (CefGlueControl instance) =>

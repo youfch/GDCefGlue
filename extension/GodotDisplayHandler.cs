@@ -1,3 +1,4 @@
+using System;
 using Xilium.CefGlue;
 
 namespace GDCefGlueExtension;
@@ -19,5 +20,11 @@ internal class GodotDisplayHandler : CefDisplayHandler
     protected override void OnTitleChange(CefBrowser browser, string title)
     {
         _control.OnTitleChange(browser, title);
+    }
+
+    protected override bool OnCursorChange(CefBrowser browser, IntPtr cursorHandle, CefCursorType type, CefCursorInfo customCursorInfo)
+    {
+        _control.OnCursorChanged(type);
+        return _control.SyncCursor;
     }
 }
