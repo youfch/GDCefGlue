@@ -37,6 +37,8 @@ namespace GDCefGlue
                 }
                 
                 commandLine.AppendSwitch("disable-smooth-scrolling");
+                commandLine.AppendSwitch("allow-file-access-from-files");
+                commandLine.AppendSwitch("allow-universal-access-from-files");
                 
                 GD.Print($"GodotCefApp: Command line switches added (GPU Acceleration: {CefGlueControl.UseGpuAcceleration}, Transparent: {CefGlueControl.UseTransparent})");
             }

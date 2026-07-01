@@ -112,7 +112,7 @@ public partial class MainUi : Control
         if (string.IsNullOrEmpty(url))
             return;
 
-        if (!url.StartsWith("http://") && !url.StartsWith("https://") && !url.StartsWith("about:"))
+        if (!url.StartsWith("http://") && !url.StartsWith("https://") && !url.StartsWith("about:") && !url.StartsWith("file://"))
         {
             url = "https://" + url;
         }
