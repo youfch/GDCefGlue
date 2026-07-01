@@ -263,6 +263,65 @@ When using source code dependencies, you need to manually copy files after expor
 | `ShowDeveloperTools()` | Open developer tools |
 | `CloseDeveloperTools()` | Close developer tools |
 
+## JS ↔ C# Bridge
+
+GDCefGlue provides bidirectional communication between JavaScript and C# via the `godot://` protocol.
+
+### JS → C#
+
+JavaScript sends messages by navigating to a `godot://bridge` URL:
+
+```javascript
+// Using iframe (no _godotBridge needed)
+var i = document.createElement('iframe');
+i.src = 'godot://bridge?type=ping&cb=myCallbackId&payload=' + encodeURIComponent(JSON.stringify({}));
+document.body.appendChild(i);
+```
+
+Or with the `_godotBridge` helper (inject in your HTML):
+
+```javascript
+window._godotBridge = {
+    _onResponse: function(cbId, msg) { /* resolve Promise by cbId */ },
+    _onMessage: function(msg) { /* handle C# push messages */ },
+    sendToGodot: function(data) {
+        var i = document.createElement('iframe');
+        i.src = 'godot://bridge?type=' + data.type
+              + '&cb=' + data.cbId
+              + '&payload=' + encodeURIComponent(JSON.stringify(data.payload));
+        document.body.appendChild(i);
+    }
+};
+```
+
+### C# → JS
+
+```csharp
+// Push a message to JS (calls window._godotBridge._onMessage)
+browser.SendToJs("{\"type\":\"update\",\"payload\":{\"count\":42}}");
+
+// Reply to a specific JS request (calls window._godotBridge._onResponse)
+browser.SendResponse("myCallbackId", "{\"status\":\"ok\"}");
+```
+
+### C# Event
+
+```csharp
+browser.BridgeRequest += (type, payload, cbId) => {
+    switch (type) {
+        case "ping":
+            browser.SendResponse(cbId, "{\"status\":\"pong\"}");
+            break;
+    }
+};
+```
+
+| API | Direction | Description |
+|-----|-----------|-------------|
+| `BridgeRequest` event | JS → C# | Fired when JS calls `godot://bridge` |
+| `SendToJs(json)` | C# → JS | Push message to `window._godotBridge._onMessage` |
+| `SendResponse(cbId, json)` | C# → JS | Reply to a specific JS callback via `window._godotBridge._onResponse` |
+
 ## CefGlueControl Signals
 
 | Signal | Parameters | Description |

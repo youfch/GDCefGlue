@@ -315,6 +315,65 @@ dotnet build
 | `ShowDeveloperTools()`                  | 打开开发者工具             |
 | `CloseDeveloperTools()`                 | 关闭开发者工具             |
 
+## JS ↔ C# 桥接
+
+GDCefGlue 通过 `godot://` 协议实现 JavaScript 与 C# 的双向通信。
+
+### JS → C#
+
+JS 通过导航到 `godot://bridge` URL 发送消息：
+
+```javascript
+// 使用 iframe（无需 _godotBridge）
+var i = document.createElement('iframe');
+i.src = 'godot://bridge?type=ping&cb=myCallbackId&payload=' + encodeURIComponent(JSON.stringify({}));
+document.body.appendChild(i);
+```
+
+或使用 `_godotBridge` 辅助对象（在你的 HTML 中注入）：
+
+```javascript
+window._godotBridge = {
+    _onResponse: function(cbId, msg) { /* 根据 cbId 找到对应的 Promise resolve */ },
+    _onMessage: function(msg) { /* 处理 C# 推送的消息 */ },
+    sendToGodot: function(data) {
+        var i = document.createElement('iframe');
+        i.src = 'godot://bridge?type=' + data.type
+              + '&cb=' + data.cbId
+              + '&payload=' + encodeURIComponent(JSON.stringify(data.payload));
+        document.body.appendChild(i);
+    }
+};
+```
+
+### C# → JS
+
+```csharp
+// 推送消息到 JS（调用 window._godotBridge._onMessage）
+browser.SendToJs("{\"type\":\"update\",\"payload\":{\"count\":42}}");
+
+// 回复特定 JS 请求（调用 window._godotBridge._onResponse）
+browser.SendResponse("myCallbackId", "{\"status\":\"ok\"}");
+```
+
+### C# 事件
+
+```csharp
+browser.BridgeRequest += (type, payload, cbId) => {
+    switch (type) {
+        case "ping":
+            browser.SendResponse(cbId, "{\"status\":\"pong\"}");
+            break;
+    }
+};
+```
+
+| API | 方向 | 描述 |
+|-----|------|------|
+| `BridgeRequest` 事件 | JS → C# | JS 调用 `godot://bridge` 时触发 |
+| `SendToJs(json)` | C# → JS | 推送消息到 `window._godotBridge._onMessage` |
+| `SendResponse(cbId, json)` | C# → JS | 回复特定 JS 回调 `window._godotBridge._onResponse` |
+
 ## CefGlueControl 信号
 
 | 信号 | 参数 | 描述 |
