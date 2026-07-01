@@ -167,6 +167,12 @@ namespace GDCefGlue
         /// </summary>
         public event LoadErrorEventHandler LoadError;
 
+        /// <summary>
+        /// JS → C# 桥接请求事件。JS 调用 window._godotBridge.sendToGodot(msg) 时触发。
+        /// 参数: (type, payload, cbId) — cbId 可能为 null(无回调) 或字符串(需通过 SendResponse 回复)。
+        /// </summary>
+        public event Action<string, string, string> BridgeRequest;
+
         public CefGlueControl()
         {
             GD.Print("CefGlueControl: Constructor called");
@@ -980,6 +986,77 @@ namespace GDCefGlue
         public Task<T> EvaluateJavaScript<T>(string code, string url = null, int line = 1)
         {
             return Task.FromResult<T>(default);
+        }
+
+        /// <summary>
+        /// C# → JS 推送消息。
+        /// 在 JS 侧通过 window._godotBridge._onMessage(msg) 接收。
+        /// </summary>
+        public void SendToJs(string jsonMessage)
+        {
+            if (_browser == null || _browser.GetMainFrame() == null)
+            {
+                GD.PrintErr("[CefGlueControl] Cannot send to JS: browser not initialized");
+                return;
+            }
+
+            var escaped = jsonMessage
+                .Replace("\\", "\\\\")
+                .Replace("'", "\\'")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r");
+
+            var jsCode = $"window._godotBridge && window._godotBridge._onMessage(\"{escaped}\");";
+            _browser.GetMainFrame().ExecuteJavaScript(jsCode, "godot://send", 1);
+        }
+
+        /// <summary>
+        /// C# → JS 回复特定请求。在 JS 侧通过 window._godotBridge._onResponse(cbId, msg) 接收。
+        /// </summary>
+        public void SendResponse(string cbId, string jsonResponse)
+        {
+            if (string.IsNullOrEmpty(cbId)) return;
+            if (_browser == null || _browser.GetMainFrame() == null)
+            {
+                GD.PrintErr("[CefGlueControl] Cannot send response: browser not initialized");
+                return;
+            }
+
+            var escaped = jsonResponse
+                .Replace("\\", "\\\\")
+                .Replace("'", "\\'")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r");
+
+            var jsCode = $"window._godotBridge && window._godotBridge._onResponse('{cbId}',\"{escaped}\");";
+            _browser.GetMainFrame().ExecuteJavaScript(jsCode, "godot://response", 1);
+        }
+
+        /// <summary>
+        /// 内部: GodotRequestHandler 调用，解析 godot://bridge URL 并转发到 BridgeRequest 事件。
+        /// URL 格式: godot://bridge?type=X&cb=ID&payload=URLENCODED_JSON
+        /// </summary>
+        internal void OnBridgeRequest(string url)
+        {
+            try
+            {
+                var uri = new System.Uri(url);
+                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+                string type = query.Get("type") ?? "";
+                string cbId = query.Get("cb");
+                string payloadStr = query.Get("payload") ?? "";
+
+                GD.Print($"[CefGlueControl] Bridge request: type={type}, cb={cbId ?? "none"}, payloadLen={payloadStr.Length}");
+
+                BridgeRequest?.Invoke(type, payloadStr, cbId);
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[CefGlueControl] Failed to parse bridge URL '{url}': {ex.Message}");
+            }
         }
 
         /// <summary>

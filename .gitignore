@@ -1,5 +1,6 @@
 # Repository/Project Specific
 /src.g/
+/.backups/
 
 # Repository/Project Shared
 /bin/

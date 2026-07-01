@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using GDCefGlue;
+using Xilium.CefGlue;
 
 public partial class MainUi : Control
 {
@@ -30,6 +31,7 @@ public partial class MainUi : Control
         _browser.LoadStart += OnLoadStart;
         _browser.LoadEnd += OnLoadEnd;
         _browser.LoadError += OnLoadError;
+        _browser.BridgeRequest += OnBridgeRequest;
 
         _goButton.Pressed += OnGoPressed;
         _backButton.Pressed += OnBackPressed;
@@ -37,6 +39,64 @@ public partial class MainUi : Control
         _reloadButton.Pressed += OnReloadPressed;
         _openDevButton.Pressed += OnOpenDevPressed;
         _urlInput.TextSubmitted += OnUrlSubmitted;
+    }
+
+    /// <summary>
+    /// JS → C# bridge handler.
+    /// Test in browser console:
+    ///   fetch('godot://bridge?type=ping&cb=test1&payload={}').catch(()=>{})
+    ///   var i=document.createElement('iframe'); i.src='godot://bridge?type=ping&cb=test1&payload=%7B%7D'; document.body.appendChild(i);
+    /// Or if _godotBridge is injected:
+    ///   window._godotBridge.sendToGodot({type:'ping', payload:{}})
+    /// </summary>
+    private void OnBridgeRequest(string type, string payload, string cbId)
+    {
+        GD.Print($"[Bridge] type={type}, cb={cbId ?? "none"}, payload={payload}");
+
+        switch (type)
+        {
+            case "ping":
+                _browser.SendResponse(cbId, "{\"status\":\"pong\"}");
+                CallDeferred(nameof(UpdateStatusLabel), "Bridge: ping → pong");
+                break;
+
+            case "status":
+                var status = $"{{\"initialized\":{_browser.IsBrowserInitialized.ToString().ToLower()},\"loading\":{_browser.IsLoading.ToString().ToLower()},\"title\":\"{_browser.Title}\"}}";
+                _browser.SendResponse(cbId, status);
+                break;
+
+            case "navigate":
+                var json = Json.ParseString(payload);
+                if (json.VariantType == Variant.Type.Dictionary)
+                {
+                    var dict = json.AsGodotDictionary();
+                    string url = dict.ContainsKey("url") ? dict["url"].AsString() : "";
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                        CallDeferred(nameof(NavigateFromBridge), url);
+                        _browser.SendResponse(cbId, "{\"status\":\"navigating\"}");
+                    }
+                    else
+                    {
+                        _browser.SendResponse(cbId, "{\"error\":\"url is empty\"}");
+                    }
+                }
+                break;
+
+            default:
+                GD.PrintErr($"[Bridge] Unknown type: {type}");
+                _browser.SendResponse(cbId, "{\"error\":\"unknown type\"}");
+                break;
+        }
+    }
+
+    private void NavigateFromBridge(string url)
+    {
+        if (_browser != null)
+        {
+            _browser.Address = url;
+            UpdateStatusLabel($"Bridge navigate: {url}");
+        }
     }
 
     private void OnBrowserInitialized()
