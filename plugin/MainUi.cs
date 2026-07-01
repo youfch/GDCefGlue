@@ -10,6 +10,7 @@ public partial class MainUi : Control
     private Button _backButton;
     private Button _forwardButton;
     private Button _reloadButton;
+    private Button _openDevButton;
     private Label _statusLabel;
 
     public override void _Ready()
@@ -20,6 +21,7 @@ public partial class MainUi : Control
         _backButton = GetNode<Button>("Toolbar/BackButton");
         _forwardButton = GetNode<Button>("Toolbar/ForwardButton");
         _reloadButton = GetNode<Button>("Toolbar/ReloadButton");
+        _openDevButton = GetNode<Button>("Toolbar/OpenDevButton");
         _statusLabel = GetNode<Label>("StatusBar/StatusLabel");
 
         _browser.InitialUrl = "https://www.bing.com";
@@ -33,6 +35,7 @@ public partial class MainUi : Control
         _backButton.Pressed += OnBackPressed;
         _forwardButton.Pressed += OnForwardPressed;
         _reloadButton.Pressed += OnReloadPressed;
+        _openDevButton.Pressed += OnOpenDevPressed;
         _urlInput.TextSubmitted += OnUrlSubmitted;
     }
 
@@ -86,6 +89,11 @@ public partial class MainUi : Control
     private void OnReloadPressed()
     {
         _browser?.Reload();
+    }
+
+    private void OnOpenDevPressed()
+    {
+        _browser?.ShowDeveloperTools();
     }
 
     private void OnGoPressed()

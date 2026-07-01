@@ -6,6 +6,7 @@ var _go_button: Button
 var _back_button: Button
 var _forward_button: Button
 var _reload_button: Button
+var _open_dev_button: Button
 var _status_label: Label
 
 func _ready() -> void:
@@ -15,6 +16,7 @@ func _ready() -> void:
     _back_button = $Toolbar/BackButton
     _forward_button = $Toolbar/ForwardButton
     _reload_button = $Toolbar/ReloadButton
+    _open_dev_button = $Toolbar/OpenDevButton
     _status_label = $StatusBar/StatusLabel
 
     _browser.InitialUrl = "https://www.bing.com"
@@ -31,6 +33,7 @@ func _ready() -> void:
     _back_button.pressed.connect(_on_back_pressed)
     _forward_button.pressed.connect(_on_forward_pressed)
     _reload_button.pressed.connect(_on_reload_pressed)
+    _open_dev_button.pressed.connect(_on_open_dev_pressed)
     _url_input.text_submitted.connect(_on_url_submitted)
 
 func _on_browser_initialized() -> void:
@@ -56,6 +59,9 @@ func _on_forward_pressed() -> void:
 
 func _on_reload_pressed() -> void:
     _browser.Reload()
+
+func _on_open_dev_pressed() -> void:
+    _browser.ShowDeveloperTools()
 
 func _on_go_pressed() -> void:
     _navigate_to_url()
