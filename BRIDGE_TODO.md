@@ -91,33 +91,58 @@
 
 等于手搓一遍 CefMessageRouter，且 CEF 无 contextBridge 隔离世界（Electron 核心卖点不可复现）。
 
-## 方向确认：嵌入窗口 + SchemeHandler IPC + 事件转发
+## 架构总览
 
-### 渲染模式变更
-
-**OSR（离屏）→ 嵌入窗口（Windowed）**
-
-| 当前（OSR） | 目标（嵌入） |
-|---|---|
-| `SetAsWindowless(IntPtr.Zero, ...)` | `SetAsChild(hwnd)` |
-| `OnPaint` buffer → Godot 纹理 | CEF 直接渲染到子 HWND |
-| 需要 `CefRenderHandler` | 不需要 |
-| 场景融合好 | 覆盖在 Godot 之上（接受） |
-
-**位置同步**：每帧 `GetGlobalRect()` → `SetWindowPos(cefHwnd, ...)` 对齐
+```
+IPC 层（公共）：SchemeHandler + fetch  ← 第一阶段，替换 godot:// iframe
+    ├── 渲染模式 A [默认]：OSR（离屏渲染）
+    │      SetAsWindowless + GodotRenderHandler
+    │      → 事件由 Godot 原生处理，无需转发
+    │
+    └── 渲染模式 B [可选]：嵌入窗口
+           SetAsChild(hwnd) + 位置同步
+           → 事件需 JS 监听转发（godot_wry 方案）
+```
 
 ### IPC 方案确认
 
 **推荐：路径 A — SchemeHandler + fetch（`ipc://` 自定义 scheme）**
 
+| 维度 | 当前（godot:// iframe） | 目标（SchemeHandler + fetch） |
+|---|---|---|
+| 传输 | URL query 字符串 | POST body JSON |
+| 方向 | 两条道拼凑 | 双向单通道 |
+| Payload | ~2-64KB | 无限制 |
+| 高频 | DOM 污染 | 零 DOM 操作 |
+| JS 侧 | iframe 创建 | `fetch()` Promise |
+| 线程 | UI 线程同步 | 异步派发 |
+
 选定理由：
 - 双向单通道（HTTP request/response）
-- POST body 无长度限制
-- 支持二进制
+- POST body 无长度限制，支持二进制
 - JS 侧 `fetch` 返回 Promise，天然异步
+- 与渲染模式无关，OSR 和嵌入都受益
 - 参考 wrymium（CEF）和 godot_wry（WebView2）均已实证
 
-### 事件透传方案（新增）
+### 渲染模式：双模式可选
+
+```
+CefGlueControl 新增属性 UseEmbeddedWindow : bool
+  ├── false [默认] → OSR 模式（当前实现不变）
+  └── true → 嵌入窗口模式
+```
+
+**OSR 模式（默认）**：
+- `SetAsWindowless(IntPtr.Zero, Transparent)`
+- `GodotRenderHandler.OnPaint` → Godot 纹理
+- 事件由 Godot 原生处理，无需转发
+
+**嵌入窗口模式（可选）**：
+- `SetAsChild(hwnd)` → CEF 直接渲染到子 HWND
+- 每帧 `GetGlobalRect()` → `SetWindowPos(cefHwnd, ...)` 位置同步
+- 事件需 JS 监听转发（godot_wry 方案）
+
+### 事件透传方案（仅嵌入模式需要）
 
 参考 godot_wry 的 JS 事件转发模式：
 
@@ -139,23 +164,11 @@ CEF 区域内鼠标/键盘操作
 
 **推荐**：事件转发走 SchemeHandler 同一通道（实现简单，减少学习成本），如果实测 mousemove 延迟过高再优化到 V8Handler。
 
-## 推荐路径：嵌入窗口 + SchemeHandler IPC + 事件转发 TODO
+## 推荐路径：双模式渲染 + SchemeHandler IPC TODO
 
-### 阶段 1：渲染模式切换（OSR → 嵌入窗口）
+### 阶段 1：IPC 通道升级（公共，最高优先级）
 
-- [ ] 获取 Godot 窗口 HWND
-      `DisplayServer.WindowGetNativeHandle(HandleType.WINDOW_HANDLE, windowId)`
-      位置：`CefGlueControl.cs` 的 `CreateBrowser()` 中
-- [ ] 替换 `SetAsWindowless` → `SetAsChild(hwnd)`
-      `windowInfo.SetAsChild(hwnd, [CefWindowInfo.WS_CHILD \| WS_VISIBLE])`
-- [ ] 删除 `GodotRenderHandler.cs`（不再需要 `OnPaint`）
-- [ ] 删除 `CefSettings.WindowlessRenderingEnabled = true`
-- [ ] 实现每帧位置同步
-      `_Process()` → `GetGlobalRect()` → `SetWindowPos(cefHwnd, ...)` 对齐屏幕位置
-- [ ] 移除 `WS_CLIPCHILDREN` 窗口样式（参考 godot_wry 的做法）
-      否则透明背景/子窗口渲染异常
-
-### 阶段 2：IPC 通道（替换 godot:// iframe）
+替换 godot:// iframe，OSR 和嵌入模式都受益。
 
 - [ ] 注册 `ipc` 自定义 scheme
       位置：`CefInitializer.cs` 的 `GodotCefApp.OnRegisterCustomSchemes` 或 `Initialize()`
@@ -184,7 +197,24 @@ CEF 区域内鼠标/键盘操作
 - [ ] 保留 `SendToJs(json)` 作为 C#->JS 主动推送通道（独立于 request/response）
       可选优化：改用 `CefV8Handler` 注册函数代替 `ExecuteJavaScript` 字符串注入
 
-### 阶段 3：事件透传（参考 godot_wry）
+### 阶段 2：嵌入窗口模式（可选渲染模式）
+
+新增 `UseEmbeddedWindow` 属性，默认 false（OSR）。
+
+- [ ] 新增 `CefGlueControl.UseEmbeddedWindow : bool`（导出到 Godot inspector）
+- [ ] 获取 Godot 窗口 HWND（嵌入模式专用）
+      `DisplayServer.WindowGetNativeHandle(HandleType.WINDOW_HANDLE, windowId)`
+- [ ] `CreateBrowser()` 中根据 `UseEmbeddedWindow` 分支：
+      - `true` → `windowInfo.SetAsChild(hwnd, ...)`，不注册 `CefRenderHandler`
+      - `false` → `windowInfo.SetAsWindowless(...)`，保留 `GodotRenderHandler`（默认）
+- [ ] 实现嵌入模式每帧位置同步
+      `_Process()` → `GetGlobalRect()` → `SetWindowPos(cefHwnd, ...)` 对齐屏幕位置
+- [ ] 移除 `WS_CLIPCHILDREN` 窗口样式（嵌入模式，参考 godot_wry）
+      否则透明背景/子窗口渲染异常
+
+### 阶段 3：事件透传（嵌入模式专用）
+
+仅在 `UseEmbeddedWindow == true` 时启用。
 
 - [ ] CEF 初始化时注入 JS 事件监听脚本
       `ExecuteJavaScript` 注入 `mousedown/mousemove/mouseup/wheel/keydown/keyup` 监听器
