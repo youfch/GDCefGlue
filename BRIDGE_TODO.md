@@ -11,6 +11,30 @@
   - C#→JS 用字符串拼接 + 手写转义（`Replace("\\","\\\\")` x 5），有注入风险且每次触发 V8 parser
   - `BridgeRequest.Invoke` 在 CEF UI 线程同步执行，订阅者重活会卡渲染
 
+## CEF 原生 6 种 JS↔Native 机制（官方 API 实证）
+
+所有桥方案最终都建立在 CEF 底层 API 之上。CefGlue 完整暴露了以下 6 种机制的 C# 绑定。
+
+| # | 机制 | 方向 | 同步/异步 | Payload 限制 | 线程 | 官方定位 |
+|---|---|---|---|---|---|---|
+| 1 | `CefMessageRouterBrowserSide`（`window.cefQuery`） | JS→C++ 双向 | 异步（支持 `persistent` 推送） | 默认字符串；CEF 145+ 支持 binary + `CefSharedMemoryRegion`（可绕开 ~128KB IPC 限制） | UI 线程 | **官方推荐首选** |
+| 2 | `CefRegisterExtension` + `CefV8Handler` | JS→C++（可同步返回） | 同步返回 `retval`，但运行在 Render 进程 | 无限制（CefV8Value 直接传） | TID_RENDERER | 静态全局 API |
+| 3 | 窗口绑定 `OnContextCreated` + `CefV8Value::CreateFunction` | JS→C++ 同步 | 同步 | 无限制 | TID_RENDERER | 每帧可变、有 DOM |
+| 4 | `CefFrame::ExecuteJavaScript` | C++→JS | 异步无返回 | 无返回值 | Browser 任意线程 / Renderer 主线程 | 一句话注入 |
+| 5 | `CefFrame::SendProcessMessage` + `OnProcessMessageReceived` | 跨进程双向 | 异步 | `CefListValue` ~128KB；`CefSharedMemoryRegion` 无限 | UI 线程 | 底层 IPC 基石 |
+| 6 | `CefResourceRequestHandler` / `CefSchemeHandlerFactory` | 双向（HTTP 语义） | 异步 | 无限制（流式） | TID_IO | 大 payload、二进制 |
+
+### 对你方案的映射
+
+| 你当前的做法 | 对应 CEF 机制 | 问题 |
+|---|---|---|
+| `godot://` URL 拦截（`OnBeforeBrowse`） | 机制 5 的变体 | `OnBeforeBrowse` 无法读 POST body（机制 6 的 `OnBeforeResourceLoad` 才可以） |
+| `iframe.src` 触发导航 | 机制 5（用 `SendProcessMessage` 语义） | 本质是"模拟导航发 IPC"，但多了 DOM 创建开销 |
+| `ExecuteJavaScript` 回灌字符串 | 机制 4 的单向版 | 无返回值、每次 V8 parse、有注入风险 |
+| 手搓 callback ID（`cb=ID`） | 机制 1 的 `cefQuery` 内建功能 | 官方 MessageRouter 已提供 callback ID 管理和 cancellation |
+
+**结论**：你的方案在 CEF 原生坐标系里，把"应该用机制 1（MessageRouter）或机制 6（SchemeHandler）"的事情，用机制 5 的变体 + 机制 4 手搓实现了。这就是为什么主流库（CefSharp/CefGlue.Common/NanUI）都不走这条路。
+
 ## 跨生态定位
 
 | 维度 | 当前方案 | CefSharp 推荐 | Tauri | Electron |
