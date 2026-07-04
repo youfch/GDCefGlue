@@ -94,35 +94,26 @@
 ## 架构总览
 
 ```
-IPC 层（公共）：SchemeHandler + fetch  ← 第一阶段，替换 godot:// iframe
-    ├── 渲染模式 A [默认]：OSR（离屏渲染）
-    │      SetAsWindowless + GodotRenderHandler
-    │      → 事件由 Godot 原生处理，无需转发
-    │
-    └── 渲染模式 B [可选]：嵌入窗口
-           SetAsChild(hwnd) + 位置同步
-           → 事件需 JS 监听转发（godot_wry 方案）
+可用方案：iframe → godot:// OnBeforeBrowse（当前，唯一可行方案）
+待解决：CefRuntime.RegisterExtension = False（NuGet 包不支持浏览器进程注册 V8）
 ```
 
-### IPC 方案确认
+### 当前限制
 
-**推荐：路径 A — SchemeHandler + fetch（`ipc://` 自定义 scheme）**
+- `CefRuntime.RegisterExtension` 注册 V8 扩展失败（NuGet 版 CEF 不支持从浏览器进程注入）
+- 无法使用 `CefMessageRouter`（需修改 BrowserProcess，独立项目不满足 addons 分发）
+- 无法使用 `SchemeHandler + fetch`（file:// → ipc:// 跨域 CORS 死胡同）
+- **唯一可行：iframe → OnBeforeBrowse 拦截**
 
-| 维度 | 当前（godot:// iframe） | 目标（SchemeHandler + fetch） |
-|---|---|---|
-| 传输 | URL query 字符串 | POST body JSON |
-| 方向 | 两条道拼凑 | 双向单通道 |
-| Payload | ~2-64KB | 无限制 |
-| 高频 | DOM 污染 | 零 DOM 操作 |
-| JS 侧 | iframe 创建 | `fetch()` Promise |
-| 线程 | UI 线程同步 | 异步派发 |
+### 关键关注点：iframe 垃圾回收
 
-选定理由：
-- 双向单通道（HTTP request/response）
-- POST body 无长度限制，支持二进制
-- JS 侧 `fetch` 返回 Promise，天然异步
-- 与渲染模式无关，OSR 和嵌入都受益
-- 参考 wrymium（CEF）和 godot_wry（WebView2）均已实证
+每次 `cefQuery` 调用会创建 iframe（`display:none`），当前方案 100ms 后自动移除。
+高频调用场景下（如 mousemove 60fps）需确保：
+
+- [ ] iframe 创建后及时从 DOM 移除（已在 BridgeScript 中 100ms setTimeout 清理）
+- [ ] 页面跳转/卸载时 iframe 不残留（CEF 自动清理页面 DOM，安全）
+- [ ] 高频调用时 iframe 不堆积（当前 100ms 窗口期内不会堆积超过 ~6 个 iframe）
+- [ ] 考虑复用单个隐藏 iframe 代替每次创建（后续优化点）
 
 ### 渲染模式：双模式可选
 
@@ -164,91 +155,23 @@ CEF 区域内鼠标/键盘操作
 
 **推荐**：事件转发走 SchemeHandler 同一通道（实现简单，减少学习成本），如果实测 mousemove 延迟过高再优化到 V8Handler。
 
-## 推荐路径：双模式渲染 + SchemeHandler IPC TODO
+## 推荐路径：iframe bridge + cefQuery API TODO
 
-### 阶段 1：IPC 通道升级（公共，最高优先级）
+### 当前方案已验证
 
-替换 godot:// iframe，OSR 和嵌入模式都受益。
+- [x] `window.cefQuery(request, callback)` API 在 JS 端可用
+- [x] iframe → OnBeforeBrowse 拦截 → BridgeRequest 事件
+- [x] C# → JS 响应通过 ExecuteJavaScript（`__cefQueryResponse`）
+- [x] 测试全部通过（ping/echo/100KB payload）
+- [x] 每页自动注入桥脚本（LoadEnd 事件注入）
+- [x] 向后兼容旧 `_godotBridge` 回调
+- [x] DevTool 按钮
 
-- [ ] 注册 `ipc` 自定义 scheme
-      位置：`CefInitializer.cs` 的 `GodotCefApp.OnRegisterCustomSchemes` 或 `Initialize()`
-      API：`CefRuntime.RegisterSchemeHandlerFactory("ipc", "localhost", new GodotSchemeHandlerFactory())`
-- [ ] 实现 `GodotSchemeHandlerFactory`（实现 `CefSchemeHandlerFactory.Create`，返回 `GodotBridgeResourceHandler`）
-- [ ] 实现 `GodotBridgeResourceHandler : CefResourceHandler`
-      - `Open`：解析 URL path -> 路由键
-      - `GetResponseHeaders`：设 status=200, Content-Type=application/json, Content-Length
-      - `Read`：流式写 response JSON 到 buffer
-      - 异步：若 handler 需要等 C# 结果，用 `CefCallback.Continue()` 而非阻塞
-- [ ] 读取 POST body
-      在 `Open` 或 `ProcessRequest` 中 `request.GetPostData().GetElements()` -> 解析 JSON
-- [ ] 改 `CefGlueControl.OnBridgeRequest` 为异步派发
-      从 `BridgeRequest.Invoke` 改为 `BridgeRequestAsync` + `Task.Run` + callback
-- [ ] JS 侧改用 `fetch`
-      ```js
-      async function sendToGodot(type, payload) {
-        const r = await fetch('ipc://localhost/bridge', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({type, payload})
-        });
-        return r.json();
-      }
-      ```
-- [ ] 保留 `SendToJs(json)` 作为 C#->JS 主动推送通道（独立于 request/response）
-      可选优化：改用 `CefV8Handler` 注册函数代替 `ExecuteJavaScript` 字符串注入
+### 待优化
 
-### 阶段 2：嵌入窗口模式（可选渲染模式）
-
-新增 `UseEmbeddedWindow` 属性，默认 false（OSR）。
-
-- [ ] 新增 `CefGlueControl.UseEmbeddedWindow : bool`（导出到 Godot inspector）
-- [ ] 获取 Godot 窗口 HWND（嵌入模式专用）
-      `DisplayServer.WindowGetNativeHandle(HandleType.WINDOW_HANDLE, windowId)`
-- [ ] `CreateBrowser()` 中根据 `UseEmbeddedWindow` 分支：
-      - `true` → `windowInfo.SetAsChild(hwnd, ...)`，不注册 `CefRenderHandler`
-      - `false` → `windowInfo.SetAsWindowless(...)`，保留 `GodotRenderHandler`（默认）
-- [ ] 实现嵌入模式每帧位置同步
-      `_Process()` → `GetGlobalRect()` → `SetWindowPos(cefHwnd, ...)` 对齐屏幕位置
-- [ ] 移除 `WS_CLIPCHILDREN` 窗口样式（嵌入模式，参考 godot_wry）
-      否则透明背景/子窗口渲染异常
-
-### 阶段 3：事件透传（嵌入模式专用）
-
-仅在 `UseEmbeddedWindow == true` 时启用。
-
-- [ ] CEF 初始化时注入 JS 事件监听脚本
-      `ExecuteJavaScript` 注入 `mousedown/mousemove/mouseup/wheel/keydown/keyup` 监听器
-      每个事件通过 `sendToGodot({type:'_mouse_xxx', x, y, button, ...})` 发送
-- [ ] C# 端处理 `_mouse_move` 事件
-      构造 `InputEventMouseMotion` → `GetViewport().PushInput(event)`
-      坐标转换：`JS clientX + WebView 全局位置 → Godot 视口坐标`
-- [ ] C# 端处理 `_mouse_down/_mouse_up` 事件
-      构造 `InputEventMouseButton` → `PushInput`
-      维护 `CURRENT_BUTTON_MASK` 状态机（参考 godot_wry）
-- [ ] C# 端处理 `_mouse_wheel` 事件
-      拆分为 `WHEEL_UP/WHEEL_DOWN` 两个 `InputEventMouseButton`（pressed=true/false 各一次）
-- [ ] C# 端处理 `_key_down/_key_up` 事件
-      构造 `InputEventKey` → `PushInput`
-      实现 JS key 字符串 → Godot `Key` enum 映射表（参考 godot_wry 的 GODOT_KEYS）
-- [ ] 实现 `focus_parent()` 逻辑
-      `CefGlueControl.input()` 中检测鼠标在 CEF 区域外点击 → `CefBrowserHost.SetFocus(false)`
-
-### 阶段 4：安全增强（可选，页面加载不可信内容时）
-
-- [ ] `OnContextCreated` 注入 per-webview secret token
-      `frame.ExecuteJavaScript("window.__GD_INVOKE_KEY__='<guid>'")`
-- [ ] handler 校验请求头 `X-GD-Invoke-Key`
-
-### 阶段 5：类型化契约层（可选，高频维护场景）
-
-- [ ] C# 侧用 Source Generator 或反射 + `System.Text.Json` 构建 dispatch 表
-      参考 Tauri `#[tauri::command]` + `generate_handler!` 思路
-- [ ] JS 侧生成 `invoke(cmdName, args)` 包装
-
-### 阶段 6：二进制支持（可选，图片/音频传输）
-
-- [ ] `GodotBridgeResourceHandler.Read` 支持 `Content-Type: application/octet-stream`
-- [ ] JS 侧 `fetch().then(r => r.arrayBuffer())`
+- [ ] iframe 复用：改用单个隐藏 iframe 反复设置 src，代替每次 createElement（减少 DOM 操作和 GC 压力）
+- [ ] `CefRuntime.RegisterExtension = False` 持续关注 CefGlue 版本更新，未来可能支持
+- [ ] 考虑 `SchemeHandler + fetch` 替代 iframe（需解决 file:// CORS，如用 `ipc://` 自加载页面）
 
 ## 验收标准
 
