@@ -91,9 +91,71 @@
 
 等于手搓一遍 CefMessageRouter，且 CEF 无 contextBridge 隔离世界（Electron 核心卖点不可复现）。
 
-## 推荐路径：Tauri 方案 TODO
+## 方向确认：嵌入窗口 + SchemeHandler IPC + 事件转发
 
-### 阶段 1：最小可行版（替换现有 godot://）
+### 渲染模式变更
+
+**OSR（离屏）→ 嵌入窗口（Windowed）**
+
+| 当前（OSR） | 目标（嵌入） |
+|---|---|
+| `SetAsWindowless(IntPtr.Zero, ...)` | `SetAsChild(hwnd)` |
+| `OnPaint` buffer → Godot 纹理 | CEF 直接渲染到子 HWND |
+| 需要 `CefRenderHandler` | 不需要 |
+| 场景融合好 | 覆盖在 Godot 之上（接受） |
+
+**位置同步**：每帧 `GetGlobalRect()` → `SetWindowPos(cefHwnd, ...)` 对齐
+
+### IPC 方案确认
+
+**推荐：路径 A — SchemeHandler + fetch（`ipc://` 自定义 scheme）**
+
+选定理由：
+- 双向单通道（HTTP request/response）
+- POST body 无长度限制
+- 支持二进制
+- JS 侧 `fetch` 返回 Promise，天然异步
+- 参考 wrymium（CEF）和 godot_wry（WebView2）均已实证
+
+### 事件透传方案（新增）
+
+参考 godot_wry 的 JS 事件转发模式：
+
+```
+CEF 区域内鼠标/键盘操作
+  → 注入的 JS 监听 DOM 事件（mousedown/mousemove/keydown...）
+  → 通过 IPC 通道发送到 C#（_mouse_down, _mouse_up, _key_down...）
+  → C# 构造 Godot InputEventXXX
+  → viewport.push_input(event) 推回 Godot 事件系统
+```
+
+事件转发 IPC 通道选型：
+
+| 方案 | 延迟 | 适用场景 |
+|---|---|---|
+| 同一个 SchemeHandler + fetch | ~0.5ms | 低频事件（click, keydown） |
+| `CefRegisterExtension` + V8Handler | ~0.01ms | 高频事件（mousemove 60fps） |
+| `CefMessageRouter` | ~0.1ms | 中频事件 |
+
+**推荐**：事件转发走 SchemeHandler 同一通道（实现简单，减少学习成本），如果实测 mousemove 延迟过高再优化到 V8Handler。
+
+## 推荐路径：嵌入窗口 + SchemeHandler IPC + 事件转发 TODO
+
+### 阶段 1：渲染模式切换（OSR → 嵌入窗口）
+
+- [ ] 获取 Godot 窗口 HWND
+      `DisplayServer.WindowGetNativeHandle(HandleType.WINDOW_HANDLE, windowId)`
+      位置：`CefGlueControl.cs` 的 `CreateBrowser()` 中
+- [ ] 替换 `SetAsWindowless` → `SetAsChild(hwnd)`
+      `windowInfo.SetAsChild(hwnd, [CefWindowInfo.WS_CHILD \| WS_VISIBLE])`
+- [ ] 删除 `GodotRenderHandler.cs`（不再需要 `OnPaint`）
+- [ ] 删除 `CefSettings.WindowlessRenderingEnabled = true`
+- [ ] 实现每帧位置同步
+      `_Process()` → `GetGlobalRect()` → `SetWindowPos(cefHwnd, ...)` 对齐屏幕位置
+- [ ] 移除 `WS_CLIPCHILDREN` 窗口样式（参考 godot_wry 的做法）
+      否则透明背景/子窗口渲染异常
+
+### 阶段 2：IPC 通道（替换 godot:// iframe）
 
 - [ ] 注册 `ipc` 自定义 scheme
       位置：`CefInitializer.cs` 的 `GodotCefApp.OnRegisterCustomSchemes` 或 `Initialize()`
@@ -122,19 +184,38 @@
 - [ ] 保留 `SendToJs(json)` 作为 C#->JS 主动推送通道（独立于 request/response）
       可选优化：改用 `CefV8Handler` 注册函数代替 `ExecuteJavaScript` 字符串注入
 
-### 阶段 2：安全增强（可选，页面加载不可信内容时）
+### 阶段 3：事件透传（参考 godot_wry）
+
+- [ ] CEF 初始化时注入 JS 事件监听脚本
+      `ExecuteJavaScript` 注入 `mousedown/mousemove/mouseup/wheel/keydown/keyup` 监听器
+      每个事件通过 `sendToGodot({type:'_mouse_xxx', x, y, button, ...})` 发送
+- [ ] C# 端处理 `_mouse_move` 事件
+      构造 `InputEventMouseMotion` → `GetViewport().PushInput(event)`
+      坐标转换：`JS clientX + WebView 全局位置 → Godot 视口坐标`
+- [ ] C# 端处理 `_mouse_down/_mouse_up` 事件
+      构造 `InputEventMouseButton` → `PushInput`
+      维护 `CURRENT_BUTTON_MASK` 状态机（参考 godot_wry）
+- [ ] C# 端处理 `_mouse_wheel` 事件
+      拆分为 `WHEEL_UP/WHEEL_DOWN` 两个 `InputEventMouseButton`（pressed=true/false 各一次）
+- [ ] C# 端处理 `_key_down/_key_up` 事件
+      构造 `InputEventKey` → `PushInput`
+      实现 JS key 字符串 → Godot `Key` enum 映射表（参考 godot_wry 的 GODOT_KEYS）
+- [ ] 实现 `focus_parent()` 逻辑
+      `CefGlueControl.input()` 中检测鼠标在 CEF 区域外点击 → `CefBrowserHost.SetFocus(false)`
+
+### 阶段 4：安全增强（可选，页面加载不可信内容时）
 
 - [ ] `OnContextCreated` 注入 per-webview secret token
       `frame.ExecuteJavaScript("window.__GD_INVOKE_KEY__='<guid>'")`
 - [ ] handler 校验请求头 `X-GD-Invoke-Key`
 
-### 阶段 3：类型化契约层（可选，高频维护场景）
+### 阶段 5：类型化契约层（可选，高频维护场景）
 
 - [ ] C# 侧用 Source Generator 或反射 + `System.Text.Json` 构建 dispatch 表
       参考 Tauri `#[tauri::command]` + `generate_handler!` 思路
 - [ ] JS 侧生成 `invoke(cmdName, args)` 包装
 
-### 阶段 4：二进制支持（可选，图片/音频传输）
+### 阶段 6：二进制支持（可选，图片/音频传输）
 
 - [ ] `GodotBridgeResourceHandler.Read` 支持 `Content-Type: application/octet-stream`
 - [ ] JS 侧 `fetch().then(r => r.arrayBuffer())`
@@ -146,11 +227,17 @@
 - [ ] round trip 延迟 < 5ms（实测）
 - [ ] iframe 不再被创建（改用 `fetch`）
 - [ ] C#->JS 推送仍可用（`SendToJs` 保留或升级）
+- [ ] Godot 控件覆盖在 CEF 区域上时，鼠标事件仍可穿透到 Godot 控件（事件转发验证）
+- [ ] 鼠标在 CEF 区域外点击 → CEF 失去焦点
 - [ ] LSP 诊断无新增 error
 - [ ] Godot 编辑器运行无报错
 
 ## 参考实现
 
+- **godot_wry**：https://github.com/doceazedo/godot_wry —— **核心参考**，嵌入窗口 + JS 事件转发 + IPC 的完整实现
+  - `src/lib.rs`：JS 注入事件监听 + IPC handler + `push_input`
+  - `src/godot_window.rs`：`DisplayServer.WindowGetNativeHandle` → HWND
+  - 关键技巧：移除 `WS_CLIPCHILDREN`、坐标换算、`CURRENT_BUTTON_MASK` 状态机
 - wrymium（Tauri+CEF 混合）：https://github.com/gxcsoccer/wrymium —— 用 `CefSchemeHandlerFactory` 实现 Tauri `invoke()`
 - Chromely：https://github.com/chromelyapps/CefSharp —— 整个桥建立在 `CefSchemeHandlerFactory` 上
 - CefSharp `ExampleResourceRequestHandler`：POST body 读取示例
