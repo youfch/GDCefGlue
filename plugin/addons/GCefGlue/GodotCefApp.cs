@@ -34,6 +34,10 @@ namespace GDCefGlue
                 if (CefGlueControl.UseTransparent)
                 {
                     commandLine.AppendSwitch("enable-begin-frame-scheduling");
+                    // 强制 CEF 使用传统 D3D swap chain 而不是 DirectComposition
+                    // 否则 WS_EX_LAYERED + SetLayeredWindowAttributes 无效
+                    commandLine.AppendSwitch("disable-direct-composition");
+                    commandLine.AppendSwitch("disable-direct-composition-video-overlays");
                 }
                 
                 commandLine.AppendSwitch("disable-smooth-scrolling");
