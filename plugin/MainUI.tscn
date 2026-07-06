@@ -39,6 +39,7 @@ script = ExtResource("2_guh61")
 FrameRate = 120
 Transparent = true
 SyncCursor = true
+UseEmbeddedWindow = true
 
 [node name="Toolbar" type="Panel" parent="." unique_id=1161862796]
 layout_mode = 1

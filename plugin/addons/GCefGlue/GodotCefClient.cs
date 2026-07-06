@@ -25,7 +25,13 @@ namespace GDCefGlue
             _requestHandler = new GodotRequestHandler(control);
         }
 
-        protected override CefRenderHandler GetRenderHandler() => _renderHandler;
+        protected override CefRenderHandler GetRenderHandler()
+        {
+            // 嵌入模式下，CEF 直接渲染到子 HWND，不需要离屏渲染处理器
+            if (CefGlueControl.UseEmbeddedWindowGlobal)
+                return null;
+            return _renderHandler;
+        }
         protected override CefLifeSpanHandler GetLifeSpanHandler() => _lifeSpanHandler;
         protected override CefDisplayHandler GetDisplayHandler() => _displayHandler;
         protected override CefLoadHandler GetLoadHandler() => _loadHandler;

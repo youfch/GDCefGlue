@@ -16,6 +16,48 @@ using Xilium.CefGlue.Common.Events;
 
 namespace GDCefGlue
 {
+    // ── 窗口嵌入模式 Native P/Invoke ───────────────────────────────────
+    internal static class NativeWindowMethods
+    {
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+            int X, int Y, int cx, int cy, uint uFlags);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern IntPtr FindWindowEx(IntPtr hWndParent, IntPtr hWndChildAfter,
+            string lpszClass, string lpszWindow);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        internal const int GWL_STYLE = -16;
+        internal const int GWL_EXSTYLE = -20;
+        internal const uint WS_CLIPCHILDREN = 0x02000000;
+        internal const int WS_EX_TRANSPARENT = 0x00000020;
+        internal const uint SWP_NOZORDER = 0x0004;
+        internal const uint SWP_NOACTIVATE = 0x0010;
+        internal const uint SWP_SHOWWINDOW = 0x0040;
+        internal static readonly IntPtr HWND_TOP = IntPtr.Zero;
+    }
+
     /// <summary>
     /// A Godot Control that embeds a CEF browser using off-screen rendering.
     /// Provides full browser functionality including navigation, JavaScript execution, and developer tools.
@@ -53,6 +95,16 @@ namespace GDCefGlue
         private int _pendingHeight;
         private int _resizeStableCount;
         private const int ResizeStableThreshold = 2;
+
+// ── 窗口嵌入模式 ───────────────────────────────────────────────────
+    private IntPtr _godotHwnd;
+    private IntPtr _cefChildHwnd;
+    private bool _embeddedMode;
+    private bool _nativeStylesPatched;
+    private Vector2 _previousGlobalPos;
+    private Vector2 _previousSize;
+    private Vector2I _previousWindowPos;
+    private float _previousContentScale = 1.0f;
 
         // ── IPC / JS bridge ────────────────────────────────────────────────
         private int _lastEvalTaskId;
@@ -117,9 +169,18 @@ namespace GDCefGlue
         /// Default is false (cursor stays as default arrow).
         /// </summary>
         [Export] public bool SyncCursor { get; set; } = false;
+
+        /// <summary>
+        /// Gets or sets whether to use native window embedding instead of off-screen rendering.
+        /// When true, CEF renders directly to a child HWND of the Godot window (better video/WebGL performance).
+        /// When false, uses OSR (off-screen rendering) with Godot texture painting.
+        /// Must be set before the browser is created (in the inspector or before _Ready).
+        /// </summary>
+        [Export] public bool UseEmbeddedWindow { get; set; } = false;
         
         private static bool _useGpuAcceleration = true;
         private static bool _useTransparent = false;
+        private static bool _useEmbeddedWindow = false;
         
         /// <summary>
         /// Gets or sets the global GPU acceleration setting. Must be set before CEF initialization.
@@ -137,6 +198,15 @@ namespace GDCefGlue
         { 
             get => _useTransparent;
             set => _useTransparent = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the global window embedding mode. Must be set before CEF initialization.
+        /// </summary>
+        public static bool UseEmbeddedWindowGlobal
+        {
+            get => _useEmbeddedWindow;
+            set => _useEmbeddedWindow = value;
         }
 
         /// <summary>
@@ -224,6 +294,8 @@ namespace GDCefGlue
             
             UseGpuAcceleration = GpuAcceleration;
             UseTransparent = Transparent;
+            UseEmbeddedWindowGlobal = UseEmbeddedWindow;
+            _embeddedMode = UseEmbeddedWindow;
             CefInitializer.Initialize();
 
             CustomMinimumSize = new Vector2(100, 100);
@@ -328,10 +400,41 @@ namespace GDCefGlue
             _controlHeight = height;
 
             var frameRate = Math.Clamp(FrameRate, 1, 360);
-            GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (Transparent: {Transparent})");
+            GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (Transparent: {Transparent}, Embedded: {_embeddedMode})");
 
             var windowInfo = CefWindowInfo.Create();
-            windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
+
+            if (_embeddedMode)
+            {
+                // ── 窗口嵌入模式：CEF 直接渲染到子 HWND ──
+                _godotHwnd = (IntPtr)DisplayServer.WindowGetNativeHandle(
+                    DisplayServer.HandleType.WindowHandle, 0);
+
+                if (_godotHwnd == IntPtr.Zero)
+                {
+                    GD.PrintErr("CefGlueControl: Failed to get Godot window handle");
+                    return;
+                }
+
+                GD.Print($"CefGlueControl: Godot HWND = 0x{_godotHwnd.ToInt64():X8}");
+
+                // 移除 Godot 窗口的 WS_CLIPCHILDREN 样式（允许 CEF 子窗口覆盖渲染）
+                int currentStyle = NativeWindowMethods.GetWindowLong(_godotHwnd, NativeWindowMethods.GWL_STYLE);
+                if ((currentStyle & NativeWindowMethods.WS_CLIPCHILDREN) != 0)
+                {
+                    int newStyle = currentStyle & ~(int)NativeWindowMethods.WS_CLIPCHILDREN;
+                    NativeWindowMethods.SetWindowLong(_godotHwnd, NativeWindowMethods.GWL_STYLE, newStyle);
+                    _nativeStylesPatched = true;
+                    GD.Print("CefGlueControl: Removed WS_CLIPCHILDREN from Godot window");
+                }
+
+                windowInfo.SetAsChild(_godotHwnd, new CefRectangle(0, 0, width, height));
+            }
+            else
+            {
+                // ── OSR 模式：离屏渲染到内存 → Godot 纹理 ──
+                windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
+            }
 
             var settings = new CefBrowserSettings
             {
@@ -365,6 +468,23 @@ namespace GDCefGlue
             
             _browser = browser;
             _browserHost = browser.GetHost();
+
+            if (_embeddedMode && _browserHost != null)
+            {
+                // 使用 CefBrowserHost.GetWindowHandle() 直接获取 CEF 子窗口 HWND
+                // 比 FindWindowEx 猜类名更可靠
+                _cefChildHwnd = _browserHost.GetWindowHandle();
+
+                if (_cefChildHwnd != IntPtr.Zero)
+                {
+                    GD.Print($"CefGlueControl: CEF child HWND = 0x{_cefChildHwnd.ToInt64():X8}");
+                }
+                else
+                {
+                    GD.Print("CefGlueControl: GetWindowHandle returned zero, will retry in _Process");
+                }
+            }
+
             CallDeferred(nameof(NotifyBrowserInitialized));
         }
 
@@ -569,6 +689,13 @@ namespace GDCefGlue
         {
             _cachedGlobalPosition = GlobalPosition;
 
+            // ── 嵌入模式：每帧同步 CEF 子窗口位置，跳过 OSR 纹理更新 ──
+            if (_embeddedMode)
+            {
+                ProcessEmbeddedMode(delta);
+                return;
+            }
+
             if (_browserHost != null && Size.X > 0 && Size.Y > 0)
             {
                 int newWidth = (int)Size.X;
@@ -644,11 +771,93 @@ namespace GDCefGlue
         }
 
         /// <summary>
+        /// 嵌入窗口模式每帧处理：同步 CEF 子窗口位置/大小，跳过 OSR 纹理更新。
+        /// 参考 godot_wry 的做法：检测 GlobalPosition / Size / WindowPosition / ContentScale 变化后
+        /// 才调用 SetWindowPos，避免不必要的帧率开销。
+        /// </summary>
+        private void ProcessEmbeddedMode(double delta)
+        {
+            if (_browserHost == null || _godotHwnd == IntPtr.Zero)
+                return;
+
+            var globalPos = GlobalPosition;
+            var size = Size;
+            if (size.X <= 0 || size.Y <= 0)
+                return;
+
+            // 从 DisplayServer 获取内容缩放比（物理像素 / 虚拟像素）
+            // 等价于 godot_wry 的 screen_get_content_scale_ex
+            float contentScale = DisplayServer.ScreenGetScale();
+
+            // 获取 Godot 窗口在屏幕上的位置（用于检测窗口移动）
+            var windowPos = DisplayServer.WindowGetPosition();
+
+            // 仅当有任何变化时才触发 SetWindowPos
+            if (globalPos == _previousGlobalPos
+                && size == _previousSize
+                && windowPos == _previousWindowPos
+                && Math.Abs(contentScale - _previousContentScale) < 0.001f
+                && _cefChildHwnd != IntPtr.Zero
+                && size.X == _controlWidth && size.Y == _controlHeight)
+            {
+                return; // 无变化，跳过
+            }
+
+            _previousGlobalPos = globalPos;
+            _previousSize = size;
+            _previousWindowPos = windowPos;
+            _previousContentScale = contentScale;
+
+            // 计算物理像素坐标
+            int physX = (int)(globalPos.X * contentScale);
+            int physY = (int)(globalPos.Y * contentScale);
+            int physW = (int)(size.X * contentScale);
+            int physH = (int)(size.Y * contentScale);
+
+            if (_cefChildHwnd == IntPtr.Zero)
+            {
+                // GetWindowHandle 可能还没准备好（异步创建），重试
+                _cefChildHwnd = _browserHost.GetWindowHandle();
+                if (_cefChildHwnd == IntPtr.Zero)
+                    return;
+
+                GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
+            }
+
+            // 同步 CEF 子窗口位置和大小（坐标相对于 Godot 窗口客户区）
+            NativeWindowMethods.SetWindowPos(
+                _cefChildHwnd,
+                NativeWindowMethods.HWND_TOP,
+                physX, physY, physW, physH,
+                NativeWindowMethods.SWP_NOZORDER | NativeWindowMethods.SWP_NOACTIVATE);
+
+            // 通知 CEF 窗口大小变化
+            if (physW != _controlWidth || physH != _controlHeight)
+            {
+                _controlWidth = physW;
+                _controlHeight = physH;
+                _browserHost.WasResized();
+            }
+
+            // 确保浏览器已创建标记
+            if (!_browserCreated)
+            {
+                _browserCreated = true;
+                GD.Print("CefGlueControl: Embedded browser fully created and positioned");
+            }
+        }
+
+        /// <summary>
         /// Called when the control needs to be redrawn. Draws the browser texture.
         /// Uses control size for drawing to ensure proper scaling during resize operations.
+        /// In embedded mode, the CEF child window renders itself — no Godot drawing needed.
         /// </summary>
         public override void _Draw()
         {
+            // 嵌入模式下，CEF 子窗口自行渲染，不需要 Godot 绘制
+            if (_embeddedMode)
+                return;
+
             if (_texture != null && _controlWidth > 0 && _controlHeight > 0)
             {
                 if (Transparent)
@@ -674,7 +883,8 @@ namespace GDCefGlue
         /// </summary>
         public override void _GuiInput(InputEvent @event)
         {
-            if (_browserHost == null)
+            // 嵌入模式下，CEF 子窗口直接接收原生输入，不需要 Godot 转发
+            if (_browserHost == null || _embeddedMode)
                 return;
 
             switch (@event)
@@ -932,6 +1142,29 @@ namespace GDCefGlue
         /// </summary>
         public override void _Notification(int what)
         {
+            if (_embeddedMode)
+            {
+                // 嵌入模式下，CEF 子窗口独立管理焦点和输入
+                switch ((long)what)
+                {
+                    case NotificationResized:
+                        break;
+                    case NotificationMouseExit:
+                        _isMousePressed = false;
+                        _pressedButton = (CefMouseButtonType)(-1);
+                        break;
+                    case NotificationFocusEnter:
+                        _isFocused = true;
+                        _browserHost?.SetFocus(true);
+                        break;
+                    case NotificationFocusExit:
+                        _isFocused = false;
+                        _browserHost?.SetFocus(false);
+                        break;
+                }
+                return;
+            }
+
             switch ((long)what)
             {
                 case NotificationResized:
