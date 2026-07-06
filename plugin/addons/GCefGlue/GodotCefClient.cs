@@ -8,6 +8,7 @@ namespace GDCefGlue
     /// </summary>
     internal class GodotCefClient : CefClient
     {
+        private readonly CefGlueControl _control;
         private readonly GodotRenderHandler _renderHandler;
         private readonly GodotLifeSpanHandler _lifeSpanHandler;
         private readonly GodotDisplayHandler _displayHandler;
@@ -16,6 +17,7 @@ namespace GDCefGlue
 
         public GodotCefClient(CefGlueControl control)
         {
+            _control = control;
             _renderHandler = new GodotRenderHandler(control);
             _lifeSpanHandler = new GodotLifeSpanHandler(control);
             _displayHandler = new GodotDisplayHandler(control);
@@ -28,5 +30,18 @@ namespace GDCefGlue
         protected override CefDisplayHandler GetDisplayHandler() => _displayHandler;
         protected override CefLoadHandler GetLoadHandler() => _loadHandler;
         protected override CefRequestHandler GetRequestHandler() => _requestHandler;
+
+        /// <summary>
+        /// Receives IPC messages from the CEF renderer process (CefGlue.BrowserProcess).
+        /// Dispatches to CefGlueControl for handling JS evaluation results and native method calls.
+        /// </summary>
+        protected override bool OnProcessMessageReceived(CefBrowser browser, CefFrame frame, CefProcessId sourceProcess, CefProcessMessage message)
+        {
+            using (message)
+            {
+                _control.HandleProcessMessage(message);
+            }
+            return true;
+        }
     }
 }

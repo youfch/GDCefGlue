@@ -1,9 +1,13 @@
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
@@ -49,6 +53,39 @@ namespace GDCefGlue
         private int _pendingHeight;
         private int _resizeStableCount;
         private const int ResizeStableThreshold = 2;
+
+        // ── IPC / JS bridge ────────────────────────────────────────────────
+        private int _lastEvalTaskId;
+        private readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _pendingEvals = new();
+        private readonly ConcurrentDictionary<string, RegisteredObject> _registeredObjects = new();
+
+        /// <summary>
+        /// Holds a C# object registered for JS access, with its reflected methods.
+        /// </summary>
+        private sealed class RegisteredObject
+        {
+            public object Target { get; }
+            public Dictionary<string, MethodInfo> Methods { get; }
+            public string[] MethodNames { get; }
+
+            public RegisteredObject(object target)
+            {
+                Target = target;
+                Methods = new Dictionary<string, MethodInfo>();
+                var names = new List<string>();
+
+                var type = target.GetType();
+                foreach (var m in type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly))
+                {
+                    if (m.IsSpecialName) continue; // skip get/set/add/remove
+                    var jsName = char.ToLowerInvariant(m.Name[0]) + m.Name.Substring(1);
+                    Methods[jsName] = m;
+                    names.Add(jsName);
+                }
+
+                MethodNames = names.ToArray();
+            }
+        }
 
         /// <summary>
         /// Gets or sets the initial URL to load when the browser is created.
@@ -981,11 +1018,296 @@ namespace GDCefGlue
         }
 
         /// <summary>
-        /// Evaluates JavaScript code and returns the result.
+        /// Evaluates JavaScript code in the browser frame and returns the result.
+        /// Uses CEF IPC (SendProcessMessage) to communicate with the renderer process.
+        /// Supports optional timeout.  Throws TimeoutException on timeout.
         /// </summary>
-        public Task<T> EvaluateJavaScript<T>(string code, string url = null, int line = 1)
+        public Task<T> EvaluateJavaScript<T>(string code, string url = null, int line = 1, TimeSpan? timeout = null)
         {
-            return Task.FromResult<T>(default);
+            var frame = _browser?.GetMainFrame();
+            if (frame == null)
+                return Task.FromResult<T>(default);
+
+            var taskId = Interlocked.Increment(ref _lastEvalTaskId);
+            var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _pendingEvals.TryAdd(taskId, tcs);
+
+            var msg = CefProcessMessage.Create("JsEvaluationRequest");
+            using (var args = msg.Arguments)
+            {
+                args.SetInt(0, taskId);
+                // WrapScriptForEvaluation 生成的函数没有 return 关键字:
+                //   cefglue.evaluateScript(function() { <code>\n})
+                // 所以注入 return 使函数返回表达式结果
+                args.SetString(1, $"return {code};");
+                args.SetString(2, url ?? "about:blank");
+                args.SetInt(3, line);
+            }
+            frame.SendProcessMessage(CefProcessId.Renderer, msg);
+
+            var pending = tcs.Task;
+            if (timeout.HasValue)
+            {
+                return Task.WhenAny(pending, Task.Delay(timeout.Value))
+                    .ContinueWith(t =>
+                    {
+                        if (t.Result != pending)
+                        {
+                            _pendingEvals.TryRemove(taskId, out _);
+                            throw new TimeoutException($"JavaScript evaluation timed out after {timeout.Value.TotalMilliseconds}ms");
+                        }
+                        return DeserializeEvalResult<T>(pending.Result);
+                    });
+            }
+
+            return pending.ContinueWith(t => DeserializeEvalResult<T>(t.Result));
+        }
+
+        /// <summary>
+        /// Registers a C# object so its public methods are callable from JavaScript.
+        /// After registration, JS can call window.&lt;name&gt;.methodName(jsonArg).
+        /// The method receives a single JSON string argument representing the JS arguments array.
+        /// </summary>
+        public void RegisterJavascriptObject(object target, string name)
+        {
+            if (_browser == null || _browser.GetMainFrame() == null)
+            {
+                GD.PrintErr("[CefGlueControl] Cannot register object: browser not initialized");
+                return;
+            }
+
+            var reg = new RegisteredObject(target);
+            if (!_registeredObjects.TryAdd(name, reg))
+            {
+                GD.Print($"[CefGlueControl] Object '{name}' already registered, updating");
+                _registeredObjects[name] = reg;
+            }
+
+            // Notify the renderer process (CefGlue.BrowserProcess) to create V8 bindings.
+            var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
+            using (var args = msg.Arguments)
+            {
+                args.SetString(0, name);
+                args.SetString(1, JsonSerializer.Serialize(reg.MethodNames));
+            }
+            _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+
+            GD.Print($"[CefGlueControl] Registered object '{name}' with {reg.MethodNames.Length} methods");
+        }
+
+        /// <summary>
+        /// Unregisters a previously registered JavaScript object.
+        /// </summary>
+        public void UnregisterJavascriptObject(string name)
+        {
+            _registeredObjects.TryRemove(name, out _);
+
+            if (_browser?.GetMainFrame() != null)
+            {
+                var msg = CefProcessMessage.Create("NativeObjectUnregistrationRequest");
+                using (var args = msg.Arguments)
+                {
+                    args.SetString(0, name);
+                }
+                _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+            }
+        }
+
+        // ── IPC message dispatch (called from GodotCefClient) ───────────────
+
+        internal void HandleProcessMessage(CefProcessMessage message)
+        {
+            var name = message.Name;
+
+            switch (name)
+            {
+                case "JsEvaluationResult":
+                    HandleJsEvaluationResult(message);
+                    break;
+
+                case "NativeObjectCallRequest":
+                    HandleNativeObjectCallRequest(message);
+                    break;
+
+                default:
+                    // JsContextCreated / JsContextReleased / UnhandledException — ignore
+                    break;
+            }
+        }
+
+        private void HandleJsEvaluationResult(CefProcessMessage message)
+        {
+            int taskId;
+            bool success;
+            string resultJson;
+            string exception;
+
+            using (var args = message.Arguments)
+            {
+                taskId = args.GetInt(0);
+                success = args.GetBool(1);
+                resultJson = args.GetString(2);
+                exception = args.GetString(3);
+            }
+
+            if (_pendingEvals.TryRemove(taskId, out var tcs))
+            {
+                if (success)
+                    tcs.TrySetResult(resultJson);
+                else
+                    tcs.TrySetException(new Exception(exception ?? "Unknown JS error"));
+            }
+        }
+
+        private void HandleNativeObjectCallRequest(CefProcessMessage message)
+        {
+            int callId;
+            string objectName;
+            string memberName;
+            string argsJson;
+
+            using (var args = message.Arguments)
+            {
+                callId = args.GetInt(0);
+                objectName = args.GetString(1);
+                memberName = args.GetString(2);
+                argsJson = args.GetString(3);
+            }
+
+            if (!_registeredObjects.TryGetValue(objectName, out var reg))
+            {
+                SendNativeObjectCallResult(callId, null, $"Object '{objectName}' not registered");
+                return;
+            }
+
+            if (!reg.Methods.TryGetValue(memberName, out var method))
+            {
+                SendNativeObjectCallResult(callId, null, $"Method '{memberName}' not found on '{objectName}'");
+                return;
+            }
+
+            object result = null;
+            Exception ex = null;
+
+            try
+            {
+                var parameters = method.GetParameters();
+                var invokeArgs = DeserializeCallArgs(argsJson, parameters);
+                result = method.Invoke(reg.Target, invokeArgs);
+
+                // Handle Task return values — wait for completion
+                if (result is Task task)
+                {
+                    task.ContinueWith(t =>
+                    {
+                        object taskResult = null;
+                        Exception taskEx = null;
+                        try
+                        {
+                            // Reflection to get Task<T>.Result
+                            var resultProp = t.GetType().GetProperty("Result");
+                            if (resultProp != null)
+                                taskResult = resultProp.GetValue(t);
+                        }
+                        catch (Exception e)
+                        {
+                            taskEx = e.InnerException ?? e;
+                        }
+
+                        if (taskEx != null)
+                            SendNativeObjectCallResult(callId, null, taskEx.Message);
+                        else
+                            SendNativeObjectCallResult(callId, taskResult, null);
+                    });
+                    return; // result will be sent asynchronously
+                }
+            }
+            catch (Exception e)
+            {
+                ex = e.InnerException ?? e;
+            }
+
+            SendNativeObjectCallResult(callId, result, ex?.Message);
+        }
+
+        private void SendNativeObjectCallResult(int callId, object result, string errorMessage)
+        {
+            var frame = _browser?.GetMainFrame();
+            if (frame == null) return;
+
+            var msg = CefProcessMessage.Create("NativeObjectCallResult");
+            using (var args = msg.Arguments)
+            {
+                args.SetInt(0, callId);
+
+                if (errorMessage != null)
+                {
+                    args.SetBool(1, false);
+                    args.SetString(2, null);
+                    args.SetString(3, errorMessage);
+                }
+                else
+                {
+                    args.SetBool(1, true);
+                    try
+                    {
+                        args.SetString(2, JsonSerializer.Serialize(result));
+                    }
+                    catch
+                    {
+                        args.SetString(2, result?.ToString());
+                    }
+                    args.SetString(3, null);
+                }
+            }
+            frame.SendProcessMessage(CefProcessId.Renderer, msg);
+        }
+
+        private static T DeserializeEvalResult<T>(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+                return default;
+
+            try
+            {
+                return JsonSerializer.Deserialize<T>(json);
+            }
+            catch
+            {
+                return default;
+            }
+        }
+
+        /// <summary>
+        /// Deserializes a JSON array string into an object[] matching the method's parameter types.
+        /// The JS side serializes arguments as a JSON array: ["arg1", 42, {"key":"val"}]
+        /// </summary>
+        private static object[] DeserializeCallArgs(string argsJson, ParameterInfo[] parameters)
+        {
+            if (parameters.Length == 0 || string.IsNullOrEmpty(argsJson))
+                return Array.Empty<object>();
+
+            using var doc = JsonDocument.Parse(argsJson);
+            var root = doc.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Array)
+            {
+                // Single-argument shortcut: pass the raw value directly
+                return new[] { JsonSerializer.Deserialize(argsJson, parameters[0].ParameterType) };
+            }
+
+            var elements = new JsonElement[root.GetArrayLength()];
+            int i = 0;
+            foreach (var el in root.EnumerateArray())
+                elements[i++] = el;
+
+            var result = new object[Math.Min(elements.Length, parameters.Length)];
+            for (int j = 0; j < result.Length; j++)
+            {
+                result[j] = JsonSerializer.Deserialize(elements[j].GetRawText(), parameters[j].ParameterType);
+            }
+
+            return result;
         }
 
         /// <summary>
