@@ -56,12 +56,12 @@ public partial class DemoScript : Control
         _browser.BridgeRequest += OnBridgeRequest;
         _browser.LoadEnd += OnLoadEnd;
 
-        // 链接工具栏按钮
-        GetNode<Button>("Toolbar/BtnEvalTitle").Pressed += () => OnEvalButton("document.title");
-        GetNode<Button>("Toolbar/BtnEvalUrl").Pressed += () => OnEvalButton("location.href");
-        GetNode<Button>("Toolbar/BtnEvalMath").Pressed += () => OnEvalButton("Math.PI * 2");
+// 链接工具栏按钮
+        GetNode<Button>("Toolbar/ButtonRow/BtnEvalTitle").Pressed += () => OnEvalButton("document.title");
+        GetNode<Button>("Toolbar/ButtonRow/BtnEvalUrl").Pressed += () => OnEvalButton("location.href");
+        GetNode<Button>("Toolbar/ButtonRow/BtnEvalMath").Pressed += () => OnEvalButton("Math.PI * 2");
+        GetNode<Button>("Toolbar/ButtonRow/BtnClearLog").Pressed += () => _log.Clear();
         GetNode<Button>("Toolbar/BtnEvalCustom").Pressed += () => OnCustomEval();
-        GetNode<Button>("Toolbar/BtnClearLog").Pressed += () => _log.Clear();
     }
 
     private void OnBrowserReady()

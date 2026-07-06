@@ -33,57 +33,57 @@ anchor_right = 1.0
 offset_bottom = 80.0
 grow_horizontal = 2
 
-[node name="BtnEvalTitle" type="Button" parent="Toolbar"]
+[node name="ButtonRow" type="HBoxContainer" parent="Toolbar"]
 layout_mode = 1
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 130.0
+offset_right = 0.0
 offset_bottom = 36.0
-text = "Eval: document.title"
+anchor_right = 1.0
+anchor_left = 0.0
+grow_horizontal = 2
+size_flags_horizontal = 3
 
-[node name="BtnEvalUrl" type="Button" parent="Toolbar"]
-layout_mode = 1
-offset_left = 138.0
-offset_top = 8.0
-offset_right = 260.0
-offset_bottom = 36.0
-text = "Eval: location.href"
+[node name="BtnEvalTitle" type="Button" parent="Toolbar/ButtonRow"]
+layout_mode = 2
+size_flags_horizontal = 1
+text = "Eval: title"
 
-[node name="BtnEvalMath" type="Button" parent="Toolbar"]
-layout_mode = 1
-offset_left = 268.0
-offset_top = 8.0
-offset_right = 390.0
-offset_bottom = 36.0
+[node name="BtnEvalUrl" type="Button" parent="Toolbar/ButtonRow"]
+layout_mode = 2
+size_flags_horizontal = 1
+text = "Eval: href"
+
+[node name="BtnEvalMath" type="Button" parent="Toolbar/ButtonRow"]
+layout_mode = 2
+size_flags_horizontal = 1
 text = "Eval: Math.PI*2"
+
+[node name="BtnClearLog" type="Button" parent="Toolbar/ButtonRow"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "清空日志"
 
 [node name="CustomCode" type="LineEdit" parent="Toolbar"]
 layout_mode = 1
 offset_left = 8.0
 offset_top = 44.0
-offset_right = 460.0
+offset_right = 0.0
 offset_bottom = 72.0
+anchor_right = 1.0
+size_flags_horizontal = 3
 placeholder_text = "自定义 JS 代码（如 1+2+3）..."
 
 [node name="BtnEvalCustom" type="Button" parent="Toolbar"]
 layout_mode = 1
-offset_left = 468.0
-offset_top = 44.0
-offset_right = 540.0
-offset_bottom = 72.0
-text = "执行"
-
-[node name="BtnClearLog" type="Button" parent="Toolbar"]
-layout_mode = 1
-anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -60.0
-offset_top = 8.0
+offset_left = -72.0
+offset_top = 44.0
 offset_right = -8.0
-offset_bottom = 36.0
+offset_bottom = 72.0
 grow_horizontal = 0
-text = "清空日志"
+text = "执行"
 
 [node name="LogPanel" type="Panel" parent="."]
 layout_mode = 1

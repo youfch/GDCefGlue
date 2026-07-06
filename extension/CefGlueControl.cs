@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using Godot.Bridge;
@@ -40,6 +44,23 @@ public partial class CefGlueControl : Control
     private int _pendingHeight;
     private int _resizeStableCount;
     private const int ResizeStableThreshold = 2;
+
+    // ── IPC / JS bridge ────────────────────────────────────────────────
+    private int _lastEvalTaskId;
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _pendingEvals = new();
+    private readonly Dictionary<string, Callable> _jsHandlers = new();
+
+    /// <summary>
+    /// C# 快速路径: 订阅后 JS 方法调用直接走 C# delegate, 不经过 Godot Callable.
+    /// 参数: (objectName, method, argsJson, replyCallback)
+    /// </summary>
+    public event Action<string, string, string, Action<string>> NativeCall;
+
+    /// <summary>
+    /// JS → C# 桥接请求事件 (godot://bridge URL 拦截).
+    /// 参数: (type, payload, cbId)
+    /// </summary>
+    public event Action<string, string, string> BridgeRequest;
 
     public string InitialUrl { get; set; } = "about:blank";
     public bool OpenPopupInCurrentBrowser { get; set; } = true;
@@ -758,9 +779,285 @@ public partial class CefGlueControl : Control
         _browser?.GetMainFrame()?.ExecuteJavaScript(code, url, line);
     }
 
-    public Task<T> EvaluateJavaScript<T>(string code, string url = "about:blank", int line = 1)
+    // ── EvalJs (AOT 安全, 通过信号返回) ───────────────────────────────
+
+    /// <summary>
+    /// 异步执行 JS 代码, 结果通过 eval_completed(result, error) 信号返回.
+    /// GDScript 中用 await $Browser.eval_completed 接收.
+    /// </summary>
+    public void EvalJs(string code)
     {
-        return Task.FromResult<T>(default);
+        _ = EvalJsAsync(code);
+    }
+
+    private async Task EvalJsAsync(string code)
+    {
+        string result = null;
+        string error = null;
+        try
+        {
+            result = await InternalEvalRaw($"return {code};");
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        CallDeferred(nameof(OnEvalDone), result ?? "", error ?? "");
+    }
+
+    private void OnEvalDone(string result, string error)
+    {
+        EmitSignal(new StringName("eval_completed"), result, error);
+    }
+
+    /// <summary>
+    /// 内部: 发送 JS 求值请求, 返回原始 JSON 字符串.
+    /// 无泛型, 无反射, AOT 安全.
+    /// </summary>
+    private Task<string> InternalEvalRaw(string code)
+    {
+        var frame = _browser?.GetMainFrame();
+        if (frame == null)
+            return Task.FromResult<string>(null);
+
+        var taskId = Interlocked.Increment(ref _lastEvalTaskId);
+        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingEvals.TryAdd(taskId, tcs);
+
+        var msg = CefProcessMessage.Create("JsEvaluationRequest");
+        using (var args = msg.Arguments)
+        {
+            args.SetInt(0, taskId);
+            args.SetString(1, code);
+            args.SetString(2, "about:blank");
+            args.SetInt(3, 1);
+        }
+        frame.SendProcessMessage(CefProcessId.Renderer, msg);
+
+        return tcs.Task;
+    }
+
+    // ── RegisterJsHandler (GDScript Callable 派发) ────────────────────
+
+    /// <summary>
+    /// 注册 GDScript Callable 处理 JS 方法调用.
+    /// Callable 签名: handler(method: String, argsJson: String, reply: Callable)
+    /// </summary>
+    public void RegisterJsHandler(string name, Callable handler)
+    {
+        if (_browser == null || _browser.GetMainFrame() == null)
+        {
+            GD.PrintErr("[CefGlueControl] Cannot register handler: browser not initialized");
+            return;
+        }
+
+        _jsHandlers[name] = handler;
+
+        // 通知 BrowserProcess 创建 V8 绑定.
+        // 方法名列表传空数组, 因为 BrowserProcess 只需要知道对象名.
+        var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
+        using (var args = msg.Arguments)
+        {
+            args.SetString(0, name);
+            args.SetString(1, "[]");
+        }
+        _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+
+        GD.Print($"[CefGlueControl] Registered JS handler '{name}'");
+    }
+
+    /// <summary>
+    /// 注销 JS handler.
+    /// </summary>
+    public void UnregisterJsHandler(string name)
+    {
+        _jsHandlers.Remove(name);
+
+        if (_browser?.GetMainFrame() != null)
+        {
+            var msg = CefProcessMessage.Create("NativeObjectUnregistrationRequest");
+            using (var args = msg.Arguments)
+            {
+                args.SetString(0, name);
+            }
+            _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+        }
+    }
+
+    // ── C# → JS 推送 ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// C# → JS 推送消息. JS 侧通过 window._godotBridge._onMessage(json) 接收.
+    /// </summary>
+    public void SendToJs(string jsonMessage)
+    {
+        if (_browser == null || _browser.GetMainFrame() == null)
+        {
+            GD.PrintErr("[CefGlueControl] Cannot send to JS: browser not initialized");
+            return;
+        }
+
+        var escaped = jsonMessage
+            .Replace("\\", "\\\\")
+            .Replace("'", "\\'")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r");
+
+        var jsCode = $"window._godotBridge && window._godotBridge._onMessage(\"{escaped}\");";
+        _browser.GetMainFrame().ExecuteJavaScript(jsCode, "godot://send", 1);
+    }
+
+    /// <summary>
+    /// C# → JS 回复特定请求. JS 侧通过 window._godotBridge._onResponse(cbId, json) 接收.
+    /// </summary>
+    public void SendResponse(string cbId, string jsonResponse)
+    {
+        if (string.IsNullOrEmpty(cbId)) return;
+        if (_browser == null || _browser.GetMainFrame() == null)
+        {
+            GD.PrintErr("[CefGlueControl] Cannot send response: browser not initialized");
+            return;
+        }
+
+        var escaped = jsonResponse
+            .Replace("\\", "\\\\")
+            .Replace("'", "\\'")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r");
+
+        var jsCode = $"window._godotBridge && window._godotBridge._onResponse('{cbId}',\"{escaped}\");";
+        _browser.GetMainFrame().ExecuteJavaScript(jsCode, "godot://response", 1);
+    }
+
+    /// <summary>
+    /// 内部: GodotRequestHandler 调用, 解析 godot://bridge URL 并转发到 BridgeRequest 事件.
+    /// </summary>
+    internal void OnBridgeRequest(string url)
+    {
+        try
+        {
+            var uri = new System.Uri(url);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+            string type = query.Get("type") ?? "";
+            string cbId = query.Get("cb");
+            string payloadStr = query.Get("payload") ?? "";
+
+            GD.Print($"[CefGlueControl] Bridge request: type={type}, cb={cbId ?? "none"}, payloadLen={payloadStr.Length}");
+
+            BridgeRequest?.Invoke(type, payloadStr, cbId);
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[CefGlueControl] Failed to parse bridge URL '{url}': {ex.Message}");
+        }
+    }
+
+    // ── IPC 消息派发 (由 GodotCefClient.OnProcessMessageReceived 调用) ──
+
+    internal void HandleProcessMessage(CefProcessMessage message)
+    {
+        switch (message.Name)
+        {
+            case "JsEvaluationResult":
+                HandleJsEvaluationResult(message);
+                break;
+
+            case "NativeObjectCallRequest":
+                HandleNativeObjectCallRequest(message);
+                break;
+
+            // JsContextCreated / JsContextReleased / UnhandledException — 忽略
+        }
+    }
+
+    private void HandleJsEvaluationResult(CefProcessMessage message)
+    {
+        int taskId;
+        bool success;
+        string resultJson;
+        string exception;
+
+        using (var args = message.Arguments)
+        {
+            taskId = args.GetInt(0);
+            success = args.GetBool(1);
+            resultJson = args.GetString(2);
+            exception = args.GetString(3);
+        }
+
+        if (_pendingEvals.TryRemove(taskId, out var tcs))
+        {
+            if (success)
+                tcs.TrySetResult(resultJson);
+            else
+                tcs.TrySetException(new Exception(exception ?? "Unknown JS error"));
+        }
+    }
+
+    private void HandleNativeObjectCallRequest(CefProcessMessage message)
+    {
+        int callId;
+        string objectName;
+        string memberName;
+        string argsJson;
+
+        using (var args = message.Arguments)
+        {
+            callId = args.GetInt(0);
+            objectName = args.GetString(1);
+            memberName = args.GetString(2);
+            argsJson = args.GetString(3);
+        }
+
+        bool handled = false;
+
+        // 1. 优先 C# event (最快, 零 Godot 开销)
+        if (NativeCall != null)
+        {
+            handled = true;
+            NativeCall(objectName, memberName, argsJson,
+                result => SendNativeObjectCallResult(callId, result, null));
+        }
+
+        // 2. 后备 GDScript Callable
+        if (!handled && _jsHandlers.TryGetValue(objectName, out var callable))
+        {
+            handled = true;
+            var reply = Callable.From<string>(r => SendNativeObjectCallResult(callId, r, null));
+            callable.Call(memberName, argsJson, reply);
+        }
+
+        if (!handled)
+            SendNativeObjectCallResult(callId, null, $"No handler for '{objectName}'");
+    }
+
+    private void SendNativeObjectCallResult(int callId, string result, string errorMessage)
+    {
+        var frame = _browser?.GetMainFrame();
+        if (frame == null) return;
+
+        var msg = CefProcessMessage.Create("NativeObjectCallResult");
+        using (var args = msg.Arguments)
+        {
+            args.SetInt(0, callId);
+
+            if (errorMessage != null)
+            {
+                args.SetBool(1, false);
+                args.SetString(2, null);
+                args.SetString(3, errorMessage);
+            }
+            else
+            {
+                args.SetBool(1, true);
+                args.SetString(2, result);
+                args.SetString(3, null);
+            }
+        }
+        frame.SendProcessMessage(CefProcessId.Renderer, msg);
     }
 
     public void ShowDeveloperTools()
@@ -874,6 +1171,43 @@ public partial class CefGlueControl : Control
                 instance.ExecuteJavaScript(code, url, line);
             });
 
+        context.BindMethod(new StringName(nameof(EvalJs)),
+            new ParameterInfo(new StringName("code"), VariantType.String),
+            static (CefGlueControl instance, string code) =>
+            {
+                instance.EvalJs(code);
+            });
+
+        context.BindMethod(new StringName(nameof(RegisterJsHandler)),
+            new ParameterInfo(new StringName("name"), VariantType.String),
+            new ParameterInfo(new StringName("handler"), VariantType.Callable),
+            static (CefGlueControl instance, string name, Callable handler) =>
+            {
+                instance.RegisterJsHandler(name, handler);
+            });
+
+        context.BindMethod(new StringName(nameof(UnregisterJsHandler)),
+            new ParameterInfo(new StringName("name"), VariantType.String),
+            static (CefGlueControl instance, string name) =>
+            {
+                instance.UnregisterJsHandler(name);
+            });
+
+        context.BindMethod(new StringName(nameof(SendToJs)),
+            new ParameterInfo(new StringName("jsonMessage"), VariantType.String),
+            static (CefGlueControl instance, string jsonMessage) =>
+            {
+                instance.SendToJs(jsonMessage);
+            });
+
+        context.BindMethod(new StringName(nameof(SendResponse)),
+            new ParameterInfo(new StringName("cbId"), VariantType.String),
+            new ParameterInfo(new StringName("jsonResponse"), VariantType.String),
+            static (CefGlueControl instance, string cbId, string jsonResponse) =>
+            {
+                instance.SendResponse(cbId, jsonResponse);
+            });
+
         context.BindMethod(new StringName(nameof(ShowDeveloperTools)),
             static (CefGlueControl instance) =>
             {
@@ -939,6 +1273,8 @@ public partial class CefGlueControl : Control
         context.BindSignal(new SignalInfo(new StringName(nameof(LoadStart))));
         context.BindSignal(new SignalInfo(new StringName(nameof(LoadEnd))));
         context.BindSignal(new SignalInfo(new StringName(nameof(LoadError))));
+        context.BindSignal(new SignalInfo(new StringName("eval_completed")));
+        context.BindSignal(new SignalInfo(new StringName("bridge_request")));
 
         // Read-only properties
         context.BindProperty(
