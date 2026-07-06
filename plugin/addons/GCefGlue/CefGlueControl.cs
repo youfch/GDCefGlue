@@ -16,48 +16,6 @@ using Xilium.CefGlue.Common.Events;
 
 namespace GDCefGlue
 {
-    // ── 窗口嵌入模式 Native P/Invoke ───────────────────────────────────
-    internal static class NativeWindowMethods
-    {
-        [DllImport("user32.dll", SetLastError = true)]
-        internal static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
-            int X, int Y, int cx, int cy, uint uFlags);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        internal static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        internal static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        internal static extern IntPtr FindWindowEx(IntPtr hWndParent, IntPtr hWndChildAfter,
-            string lpszClass, string lpszWindow);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        internal static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        internal static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct RECT
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-        }
-
-        internal const int GWL_STYLE = -16;
-        internal const int GWL_EXSTYLE = -20;
-        internal const uint WS_CLIPCHILDREN = 0x02000000;
-        internal const int WS_EX_TRANSPARENT = 0x00000020;
-        internal const uint SWP_NOZORDER = 0x0004;
-        internal const uint SWP_NOACTIVATE = 0x0010;
-        internal const uint SWP_SHOWWINDOW = 0x0040;
-        internal static readonly IntPtr HWND_TOP = IntPtr.Zero;
-    }
-
     /// <summary>
     /// A Godot Control that embeds a CEF browser using off-screen rendering.
     /// Provides full browser functionality including navigation, JavaScript execution, and developer tools.
@@ -81,6 +39,7 @@ namespace GDCefGlue
         internal int _controlWidth;
         internal int _controlHeight;
         internal Vector2 _cachedGlobalPosition;
+        internal float _cachedContentScale = 1.0f;
         
         private bool _isFocused;
         private bool _browserCreated;
@@ -542,6 +501,12 @@ namespace GDCefGlue
         /// </summary>
         internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
         {
+            // 嵌入模式：页面加载后注入事件转发 JS
+            if (_embeddedMode && frame.IsMain)
+            {
+                InjectEventForwardingScriptIfNeeded();
+            }
+
             CallDeferred(nameof(NotifyLoadEnd));
         }
 
@@ -688,6 +653,7 @@ namespace GDCefGlue
         public override void _Process(double delta)
         {
             _cachedGlobalPosition = GlobalPosition;
+            _cachedContentScale = DisplayServer.ScreenGetScale();
 
             // ── 嵌入模式：每帧同步 CEF 子窗口位置，跳过 OSR 纹理更新 ──
             if (_embeddedMode)
@@ -767,83 +733,6 @@ namespace GDCefGlue
             if (!_browserCreated && Size.X > 0 && Size.Y > 0)
             {
                 CreateBrowserDeferred();
-            }
-        }
-
-        /// <summary>
-        /// 嵌入窗口模式每帧处理：同步 CEF 子窗口位置/大小，跳过 OSR 纹理更新。
-        /// 参考 godot_wry 的做法：检测 GlobalPosition / Size / WindowPosition / ContentScale 变化后
-        /// 才调用 SetWindowPos，避免不必要的帧率开销。
-        /// </summary>
-        private void ProcessEmbeddedMode(double delta)
-        {
-            if (_browserHost == null || _godotHwnd == IntPtr.Zero)
-                return;
-
-            var globalPos = GlobalPosition;
-            var size = Size;
-            if (size.X <= 0 || size.Y <= 0)
-                return;
-
-            // 从 DisplayServer 获取内容缩放比（物理像素 / 虚拟像素）
-            // 等价于 godot_wry 的 screen_get_content_scale_ex
-            float contentScale = DisplayServer.ScreenGetScale();
-
-            // 获取 Godot 窗口在屏幕上的位置（用于检测窗口移动）
-            var windowPos = DisplayServer.WindowGetPosition();
-
-            // 仅当有任何变化时才触发 SetWindowPos
-            if (globalPos == _previousGlobalPos
-                && size == _previousSize
-                && windowPos == _previousWindowPos
-                && Math.Abs(contentScale - _previousContentScale) < 0.001f
-                && _cefChildHwnd != IntPtr.Zero
-                && size.X == _controlWidth && size.Y == _controlHeight)
-            {
-                return; // 无变化，跳过
-            }
-
-            _previousGlobalPos = globalPos;
-            _previousSize = size;
-            _previousWindowPos = windowPos;
-            _previousContentScale = contentScale;
-
-            // 计算物理像素坐标
-            int physX = (int)(globalPos.X * contentScale);
-            int physY = (int)(globalPos.Y * contentScale);
-            int physW = (int)(size.X * contentScale);
-            int physH = (int)(size.Y * contentScale);
-
-            if (_cefChildHwnd == IntPtr.Zero)
-            {
-                // GetWindowHandle 可能还没准备好（异步创建），重试
-                _cefChildHwnd = _browserHost.GetWindowHandle();
-                if (_cefChildHwnd == IntPtr.Zero)
-                    return;
-
-                GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
-            }
-
-            // 同步 CEF 子窗口位置和大小（坐标相对于 Godot 窗口客户区）
-            NativeWindowMethods.SetWindowPos(
-                _cefChildHwnd,
-                NativeWindowMethods.HWND_TOP,
-                physX, physY, physW, physH,
-                NativeWindowMethods.SWP_NOZORDER | NativeWindowMethods.SWP_NOACTIVATE);
-
-            // 通知 CEF 窗口大小变化
-            if (physW != _controlWidth || physH != _controlHeight)
-            {
-                _controlWidth = physW;
-                _controlHeight = physH;
-                _browserHost.WasResized();
-            }
-
-            // 确保浏览器已创建标记
-            if (!_browserCreated)
-            {
-                _browserCreated = true;
-                GD.Print("CefGlueControl: Embedded browser fully created and positioned");
             }
         }
 
@@ -1603,6 +1492,13 @@ namespace GDCefGlue
                 string type = query.Get("type") ?? "";
                 string cbId = query.Get("cb");
                 string payloadStr = query.Get("payload") ?? "";
+
+                // 嵌入模式事件转发 — 内部处理，不触发 BridgeRequest 事件
+                if (_embeddedMode && type == "event_forward")
+                {
+                    HandleForwardedEvent(payloadStr);
+                    return;
+                }
 
                 GD.Print($"[CefGlueControl] Bridge request: type={type}, cb={cbId ?? "none"}, payloadLen={payloadStr.Length}");
 
