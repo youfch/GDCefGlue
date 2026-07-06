@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>透明度测试 — 颜色键透明</title>
+<style>
+  /* ── 关键：纯黑背景 = 颜色键透明 ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #000000;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #eee;
+  }
+
+  /* 所有非纯黑的内容都会显示 */
+  .container {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 40px;
+    max-width: 800px;
+  }
+
+  .card {
+    background: #1a2027;
+    border: 1px solid #2d3743;
+    border-radius: 12px;
+    padding: 24px;
+    width: 280px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .card h2 {
+    font-size: 14px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .card .value {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: 'SF Mono', Consolas, monospace;
+  }
+  .card .value.green  { color: #10b981; }
+  .card .value.blue   { color: #3b82f6; }
+  .card .value.orange { color: #f59e0b; }
+  .card .value.purple { color: #a78bfa; }
+
+  .card .label {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+
+  .card button {
+    margin-top: 16px;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    background: #3b82f6;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .card button:hover { background: #2563eb; }
+  .card button:active { transform: scale(0.96); }
+
+  /* 状态标签 */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.on  { background: rgba(16,185,129,0.15); color: #10b981; }
+  .badge.off { background: rgba(239,68,68,0.15);  color: #ef4444; }
+
+  /* 提示文字 */
+  .hint {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: #475569;
+    text-align: center;
+    background: rgba(0,0,0,0.6);
+    padding: 8px 16px;
+    border-radius: 6px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 状态卡片 -->
+  <div class="card">
+    <h2>🟢 设备状态</h2>
+    <div class="value green" id="statusText">运行中</div>
+    <div class="label">系统状态 · <span class="badge on" id="statusBadge">正常</span></div>
+    <button onclick="toggleStatus()">切换状态</button>
+  </div>
+
+  <!-- 数据卡片 -->
+  <div class="card">
+    <h2>📊 实时数据</h2>
+    <div class="value blue" id="dataValue">42.7</div>
+    <div class="label">传感器读数 · 更新于 <span id="dataTime">刚刚</span></div>
+    <button onclick="updateData()">刷新数据</button>
+  </div>
+
+  <!-- 日志卡片 -->
+  <div class="card" style="width:100%;max-width:600px;">
+    <h2>📋 事件日志</h2>
+    <div id="log" style="font-size:12px;font-family:monospace;color:#94a3b8;line-height:1.8;height:120px;overflow-y:auto;">
+      <div>▶ 系统初始化完成</div>
+      <div>▶ 等待操作...</div>
+    </div>
+    <button onclick="addLog()">添加日志</button>
+  </div>
+</div>
+
+<div class="hint">
+  ⬛ 黑色背景 = 透明区域（Godot 场景透出）<br>
+  ⬜ 彩色卡片 = CEF 渲染内容
+</div>
+
+<script>
+  function toggleStatus() {
+    var el = document.getElementById('statusText');
+    var badge = document.getElementById('statusBadge');
+    if (el.textContent === '运行中') {
+      el.textContent = '已暂停';
+      el.className = 'value orange';
+      badge.textContent = '暂停';
+      badge.className = 'badge off';
+    } else {
+      el.textContent = '运行中';
+      el.className = 'value green';
+      badge.textContent = '正常';
+      badge.className = 'badge on';
+    }
+  }
+
+  function updateData() {
+    var val = (Math.random() * 100).toFixed(1);
+    document.getElementById('dataValue').textContent = val;
+    document.getElementById('dataTime').textContent = new Date().toLocaleTimeString();
+  }
+
+  function addLog() {
+    var log = document.getElementById('log');
+    var msgs = ['传感器数据更新', '状态检测通过', '通信心跳 OK', '配置已同步'];
+    var msg = msgs[Math.floor(Math.random() * msgs.length)];
+    var line = document.createElement('div');
+    line.textContent = '▶ [' + new Date().toLocaleTimeString() + '] ' + msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+</script>
+</body>
+</html>
