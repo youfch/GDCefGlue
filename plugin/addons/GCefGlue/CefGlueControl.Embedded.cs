@@ -60,19 +60,24 @@ namespace GDCefGlue
 
                 GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
 
-                // 透明+鼠标穿透（参考 godot_wry + i3D WebView2Edge 例）
-                // - WS_EX_TRANSPARENT: 鼠标点击穿透 CEF 窗口 → Godot 控件接收事件
-                // - 视觉透明: CEF windowed 模式不支持每像素 alpha。
-                //   页面需配合 CSS background: #000000，设 CEF BackgroundColor=0 让
-                //   合成器用透明底色，这样透明区域由 DWM 混合到 Godot 窗口上。
+                // 透明 + 鼠标穿透（参考 godot_wry + i3D WebView2Edge 例）
                 if (Transparent)
                 {
                     int exStyle = NativeWindowMethods.GetWindowLong(_cefChildHwnd, NativeWindowMethods.GWL_EXSTYLE);
-                    int newExStyle = exStyle | NativeWindowMethods.WS_EX_TRANSPARENT;
+                    int newExStyle = exStyle | NativeWindowMethods.WS_EX_LAYERED | NativeWindowMethods.WS_EX_TRANSPARENT;
                     if (newExStyle != exStyle)
                     {
                         NativeWindowMethods.SetWindowLong(_cefChildHwnd, NativeWindowMethods.GWL_EXSTYLE, newExStyle);
-                        GD.Print("CefGlueControl: Applied WS_EX_TRANSPARENT for mouse passthrough");
+
+                        // LWA_COLORKEY: 纯黑色(#000000)像素变透明—Godot 场景透出
+                        // 页面需 body { background: #000000 }
+                        NativeWindowMethods.SetLayeredWindowAttributes(
+                            _cefChildHwnd,
+                            0x000000,  // crKey: COLORREF 格式 0x00BBGGRR, 0=黑
+                            0,         // bAlpha: 不适用
+                            NativeWindowMethods.LWA_COLORKEY);
+
+                        GD.Print("CefGlueControl: Applied WS_EX_LAYERED + LWA_COLORKEY (black=transparent)");
                     }
                 }
             }
