@@ -28,7 +28,7 @@ namespace GDCefGlue
         protected override CefRenderHandler GetRenderHandler()
         {
             // 嵌入模式下，CEF 直接渲染到子 HWND，不需要离屏渲染处理器
-            if (CefGlueControl.UseEmbeddedWindowGlobal)
+            if (CefGlueControl.ActiveRenderMode == RenderMode.EmbeddedWindow)
                 return null;
             return _renderHandler;
         }

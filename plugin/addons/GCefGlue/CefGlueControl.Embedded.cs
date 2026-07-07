@@ -59,27 +59,6 @@ namespace GDCefGlue
                     return;
 
                 GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
-
-                // 透明 + 鼠标穿透（参考 godot_wry + i3D WebView2Edge 例）
-                if (Transparent)
-                {
-                    int exStyle = NativeWindowMethods.GetWindowLong(_cefChildHwnd, NativeWindowMethods.GWL_EXSTYLE);
-                    int newExStyle = exStyle | NativeWindowMethods.WS_EX_LAYERED | NativeWindowMethods.WS_EX_TRANSPARENT;
-                    if (newExStyle != exStyle)
-                    {
-                        NativeWindowMethods.SetWindowLong(_cefChildHwnd, NativeWindowMethods.GWL_EXSTYLE, newExStyle);
-
-                        // LWA_COLORKEY: 纯黑色(#000000)像素变透明—Godot 场景透出
-                        // 页面需 body { background: #000000 }
-                        NativeWindowMethods.SetLayeredWindowAttributes(
-                            _cefChildHwnd,
-                            0x000000,  // crKey: COLORREF 格式 0x00BBGGRR, 0=黑
-                            0,         // bAlpha: 不适用
-                            NativeWindowMethods.LWA_COLORKEY);
-
-                        GD.Print("CefGlueControl: Applied WS_EX_LAYERED + LWA_COLORKEY (black=transparent)");
-                    }
-                }
             }
 
             // 同步 CEF 子窗口位置和大小（坐标相对于 Godot 窗口客户区）

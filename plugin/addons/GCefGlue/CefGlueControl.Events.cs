@@ -79,12 +79,12 @@ namespace GDCefGlue
 ";
 
         /// <summary>
-        /// 在页面加载完成后注入事件转发 JS（仅嵌入模式）。
+        /// 在页面加载完成后注入事件转发 JS（仅嵌入模式且 ForwardInputEvents 启用时）。
         /// 在 OnLoadEnd 中调用，确保每个页面都有事件转发能力。
         /// </summary>
         internal void InjectEventForwardingScriptIfNeeded()
         {
-            if (!_embeddedMode || _browser == null)
+            if (_renderMode != RenderMode.EmbeddedWindow || _browser == null || !ForwardInputEvents)
                 return;
 
             var frame = _browser.GetMainFrame();

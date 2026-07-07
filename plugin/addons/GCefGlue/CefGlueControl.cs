@@ -17,6 +17,24 @@ using Xilium.CefGlue.Common.Events;
 namespace GDCefGlue
 {
     /// <summary>
+    /// Rendering mode for the CEF browser control.
+    /// </summary>
+    public enum RenderMode
+    {
+        /// <summary>
+        /// Off-Screen Rendering: CEF renders to memory, Godot draws as a texture.
+        /// Supports true alpha transparency. Higher CPU usage for pixel copy.
+        /// </summary>
+        OSR = 0,
+
+        /// <summary>
+        /// Embedded Window: CEF renders directly to a child HWND.
+        /// Better video/WebGL performance. No transparency support.
+        /// </summary>
+        EmbeddedWindow = 1
+    }
+
+    /// <summary>
     /// A Godot Control that embeds a CEF browser using off-screen rendering.
     /// Provides full browser functionality including navigation, JavaScript execution, and developer tools.
     /// </summary>
@@ -58,14 +76,14 @@ namespace GDCefGlue
         // ── 窗口嵌入模式 ───────────────────────────────────────────────────
         private IntPtr _godotHwnd;
         private IntPtr _cefChildHwnd;
-        private bool _embeddedMode;
+        private RenderMode _renderMode = RenderMode.OSR;
         private bool _nativeStylesPatched;
         private Vector2 _previousGlobalPos;
         private Vector2 _previousSize;
         private Vector2I _previousWindowPos;
         private float _previousContentScale = 1.0f;
 
-        // ── IPC / JS bridge ────────────────────────────────────────────────
+// ── IPC / JS bridge ────────────────────────────────────────────────
         private int _lastEvalTaskId;
         private readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _pendingEvals = new();
         private readonly ConcurrentDictionary<string, RegisteredObject> _registeredObjects = new();
@@ -98,48 +116,103 @@ namespace GDCefGlue
             }
         }
 
+        // ══════════════════════════════════════════════════════════════
+        //  Browser Settings
+        // ══════════════════════════════════════════════════════════════
+
+        [ExportGroup("Browser Settings")]
+
         /// <summary>
-        /// Gets or sets the initial URL to load when the browser is created.
+        /// The URL to load when the browser is created.
         /// </summary>
+        [Export]
         public string InitialUrl { get; set; } = "about:blank";
 
-        /// <summary>
-        /// Gets or sets whether popup windows should open in the current browser instead of new windows.
-        /// </summary>
-        [Export] public bool OpenPopupInCurrentBrowser { get; set; } = true;
+        private RenderMode _mode = RenderMode.OSR;
 
         /// <summary>
-        /// Gets or sets whether GPU acceleration is enabled. Exposed to the Godot inspector.
+        /// Rendering mode. OSR renders to a Godot texture with alpha transparency support.
+        /// EmbeddedWindow renders directly to a child HWND for better video/WebGL performance.
+        /// Must be set before the browser is created.
         /// </summary>
-        [Export] public bool GpuAcceleration { get; set; } = true;
+        [Export]
+        public RenderMode Mode
+        {
+            get => _mode;
+            set
+            {
+                if (_mode == value) return;
+                _mode = value;
+                if (Godot.Engine.Singleton.IsEditorHint())
+                    NotifyPropertyListChanged();
+            }
+        }
 
         /// <summary>
-        /// Gets or sets the browser frame rate in frames per second. Default is 60, max is 360.
+        /// Browser frame rate in frames per second. Range 1-360. Default 60.
+        /// Only applies to OSR mode.
         /// </summary>
-        [Export] public int FrameRate { get; set; } = 60;
+        [Export(PropertyHint.Range, "1,360")]
+        public int FrameRate { get; set; } = 60;
 
         /// <summary>
-        /// Gets or sets whether the browser background is transparent. Default is false (opaque).
+        /// Enables transparent background. Only works in OSR mode.
         /// </summary>
-        [Export] public bool Transparent { get; set; } = false;
+        [Export]
+        public bool Transparent { get; set; } = false;
+
+        // ══════════════════════════════════════════════════════════════
+        //  Feature Toggles
+        // ══════════════════════════════════════════════════════════════
+
+        [ExportGroup("Feature Toggles")]
 
         /// <summary>
-        /// Gets or sets whether the mouse cursor follows the web page content (e.g. I-beam on text, hand on links).
-        /// Default is false (cursor stays as default arrow).
+        /// Enables GPU hardware acceleration.
         /// </summary>
-        [Export] public bool SyncCursor { get; set; } = false;
+        [Export]
+        public bool GpuAcceleration { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets whether to use native window embedding instead of off-screen rendering.
-        /// When true, CEF renders directly to a child HWND of the Godot window (better video/WebGL performance).
-        /// When false, uses OSR (off-screen rendering) with Godot texture painting.
-        /// Must be set before the browser is created (in the inspector or before _Ready).
+        /// If true, popup windows navigate in the current browser instead of opening new windows.
         /// </summary>
-        [Export] public bool UseEmbeddedWindow { get; set; } = false;
+        [Export]
+        public bool OpenPopupInCurrentBrowser { get; set; } = true;
+
+        /// <summary>
+        /// If true, the mouse cursor changes to match web content (e.g. I-beam, hand).
+        /// </summary>
+        [Export]
+        public bool SyncCursor { get; set; } = false;
+
+        // ══════════════════════════════════════════════════════════════
+        //  Embedded Mode (only applies when Mode=EmbeddedWindow)
+        // ══════════════════════════════════════════════════════════════
+
+        [ExportGroup("Embedded Mode")]
+
+        private bool _forwardInputEvents;
+
+        /// <summary>
+        /// TODO — Forward browser input events to Godot via JS IPC.
+        /// When enabled, mouse/keyboard events inside the browser are forwarded
+        /// to the Godot event system. Default disabled — browser handles input natively.
+        /// Only effective when Mode=EmbeddedWindow.
+        /// </summary>
+        [Export]
+        public bool ForwardInputEvents
+        {
+            get => _forwardInputEvents;
+            set
+            {
+                _forwardInputEvents = value;
+                NotifyPropertyListChanged();
+            }
+        }
 
         private static bool _useGpuAcceleration = true;
         private static bool _useTransparent = false;
-        private static bool _useEmbeddedWindow = false;
+        private static RenderMode _activeRenderMode = RenderMode.OSR;
 
         /// <summary>
         /// Gets or sets the global GPU acceleration setting. Must be set before CEF initialization.
@@ -160,12 +233,12 @@ namespace GDCefGlue
         }
 
         /// <summary>
-        /// Gets or sets the global window embedding mode. Must be set before CEF initialization.
+        /// Gets or sets the global rendering mode. Must be set before CEF initialization.
         /// </summary>
-        public static bool UseEmbeddedWindowGlobal
+        public static RenderMode ActiveRenderMode
         {
-            get => _useEmbeddedWindow;
-            set => _useEmbeddedWindow = value;
+            get => _activeRenderMode;
+            set => _activeRenderMode = value;
         }
 
         /// <summary>
@@ -247,14 +320,20 @@ namespace GDCefGlue
         /// <summary>
         /// Called when the control enters the scene tree. Initializes CEF and creates the browser.
         /// </summary>
-        public override void _Ready()
+public override void _Ready()
         {
             GD.Print("CefGlueControl: _Ready() called");
 
+            if (Godot.Engine.Singleton.IsEditorHint())
+            {
+                GD.Print("CefGlueControl: Running in editor, skipping CEF initialization");
+                return;
+            }
+
             UseGpuAcceleration = GpuAcceleration;
             UseTransparent = Transparent;
-            UseEmbeddedWindowGlobal = UseEmbeddedWindow;
-            _embeddedMode = UseEmbeddedWindow;
+            ActiveRenderMode = Mode;
+            _renderMode = Mode;
             CefInitializer.Initialize();
 
             CustomMinimumSize = new Vector2(100, 100);
@@ -359,11 +438,11 @@ namespace GDCefGlue
             _controlHeight = height;
 
             var frameRate = Math.Clamp(FrameRate, 1, 360);
-            GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (Transparent: {Transparent}, Embedded: {_embeddedMode})");
+GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (Transparent: {Transparent}, Mode: {_renderMode})");
 
             var windowInfo = CefWindowInfo.Create();
 
-            if (_embeddedMode)
+            if (_renderMode == RenderMode.EmbeddedWindow)
             {
                 // ── 窗口嵌入模式：CEF 直接渲染到子 HWND ──
                 _godotHwnd = (IntPtr)DisplayServer.WindowGetNativeHandle(
@@ -428,7 +507,7 @@ namespace GDCefGlue
             _browser = browser;
             _browserHost = browser.GetHost();
 
-            if (_embeddedMode && _browserHost != null)
+            if (_renderMode == RenderMode.EmbeddedWindow && _browserHost != null)
             {
                 // 使用 CefBrowserHost.GetWindowHandle() 直接获取 CEF 子窗口 HWND
                 // 比 FindWindowEx 猜类名更可靠
@@ -501,8 +580,8 @@ namespace GDCefGlue
         /// </summary>
         internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
         {
-            // 嵌入模式：页面加载后注入事件转发 JS
-            if (_embeddedMode && frame.IsMain)
+// 嵌入模式：页面加载后注入事件转发 JS
+            if (_renderMode == RenderMode.EmbeddedWindow && frame.IsMain)
             {
                 InjectEventForwardingScriptIfNeeded();
             }
@@ -655,8 +734,8 @@ namespace GDCefGlue
             _cachedGlobalPosition = GlobalPosition;
             _cachedContentScale = DisplayServer.ScreenGetScale();
 
-            // ── 嵌入模式：每帧同步 CEF 子窗口位置，跳过 OSR 纹理更新 ──
-            if (_embeddedMode)
+// ── 嵌入模式：每帧同步 CEF 子窗口位置，跳过 OSR 纹理更新 ──
+            if (_renderMode == RenderMode.EmbeddedWindow)
             {
                 ProcessEmbeddedMode(delta);
                 return;
@@ -743,8 +822,8 @@ namespace GDCefGlue
         /// </summary>
         public override void _Draw()
         {
-            // 嵌入模式下，CEF 子窗口自行渲染，不需要 Godot 绘制
-            if (_embeddedMode)
+// 嵌入模式下，CEF 子窗口自行渲染，不需要 Godot 绘制
+            if (_renderMode == RenderMode.EmbeddedWindow)
                 return;
 
             if (_texture != null && _controlWidth > 0 && _controlHeight > 0)
@@ -772,8 +851,8 @@ namespace GDCefGlue
         /// </summary>
         public override void _GuiInput(InputEvent @event)
         {
-            // 嵌入模式下，CEF 子窗口直接接收原生输入，不需要 Godot 转发
-            if (_browserHost == null || _embeddedMode)
+// 嵌入模式下，CEF 子窗口直接接收原生输入，不需要 Godot 转发
+            if (_browserHost == null || _renderMode == RenderMode.EmbeddedWindow)
                 return;
 
             switch (@event)
@@ -1031,7 +1110,7 @@ namespace GDCefGlue
         /// </summary>
         public override void _Notification(int what)
         {
-            if (_embeddedMode)
+if (_renderMode == RenderMode.EmbeddedWindow)
             {
                 // 嵌入模式下，CEF 子窗口独立管理焦点和输入
                 switch ((long)what)
@@ -1493,8 +1572,8 @@ namespace GDCefGlue
                 string cbId = query.Get("cb");
                 string payloadStr = query.Get("payload") ?? "";
 
-                // 嵌入模式事件转发 — 内部处理，不触发 BridgeRequest 事件
-                if (_embeddedMode && type == "event_forward")
+// 嵌入模式事件转发 — 内部处理，不触发 BridgeRequest 事件
+                if (_renderMode == RenderMode.EmbeddedWindow && ForwardInputEvents && type == "event_forward")
                 {
                     HandleForwardedEvent(payloadStr);
                     return;
@@ -1507,6 +1586,23 @@ namespace GDCefGlue
             catch (Exception ex)
             {
                 GD.PrintErr($"[CefGlueControl] Failed to parse bridge URL '{url}': {ex.Message}");
+            }
+        }
+
+/// <summary>
+        /// Hides the "Embedded Mode" group and its properties when rendering mode is not EmbeddedWindow.
+        /// </summary>
+        public override void _ValidateProperty(Godot.Collections.Dictionary property)
+        {
+            var propName = property["name"].AsStringName();
+
+            // Hide "Embedded Mode" group and its members when Mode != EmbeddedWindow
+            if (propName == "Embedded Mode" || propName == nameof(ForwardInputEvents))
+            {
+                if (_mode != RenderMode.EmbeddedWindow)
+                {
+                    property["usage"] = (int)PropertyUsageFlags.NoEditor;
+                }
             }
         }
 

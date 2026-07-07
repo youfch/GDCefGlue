@@ -11,6 +11,9 @@
 - 弹窗处理
 - 完整的键盘和鼠标支持
 - 易于集成到 Godot 4.x
+- **双渲染模式**：OSR（离屏渲染，支持透明）和嵌入窗口模式（高性能 HWND 渲染）
+- **Inspector 属性分组**：Browser Settings / Feature Toggles / Embedded Mode
+- **动态属性显隐**：选 OSR 时自动隐藏嵌入模式相关设置
 
 ## 性能演示
 
@@ -29,6 +32,8 @@
 ```csharp
 var browser = new CefGlueControl();
 browser.InitialUrl = "https://godotengine.org";
+browser.Mode = RenderMode.OSR;        // OSR（支持透明）或 EmbeddedWindow
+browser.Transparent = true;           // 仅 OSR 模式生效
 AddChild(browser);
 ```
 
@@ -38,6 +43,7 @@ AddChild(browser);
 var browser: CefGlueControl = $CefGlueControl
 browser.InitialUrl = "https://godotengine.org"
 browser.FrameRate = 120
+browser.Mode = 0  # 0=OSR, 1=EmbeddedWindow
 
 # 连接信号
 browser.BrowserInitialized.connect(_on_ready)
@@ -278,20 +284,30 @@ dotnet build
 
 ## CefGlueControl 属性
 
-| 属性                          | 类型     | 默认值           | 描述                   |
-| --------------------------- | ------ | ------------- | -------------------- |
-| `InitialUrl`                | string | "about:blank" | 浏览器创建时加载的 URL        |
-| `OpenPopupInCurrentBrowser` | bool   | true          | 如果为 true，弹窗在当前浏览器中导航 |
-| `GpuAcceleration`           | bool   | true          | 如果为 true，启用 GPU 硬件加速 |
-| `FrameRate`                 | int    | 60            | 浏览器帧率，范围 1-360       |
-| `Transparent`               | bool   | false         | 如果为 true，启用透明背景支持    |
+| 属性 | 类型 | 默认值 | 分组 | 描述 |
+|------|------|--------|------|------|
+| `InitialUrl` | string | "about:blank" | Browser Settings | 浏览器创建时加载的 URL |
+| `Mode` | RenderMode | OSR | Browser Settings | 渲染模式：OSR（透明支持）/ EmbeddedWindow（高性能） |
+| `FrameRate` | int | 60 | Browser Settings | 浏览器帧率，范围 1-360 |
+| `Transparent` | bool | false | Browser Settings | 启用透明背景（仅 OSR 模式） |
+| `GpuAcceleration` | bool | true | Feature Toggles | 启用 GPU 硬件加速 |
+| `OpenPopupInCurrentBrowser` | bool | true | Feature Toggles | 弹窗在当前浏览器中导航 |
+| `SyncCursor` | bool | false | Feature Toggles | 鼠标光标跟随网页内容 |
+| `ForwardInputEvents` | bool | false | Embedded Mode | 嵌入模式事件穿透（TODO） |
+
+### RenderMode 枚举
+
+| 值 | 说明 |
+|----|------|
+| `OSR` (0) | 离屏渲染，CEF 渲染到内存 → Godot 纹理。**支持透明背景**。适合需要透明、叠加 UI 的场景 |
+| `EmbeddedWindow` (1) | 嵌入 HWND 子窗口，CEF 直接渲染到原生窗口。**性能更好**（视频/WebGL），**不支持透明**。适合全屏浏览器、视频播放 |
 
 ### 静态属性
 
-| 属性                | 类型   | 描述                          |
-| ----------------- | ---- | --------------------------- |
-| `UseGpuAcceleration` | bool | 全局 GPU 加速设置，需在 CEF 初始化前设置    |
-| `UseTransparent`     | bool | 全局透明背景设置，需在 CEF 初始化前设置       |
+| 属性 | 类型 | 描述 |
+|------|------|------|
+| `UseGpuAcceleration` | bool | 全局 GPU 加速设置，需在 CEF 初始化前设置 |
+| `UseTransparent` | bool | 全局透明背景设置，需在 CEF 初始化前设置 |
 
 ### 只读属性
 

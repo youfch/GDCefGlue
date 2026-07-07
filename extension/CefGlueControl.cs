@@ -62,13 +62,14 @@ public partial class CefGlueControl : Control
     /// </summary>
     public event Action<string, string, string> BridgeRequest;
 
+    // ── Inspector properties (registered via BindMembers) ──────────
     public string InitialUrl { get; set; } = "about:blank";
-    public bool OpenPopupInCurrentBrowser { get; set; } = true;
-    public bool GpuAcceleration { get; set; } = true;
     public int FrameRate { get; set; } = 60;
     public bool Transparent { get; set; } = false;
+    public bool GpuAcceleration { get; set; } = true;
+    public bool OpenPopupInCurrentBrowser { get; set; } = true;
     public bool SyncCursor { get; set; } = false;
-    
+
     private static bool _useGpuAcceleration = true;
     private static bool _useTransparent = false;
     
@@ -1088,6 +1089,9 @@ public partial class CefGlueControl : Control
     {
         context.BindConstructor(() => new CefGlueControl());
 
+        // ── Browser Settings ──
+        context.AddPropertyGroup("Browser Settings");
+
         context.BindProperty(
             new PropertyInfo(new StringName(nameof(InitialUrl)), VariantType.String)
             {
@@ -1097,24 +1101,10 @@ public partial class CefGlueControl : Control
             static (CefGlueControl instance, string value) => instance.InitialUrl = value);
 
         context.BindProperty(
-            new PropertyInfo(new StringName(nameof(OpenPopupInCurrentBrowser)), VariantType.Bool)
-            {
-                Usage = PropertyUsageFlags.Default
-            },
-            static (CefGlueControl instance) => instance.OpenPopupInCurrentBrowser,
-            static (CefGlueControl instance, bool value) => instance.OpenPopupInCurrentBrowser = value);
-
-        context.BindProperty(
-            new PropertyInfo(new StringName(nameof(GpuAcceleration)), VariantType.Bool)
-            {
-                Usage = PropertyUsageFlags.Default
-            },
-            static (CefGlueControl instance) => instance.GpuAcceleration,
-            static (CefGlueControl instance, bool value) => instance.GpuAcceleration = value);
-
-        context.BindProperty(
             new PropertyInfo(new StringName(nameof(FrameRate)), VariantType.Int)
             {
+                Hint = PropertyHint.Range,
+                HintString = "1,360",
                 Usage = PropertyUsageFlags.Default
             },
             static (CefGlueControl instance) => instance.FrameRate,
@@ -1127,6 +1117,25 @@ public partial class CefGlueControl : Control
             },
             static (CefGlueControl instance) => instance.Transparent,
             static (CefGlueControl instance, bool value) => instance.Transparent = value);
+
+        // ── Feature Toggles ──
+        context.AddPropertyGroup("Feature Toggles");
+
+        context.BindProperty(
+            new PropertyInfo(new StringName(nameof(GpuAcceleration)), VariantType.Bool)
+            {
+                Usage = PropertyUsageFlags.Default
+            },
+            static (CefGlueControl instance) => instance.GpuAcceleration,
+            static (CefGlueControl instance, bool value) => instance.GpuAcceleration = value);
+
+        context.BindProperty(
+            new PropertyInfo(new StringName(nameof(OpenPopupInCurrentBrowser)), VariantType.Bool)
+            {
+                Usage = PropertyUsageFlags.Default
+            },
+            static (CefGlueControl instance) => instance.OpenPopupInCurrentBrowser,
+            static (CefGlueControl instance, bool value) => instance.OpenPopupInCurrentBrowser = value);
 
         context.BindProperty(
             new PropertyInfo(new StringName(nameof(SyncCursor)), VariantType.Bool)

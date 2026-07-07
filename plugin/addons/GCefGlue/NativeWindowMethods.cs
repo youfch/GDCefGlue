@@ -43,13 +43,5 @@ namespace GDCefGlue
         internal const uint SWP_NOACTIVATE = 0x0010;
         internal const uint SWP_SHOWWINDOW = 0x0040;
         internal static readonly IntPtr HWND_TOP = IntPtr.Zero;
-
-        // ── 透明/鼠标穿透（参考 i3D WebView2Edge 例） ──
-        internal const int WS_EX_TRANSPARENT = 0x00000020;
-        internal const int WS_EX_LAYERED = 0x00080000;
-        internal const uint LWA_COLORKEY = 0x00000001;
-
-        [DllImport("user32.dll", SetLastError = true)]
-        internal static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint crKey, byte bAlpha, uint dwFlags);
     }
 }
