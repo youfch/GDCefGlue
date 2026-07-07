@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -33,14 +33,14 @@ namespace GDCefGlue
         private int _pixelBufferSize;
         private int _renderBufferSize;
         private SpinLock _spinLock = new SpinLock(false);
-        
+
         internal int _width;
         internal int _height;
         internal int _controlWidth;
         internal int _controlHeight;
         internal Vector2 _cachedGlobalPosition;
         internal float _cachedContentScale = 1.0f;
-        
+
         private bool _isFocused;
         private bool _browserCreated;
         private bool _isDirty;
@@ -49,21 +49,21 @@ namespace GDCefGlue
         private double _lastClickTime;
         private int _clickCount;
         private const double DoubleClickInterval = 0.5;
-        
+
         private int _pendingWidth;
         private int _pendingHeight;
         private int _resizeStableCount;
         private const int ResizeStableThreshold = 2;
 
-// ── 窗口嵌入模式 ───────────────────────────────────────────────────
-    private IntPtr _godotHwnd;
-    private IntPtr _cefChildHwnd;
-    private bool _embeddedMode;
-    private bool _nativeStylesPatched;
-    private Vector2 _previousGlobalPos;
-    private Vector2 _previousSize;
-    private Vector2I _previousWindowPos;
-    private float _previousContentScale = 1.0f;
+        // ── 窗口嵌入模式 ───────────────────────────────────────────────────
+        private IntPtr _godotHwnd;
+        private IntPtr _cefChildHwnd;
+        private bool _embeddedMode;
+        private bool _nativeStylesPatched;
+        private Vector2 _previousGlobalPos;
+        private Vector2 _previousSize;
+        private Vector2I _previousWindowPos;
+        private float _previousContentScale = 1.0f;
 
         // ── IPC / JS bridge ────────────────────────────────────────────────
         private int _lastEvalTaskId;
@@ -102,22 +102,22 @@ namespace GDCefGlue
         /// Gets or sets the initial URL to load when the browser is created.
         /// </summary>
         public string InitialUrl { get; set; } = "about:blank";
-        
+
         /// <summary>
         /// Gets or sets whether popup windows should open in the current browser instead of new windows.
         /// </summary>
         [Export] public bool OpenPopupInCurrentBrowser { get; set; } = true;
-        
+
         /// <summary>
         /// Gets or sets whether GPU acceleration is enabled. Exposed to the Godot inspector.
         /// </summary>
         [Export] public bool GpuAcceleration { get; set; } = true;
-        
+
         /// <summary>
         /// Gets or sets the browser frame rate in frames per second. Default is 60, max is 360.
         /// </summary>
         [Export] public int FrameRate { get; set; } = 60;
-        
+
         /// <summary>
         /// Gets or sets whether the browser background is transparent. Default is false (opaque).
         /// </summary>
@@ -136,25 +136,25 @@ namespace GDCefGlue
         /// Must be set before the browser is created (in the inspector or before _Ready).
         /// </summary>
         [Export] public bool UseEmbeddedWindow { get; set; } = false;
-        
+
         private static bool _useGpuAcceleration = true;
         private static bool _useTransparent = false;
         private static bool _useEmbeddedWindow = false;
-        
+
         /// <summary>
         /// Gets or sets the global GPU acceleration setting. Must be set before CEF initialization.
         /// </summary>
-        public static bool UseGpuAcceleration 
-        { 
+        public static bool UseGpuAcceleration
+        {
             get => _useGpuAcceleration;
             set => _useGpuAcceleration = value;
         }
-        
+
         /// <summary>
         /// Gets or sets the global transparency setting. Must be set before CEF initialization.
         /// </summary>
-        public static bool UseTransparent 
-        { 
+        public static bool UseTransparent
+        {
             get => _useTransparent;
             set => _useTransparent = value;
         }
@@ -192,12 +192,12 @@ namespace GDCefGlue
         /// Gets whether the browser has been initialized.
         /// </summary>
         public bool IsBrowserInitialized => _browser != null;
-        
+
         /// <summary>
         /// Gets whether the browser is currently loading a page.
         /// </summary>
         public bool IsLoading => _browser?.IsLoading ?? false;
-        
+
         /// <summary>
         /// Gets the current page title.
         /// </summary>
@@ -207,27 +207,27 @@ namespace GDCefGlue
         /// Raised when the browser has been initialized.
         /// </summary>
         public event Action BrowserInitialized;
-        
+
         /// <summary>
         /// Raised when the browser address changes.
         /// </summary>
         public event AddressChangedEventHandler AddressChanged;
-        
+
         /// <summary>
         /// Raised when the page title changes.
         /// </summary>
         public event TitleChangedEventHandler TitleChanged;
-        
+
         /// <summary>
         /// Raised when a page starts loading.
         /// </summary>
         public event LoadStartEventHandler LoadStart;
-        
+
         /// <summary>
         /// Raised when a page finishes loading.
         /// </summary>
         public event LoadEndEventHandler LoadEnd;
-        
+
         /// <summary>
         /// Raised when a page fails to load.
         /// </summary>
@@ -250,7 +250,7 @@ namespace GDCefGlue
         public override void _Ready()
         {
             GD.Print("CefGlueControl: _Ready() called");
-            
+
             UseGpuAcceleration = GpuAcceleration;
             UseTransparent = Transparent;
             UseEmbeddedWindowGlobal = UseEmbeddedWindow;
@@ -265,7 +265,7 @@ namespace GDCefGlue
 
             CallDeferred(nameof(CreateBrowserDeferred));
         }
-        
+
         /// <summary>
         /// Activates the Input Method Editor for text input.
         /// </summary>
@@ -277,7 +277,7 @@ namespace GDCefGlue
                 window.SetImeActive(true);
             }
         }
-        
+
         /// <summary>
         /// Deactivates the Input Method Editor.
         /// </summary>
@@ -424,7 +424,7 @@ namespace GDCefGlue
                 GD.Print($"CefGlueControl: Ignoring popup browser creation");
                 return;
             }
-            
+
             _browser = browser;
             _browserHost = browser.GetHost();
 
@@ -540,17 +540,17 @@ namespace GDCefGlue
         internal void OnPaint(IntPtr buffer, int width, int height, CefRectangle[] dirtyRects)
         {
             if (width <= 0 || height <= 0) return;
-            
+
             int bufferSize = width * height * 4;
-            
+
             bool lockTaken = false;
             try
             {
                 _spinLock.Enter(ref lockTaken);
-                
+
                 _width = width;
                 _height = height;
-                
+
                 if (_pixelBuffer == null || _pixelBufferSize != bufferSize)
                 {
                     if (_pixelBuffer != null && _pixelBufferSize > 0)
@@ -582,12 +582,12 @@ namespace GDCefGlue
             {
                 int vectorSize = 32;
                 int vectorCount = pixelCount / 8;
-                
+
                 var shuffleMask = Vector256.Create(
                     (byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15,
                     (byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15
                 );
-                
+
                 fixed (byte* ptr = buffer)
                 {
                     for (int i = 0; i < vectorCount; i++)
@@ -597,7 +597,7 @@ namespace GDCefGlue
                         var shuffled = Avx2.Shuffle(data, shuffleMask);
                         Avx.Store(ptr + offset, shuffled);
                     }
-                    
+
                     for (int i = vectorCount * 8; i < pixelCount; i++)
                     {
                         int offset = i * 4;
@@ -611,9 +611,9 @@ namespace GDCefGlue
             {
                 int vectorSize = 16;
                 int vectorCount = pixelCount / 4;
-                
+
                 var shuffleMask = Vector128.Create((byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
-                
+
                 fixed (byte* ptr = buffer)
                 {
                     for (int i = 0; i < vectorCount; i++)
@@ -623,7 +623,7 @@ namespace GDCefGlue
                         var shuffled = Ssse3.Shuffle(data, shuffleMask);
                         Sse2.Store(ptr + offset, shuffled);
                     }
-                    
+
                     for (int i = vectorCount * 4; i < pixelCount; i++)
                     {
                         int offset = i * 4;
@@ -666,7 +666,7 @@ namespace GDCefGlue
             {
                 int newWidth = (int)Size.X;
                 int newHeight = (int)Size.Y;
-                
+
                 if (newWidth != _controlWidth || newHeight != _controlHeight)
                 {
                     _controlWidth = newWidth;
@@ -703,7 +703,7 @@ namespace GDCefGlue
                         _renderBuffer = new byte[expectedBufferSize];
                         _renderBufferSize = expectedBufferSize;
                     }
-                    
+
                     bool lockTaken = false;
                     try
                     {
@@ -714,7 +714,7 @@ namespace GDCefGlue
                     {
                         if (lockTaken) _spinLock.Exit();
                     }
-                    
+
                     if (_texture.GetSize().X != _width || _texture.GetSize().Y != _height)
                     {
                         _image.SetData(_width, _height, false, Image.Format.Rgba8, _renderBuffer);
@@ -796,25 +796,25 @@ namespace GDCefGlue
         private void SendMouseMoveEvent(InputEventMouseMotion e)
         {
             if (_browserHost == null) return;
-            
+
             var localPos = GetLocalMousePosition();
             var modifiers = GetModifiers(e);
-            
+
             if (_isMousePressed && _pressedButton != (CefMouseButtonType)(-1))
             {
                 modifiers |= GetMouseButtonModifier(_pressedButton);
             }
-            
+
             var mouseEvent = new CefMouseEvent
             {
                 X = (int)localPos.X,
                 Y = (int)localPos.Y,
                 Modifiers = modifiers
             };
-            
+
             _browserHost.SendMouseMoveEvent(mouseEvent, false);
         }
-        
+
         /// <summary>
         /// Gets the CEF event flags for a mouse button.
         /// </summary>
@@ -835,7 +835,7 @@ namespace GDCefGlue
         private void SendMouseButtonEvent(InputEventMouseButton e)
         {
             if (_browserHost == null) return;
-            
+
             var localPos = GetLocalMousePosition();
             var mouseEvent = new CefMouseEvent
             {
@@ -868,7 +868,7 @@ namespace GDCefGlue
                     _clickCount = 1;
                 }
                 _lastClickTime = currentTime;
-                
+
                 _pressedButton = button;
                 _isMousePressed = true;
                 _browserHost.SendMouseClickEvent(mouseEvent, button, false, _clickCount);
@@ -890,7 +890,7 @@ namespace GDCefGlue
         private void SendKeyEvent(InputEventKey e)
         {
             var windowsKeyCode = GetWindowsKeyCode(e.Keycode);
-            
+
             var keyEvent = new CefKeyEvent
             {
                 EventType = e.Pressed ? CefKeyEventType.KeyDown : CefKeyEventType.KeyUp,
@@ -915,7 +915,7 @@ namespace GDCefGlue
                 _browserHost.SendKeyEvent(charEvent);
             }
         }
-        
+
         /// <summary>
         /// Converts a Godot Key to a Windows virtual key code.
         /// </summary>
@@ -960,7 +960,7 @@ namespace GDCefGlue
                 _ => (int)keycode
             };
         }
-        
+
         /// <summary>
         /// Determines if a key is a special key that should not generate character input.
         /// </summary>
@@ -1540,7 +1540,7 @@ namespace GDCefGlue
                 _browser = null;
             }
             _client = null;
-            
+
             if (_pixelBuffer != null && _pixelBufferSize > 0)
             {
                 ArrayPool<byte>.Shared.Return(_pixelBuffer);
@@ -1549,7 +1549,7 @@ namespace GDCefGlue
             }
             _renderBuffer = null;
             _renderBufferSize = 0;
-            
+
             base._ExitTree();
         }
     }

@@ -1,6 +1,7 @@
 # Repository/Project Specific
 /src.g/
 /.backups/
+/.temp/
 
 # Repository/Project Shared
 /bin/
