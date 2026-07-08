@@ -39,7 +39,6 @@ namespace GDCefGlue
     /// Provides full browser functionality including navigation, JavaScript execution, and developer tools.
     /// </summary>
     [GlobalClass]
-    [Tool]
     public partial class CefGlueControl : Control
     {
         private CefBrowser _browser;
@@ -142,10 +141,7 @@ namespace GDCefGlue
             get => _mode;
             set
             {
-                if (_mode == value) return;
                 _mode = value;
-                if (Godot.Engine.Singleton.IsEditorHint())
-                    Callable.From(() => NotifyPropertyListChanged()).CallDeferred();
             }
         }
 
@@ -324,12 +320,6 @@ namespace GDCefGlue
 public override void _Ready()
         {
             GD.Print("CefGlueControl: _Ready() called");
-
-            if (Godot.Engine.Singleton.IsEditorHint())
-            {
-                GD.Print("CefGlueControl: Running in editor, skipping CEF initialization");
-                return;
-            }
 
             UseGpuAcceleration = GpuAcceleration;
             UseTransparent = Transparent;
