@@ -1384,6 +1384,13 @@ if (_renderMode == RenderMode.EmbeddedWindow)
                 argsJson = args.GetString(3);
             }
 
+            // DEBUG: 检查 BrowserProcess 传过来的参数原始数据
+            if (argsJson != null && argsJson.Length > 0)
+            {
+                var hex = BitConverter.ToString(System.Text.Encoding.UTF8.GetBytes(argsJson.Substring(0, Math.Min(30, argsJson.Length))));
+                GD.Print($"[CefGlueControl] RAW argsJson object='{objectName}' member='{memberName}' hex=[{hex}]");
+            }
+
             if (!_registeredObjects.TryGetValue(objectName, out var reg))
             {
                 SendNativeObjectCallResult(callId, null, $"Object '{objectName}' not registered");
@@ -1473,6 +1480,30 @@ if (_renderMode == RenderMode.EmbeddedWindow)
             frame.SendProcessMessage(CefProcessId.Renderer, msg);
         }
 
+        /// <summary>
+        /// CefGlue 序列化 marker — 见 youfch/CefGlue DataMarkers.cs
+        /// </summary>
+        private const string CefGlueStringMarker = "S";
+        private const string CefGlueDateTimeMarker = "D";
+        private const string CefGlueBinaryMarker = "B";
+        private const int CefGlueMarkerLength = 1;
+
+        /// <summary>
+        /// 去掉 CefGlue 序列化添加的类型 marker 前缀。
+        /// BrowserProcess 在序列化字符串时会加 'S' 前缀，C# 端需要去掉。
+        /// </summary>
+        private static string StripCefGlueMarker(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= CefGlueMarkerLength)
+                return value;
+
+            var marker = value.Substring(0, CefGlueMarkerLength);
+            if (marker == CefGlueStringMarker || marker == CefGlueDateTimeMarker || marker == CefGlueBinaryMarker)
+                return value.Substring(CefGlueMarkerLength);
+
+            return value;
+        }
+
         private static T DeserializeEvalResult<T>(string json)
         {
             if (string.IsNullOrEmpty(json))
@@ -1480,7 +1511,11 @@ if (_renderMode == RenderMode.EmbeddedWindow)
 
             try
             {
-                return JsonSerializer.Deserialize<T>(json);
+                var result = JsonSerializer.Deserialize<T>(json);
+                // 处理 CefGlue marker：如果结果是字符串，去掉可能的 marker 前缀
+                if (result is string strResult)
+                    return (T)(object)StripCefGlueMarker(strResult);
+                return result;
             }
             catch
             {
@@ -1491,6 +1526,7 @@ if (_renderMode == RenderMode.EmbeddedWindow)
         /// <summary>
         /// Deserializes a JSON array string into an object[] matching the method's parameter types.
         /// The JS side serializes arguments as a JSON array: ["arg1", 42, {"key":"val"}]
+        /// CefGlue BrowserProcess 的 objectsStringifier 会给字符串加 "S" marker，需去掉。
         /// </summary>
         private static object[] DeserializeCallArgs(string argsJson, ParameterInfo[] parameters)
         {
@@ -1503,7 +1539,11 @@ if (_renderMode == RenderMode.EmbeddedWindow)
             if (root.ValueKind != JsonValueKind.Array)
             {
                 // Single-argument shortcut: pass the raw value directly
-                return new[] { JsonSerializer.Deserialize(argsJson, parameters[0].ParameterType) };
+                var val = JsonSerializer.Deserialize(argsJson, parameters[0].ParameterType);
+                // 处理 CefGlue marker
+                if (val is string strVal)
+                    val = StripCefGlueMarker(strVal);
+                return new[] { val };
             }
 
             var elements = new JsonElement[root.GetArrayLength()];
@@ -1514,7 +1554,11 @@ if (_renderMode == RenderMode.EmbeddedWindow)
             var result = new object[Math.Min(elements.Length, parameters.Length)];
             for (int j = 0; j < result.Length; j++)
             {
-                result[j] = JsonSerializer.Deserialize(elements[j].GetRawText(), parameters[j].ParameterType);
+                var val = JsonSerializer.Deserialize(elements[j].GetRawText(), parameters[j].ParameterType);
+                // 处理 CefGlue marker
+                if (val is string strVal)
+                    val = StripCefGlueMarker(strVal);
+                result[j] = val;
             }
 
             return result;
