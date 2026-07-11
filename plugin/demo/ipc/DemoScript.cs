@@ -42,6 +42,7 @@ public partial class DemoScript : Control
 {
     private CefGlueControl _browser;
     private RichTextLabel _log;
+    private bool _evalTestsStarted;
 
     public override void _Ready()
     {
@@ -69,16 +70,24 @@ public partial class DemoScript : Control
         GD.Print("[Demo] Browser initialized");
         Log("浏览器已就绪");
 
-        // 注册 C# 对象到 JS
-        _browser.RegisterJavascriptObject(new DotnetBridge(), "dotnetBridge");
-        GD.Print("[Demo] Registered 'dotnetBridge' — JS can call window.dotnetBridge.*");
-        Log("已注册 dotnetBridge 对象，JS 可通过 window.dotnetBridge.* 调用");
+        // 注册 C# 对象到 JS — 在 OnLoadEnd 也会重新注册以确保导航后 V8 绑定可用
+        RegisterBridgeObjects();
 
         // 注入 _godotBridge 辅助脚本（兼容现有 godot:// bridge 机制）
         InjectBridgeScript();
 
         // 用 data: URI 加载测试 HTML
         LoadTestHtml();
+    }
+
+    /// <summary>
+    /// 注册 JS→C# bridge V8 对象。
+    /// </summary>
+    private void RegisterBridgeObjects()
+    {
+        _browser.RegisterJavascriptObject(new DotnetBridge(), "dotnetBridge");
+        GD.Print("[Demo] Registered 'dotnetBridge' — JS can call window.dotnetBridge.*");
+        Log("已注册 dotnetBridge 对象，JS 可通过 window.dotnetBridge.* 调用");
     }
 
     private void InjectBridgeScript()
@@ -117,9 +126,13 @@ public partial class DemoScript : Control
 
     private void OnLoadEnd(object sender, Xilium.CefGlue.Common.Events.LoadEndEventArgs e)
     {
-        // 只在加载了真正的测试页后执行 eval 测试（跳过 about:blank 初始页）
-        if (_browser.Address.StartsWith("data:text/html"))
+        // 每次页面加载后重新注册 V8 绑定（BrowserProcess 的 V8 上下文重建可能失败）
+        RegisterBridgeObjects();
+
+        // 只在主帧且加载了测试页后执行自动化测试（防止子帧重复触发）
+        if (_browser.Address.StartsWith("data:text/html") && !_evalTestsStarted)
         {
+            _evalTestsStarted = true;
             _ = DelayedEvalTests();
         }
     }

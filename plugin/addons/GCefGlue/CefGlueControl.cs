@@ -519,6 +519,9 @@ GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (T
 
         private void NotifyBrowserInitialized()
         {
+            // 注册事件转发 V8 对象（嵌入模式 + ForwardInputEvents 启用时）
+            RegisterEventForwarder();
+
             BrowserInitialized?.Invoke();
             GD.Print("CefGlueControl: Browser initialized");
         }
@@ -1311,6 +1314,8 @@ if (_renderMode == RenderMode.EmbeddedWindow)
         {
             var name = message.Name;
 
+            GD.Print($"[CefGlueControl] IPC received: {name}");
+
             switch (name)
             {
                 case "JsEvaluationResult":
@@ -1321,8 +1326,21 @@ if (_renderMode == RenderMode.EmbeddedWindow)
                     HandleNativeObjectCallRequest(message);
                     break;
 
+                case "JsUncaughtException":
+                    using (var args = message.Arguments)
+                    {
+                        var msg = args.GetString(0);
+                        var stack = args.GetString(1);
+                        // BrowserProcess 在 V8 上下文重建时注册绑定可能会抛出异常，
+                        // 这是 BrowserProcess 内部初始化噪音，不影响功能。
+                        // 仅当有有效 message 时打印，无 stack 的忽略。
+                        if (!string.IsNullOrEmpty(msg))
+                            GD.Print($"[CefGlueControl] JS uncaught (init noise): {msg}");
+                    }
+                    break;
+
                 default:
-                    // JsContextCreated / JsContextReleased / UnhandledException — ignore
+                    // JsContextCreated / JsContextReleased — ignore
                     break;
             }
         }

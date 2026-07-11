@@ -73,16 +73,18 @@ RenderMode 枚举:
 
 ### Bridge 优化
 
-- [ ] iframe 复用：改用单个隐藏 iframe 反复设置 src，代替每次 createElement
+- [x] iframe 复用：改用单个隐藏 iframe 反复设置 src，代替每次 createElement
+  - 已由 RegisterJavascriptObject IPC 替代，不再需要 iframe
 - [ ] 考虑 `SchemeHandler + fetch` 替代 iframe（需解决 CORS，如用 `ipc://` 自加载页面）
 - [ ] C#→JS 推送改用安全序列化（替换手写 `Replace("\\","\\\\")` 转义）
 
 ### 嵌入模式
 
-- [ ] `ForwardInputEvents` 完全实现：JS DOM 事件 → IPC → C# InputEvent → `viewport.PushInput`
-  - 鼠标事件（move/down/up/wheel）
-  - 键盘事件（keydown/keyup）
-  - 坐标换算（CEF 物理像素 → Godot 虚拟像素）
+- [x] `ForwardInputEvents` 完全实现：JS DOM 事件 → IPC → C# InputEvent → `viewport.PushInput`
+  - 鼠标事件（move/down/up/wheel）— 已完成
+  - 键盘事件（keydown/keyup）— JS 已捕获，C# 端暂未处理，待补全
+  - 坐标换算（CEF 物理像素 → Godot 虚拟像素）— 已完成
+  - 通讯方式已从 iframe → OnBeforeBrowse 迁移到 RegisterJavascriptObject IPC
 
 ## 参考实现
 

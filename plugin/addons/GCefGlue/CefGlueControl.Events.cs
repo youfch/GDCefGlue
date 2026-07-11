@@ -9,10 +9,11 @@ namespace GDCefGlue
     public partial class CefGlueControl
     {
         /// <summary>
-        /// 事件转发 JS。注入到每个页面，通过 godot://bridge 机制将浏览器内的
-        /// 鼠标/键盘事件转发到 Godot，实现事件穿透。
+        /// 事件转发 JS。注入到每个页面，通过 CEF IPC（RegisterJavascriptObject）将
+        /// 浏览器内的鼠标/键盘事件转发到 Godot，实现事件穿透。
         ///
-        /// 使用单个隐藏 iframe 复用，避免每帧创建/销毁 DOM 元素。
+        /// 使用 window.__godotEvents.forward() 直接调用 C# 注册的 V8 绑定，
+        /// 不走 iframe/OnBeforeBrowse，避免 URL 长度限制和导航管道开销。
         /// 参考 godot_wry 的 JS 事件监听 + IPC 转发模式。
         /// </summary>
         private const string EventForwardingScript = @"
@@ -20,15 +21,10 @@ namespace GDCefGlue
     if (window.__godotEventForwardInjected) return;
     window.__godotEventForwardInjected = true;
 
-    // 创建单个隐藏 iframe 用于 godot://bridge 通信
-    var _f = document.createElement('iframe');
-    _f.style.cssText = 'display:none!important;width:0!important;height:0!important;border:none!important';
-    document.documentElement.appendChild(_f);
-
     function godotEvent(type, data) {
         var p = {eventType: type};
         for (var k in data) { p[k] = data[k]; }
-        _f.src = 'godot://bridge?type=event_forward&payload=' + encodeURIComponent(JSON.stringify(p));
+        window.__godotEvents.forward(JSON.stringify(p));
     }
 
     // ── 鼠标事件 ──
@@ -79,13 +75,18 @@ namespace GDCefGlue
 ";
 
         /// <summary>
-        /// 在页面加载完成后注入事件转发 JS（仅嵌入模式且 ForwardInputEvents 启用时）。
+        /// 注册事件转发 V8 对象 + 注入事件监听 JS。
         /// 在 OnLoadEnd 中调用，确保每个页面都有事件转发能力。
+        /// 先注册 V8 绑定（RegisterJavascriptObject 发给 BrowserProcess），
+        /// 再注入 JS 事件监听脚本。
         /// </summary>
         internal void InjectEventForwardingScriptIfNeeded()
         {
             if (_renderMode != RenderMode.EmbeddedWindow || _browser == null || !ForwardInputEvents)
                 return;
+
+            // 注册 V8 绑定（可重复调用，BrowserProcess 处理重复注册）
+            RegisterEventForwarder();
 
             var frame = _browser.GetMainFrame();
             if (frame != null)
@@ -93,6 +94,58 @@ namespace GDCefGlue
                 frame.ExecuteJavaScript(EventForwardingScript, "godot://event_forward", 0);
             }
         }
+
+        /// <summary>
+        /// 注册 __godotEvents V8 对象，使 JS 能通过 IPC 直接转发事件到 C#。
+        /// 仅在嵌入模式（EmbeddedWindow）下注册，OSR 模式不需要事件转发。
+        /// </summary>
+        internal void RegisterEventForwarder()
+        {
+            if (_browser == null || !_browserCreated)
+                return;
+
+            // 仅嵌入模式需要事件转发
+            if (_renderMode != RenderMode.EmbeddedWindow)
+                return;
+
+            if (!_eventForwarderRegistered)
+            {
+                RegisterJavascriptObject(new GodotEventForwarder(this), "__godotEvents");
+                _eventForwarderRegistered = true;
+            }
+        }
+
+        /// <summary>
+        /// 内部事件转发器，注册为 V8 对象供 JS 直接调用。
+        /// JS 调用: window.__godotEvents.forward(payloadJson)
+        /// CEF IPC 路径: V8 → SendProcessMessage → OnProcessMessageReceived → HandleForwardedEvent
+        /// </summary>
+        private sealed class GodotEventForwarder
+        {
+            private readonly CefGlueControl _control;
+
+            public GodotEventForwarder(CefGlueControl control)
+            {
+                _control = control;
+            }
+
+            /// <summary>
+            /// JS 调用入口：接收事件 JSON payload 转发到 Godot。
+            /// </summary>
+            public void Forward(string payload)
+            {
+                // 调试：打印非鼠标移动事件（mouse_move 太频繁）
+                if (!payload.Contains("\"mouse_move\""))
+                    GD.Print($"[GodotEventForwarder] Forward: {payload.Substring(0, Math.Min(payload.Length, 120))}");
+                _control.HandleForwardedEvent(payload);
+            }
+        }
+
+        /// <summary>
+        /// 标记是否已注册 __godotEvents V8 绑定。
+        /// BrowserProcess 在 OnContextCreated 时会自动重建，此处仅防重复 IPC。
+        /// </summary>
+        private bool _eventForwarderRegistered;
 
         /// <summary>
         /// 处理从 JS 转发过来的事件，构造 Godot InputEvent 并推回 Godot 事件系统。

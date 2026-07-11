@@ -38,10 +38,10 @@ button:active { transform: scale(0.96); }
 
 <h1>🧪 GDCefGlue JS ↔ C# Bridge Test</h1>
 
-<!-- 方式 A: godot:// bridge (现有机制) -->
-<div class="section">
-  <h2>方式 A: godot:// bridge (iframe → OnBeforeBrowse)</h2>
-  <p>JS → C# 单向消息，通过 iframe.src = 'godot://bridge?...' 发送</p>
+<!-- 方式 A: godot:// bridge (iframe → OnBeforeBrowse, 已弃用) -->
+<div class="section" style="opacity:0.5">
+  <h2>方式 A: godot:// bridge (iframe) <span style="color:#e76f51;font-size:11px">[已弃用]</span></h2>
+  <p>JS → C# 单向消息，通过 iframe.src = 'godot://bridge?...' 发送。推荐使用方式 B (IPC)。</p>
   <div class="btn-row">
     <button class="btn-blue" onclick="bridgePing()">Ping C#</button>
     <button class="btn-green" onclick="bridgeStatus()">Get Status</button>
