@@ -1577,6 +1577,7 @@ if (_renderMode == RenderMode.EmbeddedWindow)
         /// <summary>
         /// C# → JS 推送消息。
         /// 在 JS 侧通过 window._godotBridge._onMessage(msg) 接收。
+        /// 使用 JsonSerializer 做安全序列化，替代手写 Replace 转义。
         /// </summary>
         public void SendToJs(string jsonMessage)
         {
@@ -1586,14 +1587,9 @@ if (_renderMode == RenderMode.EmbeddedWindow)
                 return;
             }
 
-            var escaped = jsonMessage
-                .Replace("\\", "\\\\")
-                .Replace("'", "\\'")
-                .Replace("\"", "\\\"")
-                .Replace("\n", "\\n")
-                .Replace("\r", "\\r");
-
-            var jsCode = $"window._godotBridge && window._godotBridge._onMessage(\"{escaped}\");";
+            // JsonSerializer.Serialize 将字符串编码为 JSON 字符串字面量（含引号 + 转义）
+            var safeJson = JsonSerializer.Serialize(jsonMessage);
+            var jsCode = $"window._godotBridge && window._godotBridge._onMessage({safeJson});";
             _browser.GetMainFrame().ExecuteJavaScript(jsCode, "godot://send", 1);
         }
 
@@ -1609,14 +1605,9 @@ if (_renderMode == RenderMode.EmbeddedWindow)
                 return;
             }
 
-            var escaped = jsonResponse
-                .Replace("\\", "\\\\")
-                .Replace("'", "\\'")
-                .Replace("\"", "\\\"")
-                .Replace("\n", "\\n")
-                .Replace("\r", "\\r");
-
-            var jsCode = $"window._godotBridge && window._godotBridge._onResponse('{cbId}',\"{escaped}\");";
+            var safeJson = JsonSerializer.Serialize(jsonResponse);
+            var safeCbId = JsonSerializer.Serialize(cbId);
+            var jsCode = $"window._godotBridge && window._godotBridge._onResponse({safeCbId},{safeJson});";
             _browser.GetMainFrame().ExecuteJavaScript(jsCode, "godot://response", 1);
         }
 

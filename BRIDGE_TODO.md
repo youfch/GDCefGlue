@@ -11,7 +11,7 @@ RenderMode 枚举:
 | 属性 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `Mode` | RenderMode | OSR | Inspector 中切换，OSR 时隐藏"Embedded Mode"分组 |
-| `ForwardInputEvents` | bool | false | 嵌入模式下 JS→Godot 事件穿透（TODO，未完全实现） |
+| `ForwardInputEvents` | bool | false | 嵌入模式下 JS→Godot 事件穿透，已迁移到 RegisterJavascriptObject IPC |
 | `Transparent` | bool | false | 仅 OSR 模式生效 |
 
 ### Inspector 分组
@@ -34,22 +34,43 @@ RenderMode 枚举:
 
 ## 当前 Bridge 实现
 
-`godot://bridge?type=X&cb=ID&payload=JSON` URL 拦截（`OnBeforeBrowse`）
+### 通道 1: RegisterJavascriptObject (CEF IPC) ✅ 主通道
 
-- 方向：JS→C# 单向；C#→JS 靠 `ExecuteJavaScript` 回灌字符串
-- 已验证：
-  - [x] ping/status/navigate 测试用例通过（MainUi.cs / IpcDemo.tscn）
-  - [x] 大 payload（~10KB）URL 编码传输
-  - [x] C# 对象注册（`RegisterJavascriptObject`）暴露方法给 JS
-  - [x] `EvaluateJavaScript<T>` 异步求值 + 超时
-  - [x] DevTool 按钮
+C# 端注册对象 → BrowserProcess 创建 V8 绑定 → JS 直接调方法 → IPC 往返
+
+| 方向 | 机制 | 状态 |
+|------|------|------|
+| JS → C# | `window.dotnetBridge.method(args).then(cb)` | ✅ 已验证 |
+| C# → JS | `EvaluateJavaScript<T>` (SendProcessMessage IPC) | ✅ 已验证 |
+| C# → JS 推送 | `ExecuteJavaScript` 回灌字符串 | ✅ 已验证 |
+
+**注意：** CefGlue 的 `objectsStringifier` 会给字符串加类型 marker（`S`/`D`/`B`），C# 端通过 `StripCefGlueMarker` 去掉。
+
+### 通道 2: godot://bridge (iframe → OnBeforeBrowse) 🔸 已弃用
+
+```
+JS → iframe.src = "godot://bridge?type=X&cb=ID&payload=JSON"
+  → OnBeforeBrowse 拦截 → BridgeRequest 事件
+```
+
+保留作 fallback，不推荐使用。限制：URL query 长度 ~2-64KB。
+
+### 已验证
+
+- [x] ping/status/navigate 测试用例通过（DemoScript.cs / test.html）
+- [x] 方式 B: `RegisterJavascriptObject` — hello/echo/add/getVersion 全部 IPC 往返
+- [x] 方式 C: `DotnetBridge.eval()` — JS→C# 触发 EvaluateJavaScript 求值
+- [x] `EvaluateJavaScript<T>` 异步求值 + 超时 + 数值/字符串结果
+- [x] C#→JS 推送消息（`SendToJs` → `ExecuteJavaScript`）
+- [x] CefGlue marker 前缀（"S"）自动剥离
+- [x] 大 payload（~10KB）URL 编码传输
+- [x] DevTool 按钮
 
 ### 已知限制
 
 - `OnBeforeBrowse` 无法读 POST body，payload 走 URL query（长度上限 ~2-64KB）
-- 每次 `sendToGodot` 新建 iframe，无复用
-- C#→JS 用字符串拼接 + 手写转义，有注入风险
 - `BridgeRequest.Invoke` 在 CEF UI 线程同步执行
+- CefGlue BrowserProcess 的 V8 绑定重建有初始化噪音（`JsUncaughtException`），不影响功能
 
 ## CEF 原生 6 种 JS↔Native 机制
 
@@ -67,16 +88,12 @@ RenderMode 枚举:
 - `CefRuntime.RegisterExtension` 注册 V8 扩展失败（NuGet 版不支持从 browser 进程注入）
 - 无法使用 `CefMessageRouter`（需修改 BrowserProcess，不满足 addon 分发）
 - 无法使用 `SchemeHandler + fetch`（`file://` → `ipc://` 跨域 CORS 死胡同）
-- **唯一可行：iframe → OnBeforeBrowse 拦截**
 
 ## TODO
 
 ### Bridge 优化
 
-- [x] iframe 复用：改用单个隐藏 iframe 反复设置 src，代替每次 createElement
-  - 已由 RegisterJavascriptObject IPC 替代，不再需要 iframe
-- [ ] 考虑 `SchemeHandler + fetch` 替代 iframe（需解决 CORS，如用 `ipc://` 自加载页面）
-- [ ] C#→JS 推送改用安全序列化（替换手写 `Replace("\\","\\\\")` 转义）
+- [ ] 键盘事件（keydown/keyup）C# 端 `HandleForwardedEvent` 补充 InputEventKey 处理
 
 ### 嵌入模式
 
@@ -85,6 +102,20 @@ RenderMode 枚举:
   - 键盘事件（keydown/keyup）— JS 已捕获，C# 端暂未处理，待补全
   - 坐标换算（CEF 物理像素 → Godot 虚拟像素）— 已完成
   - 通讯方式已从 iframe → OnBeforeBrowse 迁移到 RegisterJavascriptObject IPC
+
+### 已修复/已完成
+
+- [x] iframe 复用：已由 RegisterJavascriptObject IPC 替代，不再需要 iframe
+- [x] ForwardInputEvents 通讯迁移到 RegisterJavascriptObject IPC
+- [x] CefGlue 序列化 marker 前缀（"S"）自动剥离（`StripCefGlueMarker`）
+- [x] BrowserProcess V8 绑定重建失败后页面重新注册（`OnLoadEnd` 中重注册）
+- [x] test.html 方式 B 从 callback 风格改为 Promise 风格（匹配 CefGlue 的 Promise 返回）
+- [x] test.html 方式 C 按钮改为实际触发 `EvaluateJavaScript`
+- [x] `SendToJs` / `SendResponse` 改用 `JsonSerializer.Serialize` 安全序列化，移除手写 `Replace` 转义
+- [x] `DeserializeEvalResult<string>` 支持非字符串 JSON 值（数字/bool）
+- [x] DotnetBridge 持有 CefGlueControl 引用，支持异步 eval 方法
+- [x] JsUncaughtException 诊断日志（BrowserProcess 初始化噪音，降级为 info）
+- [x] DelayedEvalTests 防重复执行
 
 ## 参考实现
 
