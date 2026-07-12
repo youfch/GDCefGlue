@@ -180,7 +180,7 @@ public override void _Notification(int what)
             GD.Print($"[CefGlueControl] ReleaseCefFocus: godotHwnd=0x{_godotHwnd.ToInt64():X8}");
             _browserHost?.SetFocus(false);
             if (_godotHwnd != IntPtr.Zero)
-                NativeWindowMethods.SetFocus(_godotHwnd);
+                NativeWindowMethods.SetPlatformFocus(_godotHwnd);
         }
     }
 }

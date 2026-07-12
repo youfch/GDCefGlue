@@ -61,12 +61,9 @@ namespace GDCefGlue
                 GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
             }
 
-            // 同步 CEF 子窗口位置和大小（坐标相对于 Godot 窗口客户区）
-            NativeWindowMethods.SetWindowPos(
-                _cefChildHwnd,
-                NativeWindowMethods.HWND_TOP,
-                physX, physY, physW, physH,
-                NativeWindowMethods.SWP_NOZORDER | NativeWindowMethods.SWP_NOACTIVATE);
+            // 同步 CEF 子窗口位置和大小（坐标相对于父窗口客户区）
+            NativeWindowMethods.MovePlatformWindow(
+                _cefChildHwnd, physX, physY, physW, physH);
 
             // 通知 CEF 窗口大小变化
             if (physW != _controlWidth || physH != _controlHeight)
