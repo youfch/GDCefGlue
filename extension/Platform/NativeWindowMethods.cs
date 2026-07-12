@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace GDCefGlue
+namespace GDCefGlueExtension
 {
     /// <summary>
     /// 跨平台原生窗口操作方法。运行时根据当前 OS 选择 Win32 或 X11 实现。
