@@ -38,6 +38,7 @@ namespace GDCefGlue
     /// A Godot Control that embeds a CEF browser using off-screen rendering.
     /// Provides full browser functionality including navigation, JavaScript execution, and developer tools.
     /// </summary>
+    [Tool]
     [GlobalClass]
     public partial class CefGlueControl : Control
     {
@@ -142,6 +143,7 @@ namespace GDCefGlue
             set
             {
                 _mode = value;
+                NotifyPropertyListChanged();
             }
         }
 
@@ -320,6 +322,10 @@ namespace GDCefGlue
 public override void _Ready()
         {
             GD.Print("CefGlueControl: _Ready() called");
+
+            // 编辑器模式下不初始化 CEF（防止 [Tool] 导致编辑器崩溃）
+            if (Engine.IsEditorHint())
+                return;
 
             UseGpuAcceleration = GpuAcceleration;
             UseTransparent = Transparent;
@@ -725,6 +731,8 @@ GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (T
         /// </summary>
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint())
+                return;
             _cachedGlobalPosition = GlobalPosition;
             _cachedContentScale = DisplayServer.ScreenGetScale();
 
@@ -816,7 +824,9 @@ GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (T
         /// </summary>
         public override void _Draw()
         {
-// 嵌入模式下，CEF 子窗口自行渲染，不需要 Godot 绘制
+            if (Engine.IsEditorHint())
+                return;
+            // 嵌入模式下，CEF 子窗口自行渲染，不需要 Godot 绘制
             if (_renderMode == RenderMode.EmbeddedWindow)
                 return;
 
@@ -1104,7 +1114,9 @@ GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (T
         /// </summary>
         public override void _Notification(int what)
         {
-if (_renderMode == RenderMode.EmbeddedWindow)
+            if (Engine.IsEditorHint())
+                return;
+            if (_renderMode == RenderMode.EmbeddedWindow)
             {
                 // 嵌入模式下，CEF 子窗口独立管理焦点和输入
                 switch ((long)what)
@@ -1645,19 +1657,25 @@ if (_renderMode == RenderMode.EmbeddedWindow)
         }
 
 /// <summary>
-        /// Hides the "Embedded Mode" group and its properties when rendering mode is not EmbeddedWindow.
+        /// 根据渲染模式控制 Inspector 属性的可见性：
+        /// - EmbeddedWindow: 显示 ForwardInputEvents，隐藏 SyncCursor
+        /// - OSR 模式: 显示 SyncCursor，隐藏 ForwardInputEvents
         /// </summary>
         public override void _ValidateProperty(Godot.Collections.Dictionary property)
         {
             var propName = property["name"].AsStringName();
 
-            // Hide "Embedded Mode" group and its members when Mode != EmbeddedWindow
-            if (propName == "Embedded Mode" || propName == nameof(ForwardInputEvents))
+            if (propName == nameof(SyncCursor))
             {
-                if (_mode != RenderMode.EmbeddedWindow)
-                {
+                // SyncCursor 只在 OSR 模式下显示
+                if (_mode == RenderMode.EmbeddedWindow)
                     property["usage"] = (int)PropertyUsageFlags.NoEditor;
-                }
+            }
+            else if (propName == "Embedded Mode" || propName == nameof(ForwardInputEvents))
+            {
+                // ForwardInputEvents + 分组名只在 EmbeddedWindow 模式下显示
+                if (_mode != RenderMode.EmbeddedWindow)
+                    property["usage"] = (int)PropertyUsageFlags.NoEditor;
             }
         }
 
