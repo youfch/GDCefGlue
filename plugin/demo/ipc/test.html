@@ -63,7 +63,8 @@ button:active { transform: scale(0.96); }
 <!-- 方式 C: DotnetBridge.eval (JS → C# EvaluateJavaScript) -->
 <div class="section">
   <h2>方式 C: DotnetBridge.eval (JS → C# 求值)</h2>
-  <p>点按钮后 JS 调 window.dotnetBridge.eval(code, callback)，C# 执行 EvaluateJavaScript 返回结果</p>
+  <p>JS 调 window.dotnetBridge.eval(code) → C# 执行 EvaluateJavaScript 返回结果。<br>
+  <small>（IPC 往返演示，实际 JS 直接用 eval() 即可）</small></p>
   <div class="btn-row">
     <button class="btn-blue" onclick="evalDocumentTitle()">C# eval: document.title</button>
     <button class="btn-blue" onclick="evalLocation()">C# eval: location.href</button>

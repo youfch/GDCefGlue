@@ -1596,6 +1596,7 @@ if (_renderMode == RenderMode.EmbeddedWindow)
         /// <summary>
         /// C# → JS 回复特定请求。在 JS 侧通过 window._godotBridge._onResponse(cbId, msg) 接收。
         /// </summary>
+        [Obsolete("仅旧版 iframe bridge (godot://) 使用，推荐改用 RegisterJavascriptObject IPC")]
         public void SendResponse(string cbId, string jsonResponse)
         {
             if (string.IsNullOrEmpty(cbId)) return;

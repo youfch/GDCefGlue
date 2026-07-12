@@ -46,7 +46,10 @@ public class DotnetBridge
 
     /// <summary>
     /// 从 JS 侧触发 EvaluateJavaScript，C# 执行 JS 代码并返回结果。
-    /// JS 调用: window.dotnetBridge.eval('document.title', callback)
+    /// JS 调用: window.dotnetBridge.eval('document.title').then(cb)
+    ///
+    /// 注意：这只是一个 IPC 往返的演示。实际使用时 JS 直接 eval() 即可，
+    /// 不需要让 C# 来调 EvaluateJavaScript 再绕回来。
     /// </summary>
     public async Task<string> Eval(string code)
     {

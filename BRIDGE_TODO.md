@@ -112,6 +112,8 @@ JS → iframe.src = "godot://bridge?type=X&cb=ID&payload=JSON"
 - [x] test.html 方式 B 从 callback 风格改为 Promise 风格（匹配 CefGlue 的 Promise 返回）
 - [x] test.html 方式 C 按钮改为实际触发 `EvaluateJavaScript`
 - [x] `SendToJs` / `SendResponse` 改用 `JsonSerializer.Serialize` 安全序列化，移除手写 `Replace` 转义
+- [x] `SendResponse` 标记 `[Obsolete]`（仅旧版 iframe bridge 使用）
+- [x] `dotnetBridge.eval()` 注释说明仅为 IPC 演示（实际 JS 直接用 `eval()`）
 - [x] `DeserializeEvalResult<string>` 支持非字符串 JSON 值（数字/bool）
 - [x] DotnetBridge 持有 CefGlueControl 引用，支持异步 eval 方法
 - [x] JsUncaughtException 诊断日志（BrowserProcess 初始化噪音，降级为 info）
