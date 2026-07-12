@@ -293,7 +293,7 @@ dotnet build
 | `GpuAcceleration` | bool | true | Feature Toggles | 启用 GPU 硬件加速 |
 | `OpenPopupInCurrentBrowser` | bool | true | Feature Toggles | 弹窗在当前浏览器中导航 |
 | `SyncCursor` | bool | false | Feature Toggles | 鼠标光标跟随网页内容 |
-| `ForwardInputEvents` | bool | false | Embedded Mode | 嵌入模式事件穿透（TODO） |
+| `ForwardInputEvents` | bool | false | Embedded Mode | 嵌入模式事件穿透，通过 RegisterJavascriptObject IPC 实现 |
 
 ### RenderMode 枚举
 
@@ -333,62 +333,65 @@ dotnet build
 
 ## JS ↔ C# 桥接
 
-GDCefGlue 通过 `godot://` 协议实现 JavaScript 与 C# 的双向通信。
+GDCefGlue 提供两种 JS↔C# 通信方式，推荐使用 **RegisterJavascriptObject IPC**。
 
-### JS → C#
+### 方式一：RegisterJavascriptObject（推荐）✅
 
-JS 通过导航到 `godot://bridge` URL 发送消息：
+C# 端注册对象，JS 通过 V8 IPC 直接调用 C# 方法，走 CEF 跨进程通信（SendProcessMessage）。
+
+**C# 端注册对象：**
+```csharp
+browser.RegisterJavascriptObject(new MyBridge(), "myBridge");
+```
+
+**JS 端调用（返回 Promise）：**
+```javascript
+// JS → C#：调用方法，等待结果
+window.myBridge.hello().then(function(result) {
+    console.log(result); // "Hello from C#!"
+});
+
+window.myBridge.add(42, 58).then(function(result) {
+    console.log(result); // 100
+});
+```
+
+**C# → JS：求值并取回返回值：**
+```csharp
+var title = await browser.EvaluateJavaScript<string>("document.title");
+var pi = await browser.EvaluateJavaScript<double>("Math.PI");
+```
+
+**C# → JS：主动推送消息：**
+```csharp
+browser.SendToJs("{\"type\":\"update\",\"payload\":{\"count\":42}}");
+// JS 端通过 window._godotBridge._onMessage(msg) 接收
+```
+
+### 方式二：godot:// bridge（旧版，已淘汰）🔴
+
+通过 iframe 导航到 `godot://bridge` 协议，由 `OnBeforeBrowse` 拦截。保留作 fallback，不推荐使用。
 
 ```javascript
-// 使用 iframe（无需 _godotBridge）
+// 旧版方式，不推荐
 var i = document.createElement('iframe');
 i.src = 'godot://bridge?type=ping&cb=myCallbackId&payload=' + encodeURIComponent(JSON.stringify({}));
 document.body.appendChild(i);
 ```
 
-或使用 `_godotBridge` 辅助对象（在你的 HTML 中注入）：
+**相关已淘汰的 API：**
+- `BridgeRequest` 事件 — 🔴 仅旧版 iframe 使用
+- `SendResponse(cbId, json)` — 🔴 标记 `[Obsolete]`
 
-```javascript
-window._godotBridge = {
-    _onResponse: function(cbId, msg) { /* 根据 cbId 找到对应的 Promise resolve */ },
-    _onMessage: function(msg) { /* 处理 C# 推送的消息 */ },
-    sendToGodot: function(data) {
-        var i = document.createElement('iframe');
-        i.src = 'godot://bridge?type=' + data.type
-              + '&cb=' + data.cbId
-              + '&payload=' + encodeURIComponent(JSON.stringify(data.payload));
-        document.body.appendChild(i);
-    }
-};
-```
+### API 速览
 
-### C# → JS
-
-```csharp
-// 推送消息到 JS（调用 window._godotBridge._onMessage）
-browser.SendToJs("{\"type\":\"update\",\"payload\":{\"count\":42}}");
-
-// 回复特定 JS 请求（调用 window._godotBridge._onResponse）
-browser.SendResponse("myCallbackId", "{\"status\":\"ok\"}");
-```
-
-### C# 事件
-
-```csharp
-browser.BridgeRequest += (type, payload, cbId) => {
-    switch (type) {
-        case "ping":
-            browser.SendResponse(cbId, "{\"status\":\"pong\"}");
-            break;
-    }
-};
-```
-
-| API | 方向 | 描述 |
-|-----|------|------|
-| `BridgeRequest` 事件 | JS → C# | JS 调用 `godot://bridge` 时触发 |
-| `SendToJs(json)` | C# → JS | 推送消息到 `window._godotBridge._onMessage` |
-| `SendResponse(cbId, json)` | C# → JS | 回复特定 JS 回调 `window._godotBridge._onResponse` |
+| API | 方向 | 说明 | 状态 |
+|-----|------|------|------|
+| `RegisterJavascriptObject(target, name)` | C# → JS | 注册对象，JS 可调其方法 | ✅ 推荐 |
+| `EvaluateJavaScript<T>(code, ...)` | C# → JS | 执行 JS 并返回结果 | ✅ 推荐 |
+| `SendToJs(json)` | C# → JS | 推送消息到 JS | ✅ 活跃 |
+| `SendResponse(cbId, json)` | C# → JS | 回复旧版 iframe 请求 | 🔴 已淘汰 |
+| `BridgeRequest` 事件 | JS → C# | 旧版 iframe 桥接入口 | 🔴 已淘汰 |
 
 ## CefGlueControl 信号
 

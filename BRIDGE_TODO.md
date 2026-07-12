@@ -1,5 +1,17 @@
 # GDCefGlue JS↔C# Bridge & Render Mode TODO
 
+## API 状态速览
+
+| API | 状态 | 说明 |
+|-----|------|------|
+| `RegisterJavascriptObject` | ✅ 核心 | JS→C# IPC 主通道 |
+| `EvaluateJavaScript<T>` | ✅ 核心 | C#→JS 求值 + 返回值 |
+| `SendToJs(json)` | ✅ 活跃 | C#→JS 推送 |
+| `DotnetBridge.eval()` | 💡 演示 | IPC 往返演示，JS 直接 eval 即可 |
+| `SendResponse(cbId, json)` | 🔴 淘汰 | `[Obsolete]` 仅旧版 iframe 使用 |
+| `BridgeRequest` 事件 | 🔴 淘汰 | 仅旧版 iframe 使用 |
+| `GodotRequestHandler` (OnBeforeBrowse) | 🔴 淘汰 | 仅旧版 iframe 使用 |
+
 ## Render Mode (已实现)
 
 ```
@@ -46,7 +58,7 @@ C# 端注册对象 → BrowserProcess 创建 V8 绑定 → JS 直接调方法 �
 
 **注意：** CefGlue 的 `objectsStringifier` 会给字符串加类型 marker（`S`/`D`/`B`），C# 端通过 `StripCefGlueMarker` 去掉。
 
-### 通道 2: godot://bridge (iframe → OnBeforeBrowse) 🔸 已弃用
+### 通道 2: godot://bridge (iframe → OnBeforeBrowse) 🔴 已淘汰
 
 ```
 JS → iframe.src = "godot://bridge?type=X&cb=ID&payload=JSON"
@@ -55,21 +67,26 @@ JS → iframe.src = "godot://bridge?type=X&cb=ID&payload=JSON"
 
 保留作 fallback，不推荐使用。限制：URL query 长度 ~2-64KB。
 
+**相关已淘汰的 API：**
+- `BridgeRequest` 事件（`CefGlueControl.cs`）— 🔴 仅此通道使用
+- `SendResponse(cbId, json)`（`CefGlueControl.cs`）— 🔴 标记 `[Obsolete]`
+- `GodotRequestHandler.cs` / `OnBeforeBrowse` — 🔴 可以删除
+
 ### 已验证
 
-- [x] ping/status/navigate 测试用例通过（DemoScript.cs / test.html）
-- [x] 方式 B: `RegisterJavascriptObject` — hello/echo/add/getVersion 全部 IPC 往返
-- [x] 方式 C: `DotnetBridge.eval()` — JS→C# 触发 EvaluateJavaScript 求值
-- [x] `EvaluateJavaScript<T>` 异步求值 + 超时 + 数值/字符串结果
-- [x] C#→JS 推送消息（`SendToJs` → `ExecuteJavaScript`）
-- [x] CefGlue marker 前缀（"S"）自动剥离
-- [x] 大 payload（~10KB）URL 编码传输
-- [x] DevTool 按钮
+- [x] 方式 B: `RegisterJavascriptObject` — hello/echo/add/getVersion 全部 IPC 往返 ✅ 主通道
+- [x] 方式 C: `DotnetBridge.eval()` — JS→C# 触发 EvaluateJavaScript 求值 💡 仅演示
+- [x] `EvaluateJavaScript<T>` 异步求值 + 超时 + 数值/字符串结果 ✅
+- [x] C#→JS 推送消息（`SendToJs` → `ExecuteJavaScript`）✅
+- [x] CefGlue marker 前缀（"S"）自动剥离 ✅
+- [x] ~~ping/status/navigate 测试用例（iframe bridge）~~ 🔴 已淘汰
+- [x] ~~大 payload（~10KB）URL 编码传输~~ 🔴 已淘汰（iframe bridge）
+- [x] DevTool 按钮 ✅
 
 ### 已知限制
 
-- `OnBeforeBrowse` 无法读 POST body，payload 走 URL query（长度上限 ~2-64KB）
-- `BridgeRequest.Invoke` 在 CEF UI 线程同步执行
+- ~~`OnBeforeBrowse` 无法读 POST body，payload 走 URL query（长度上限 ~2-64KB）~~ 🔴 已淘汰（iframe bridge）
+- ~~`BridgeRequest.Invoke` 在 CEF UI 线程同步执行~~ 🔴 已淘汰
 - CefGlue BrowserProcess 的 V8 绑定重建有初始化噪音（`JsUncaughtException`），不影响功能
 
 ## CEF 原生 6 种 JS↔Native 机制
