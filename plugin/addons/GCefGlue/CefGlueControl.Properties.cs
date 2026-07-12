@@ -76,6 +76,14 @@ namespace GDCefGlue
         [Export]
         public bool SyncCursor { get; set; } = false;
 
+        /// <summary>
+        /// If true, enables media stream access (microphone, camera).
+        /// When true, pages using getUserMedia() will be granted permission automatically
+        /// via CefPermissionHandler. When false, media requests are denied.
+        /// </summary>
+        [Export]
+        public bool EnableMediaStream { get; set; } = false;
+
         // ══════════════════════════════════════════════════════════════
         //  Embedded Mode (only applies when Mode=EmbeddedWindow)
         // ══════════════════════════════════════════════════════════════

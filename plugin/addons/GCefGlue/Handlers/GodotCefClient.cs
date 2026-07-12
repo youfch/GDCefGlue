@@ -14,6 +14,7 @@ namespace GDCefGlue
         private readonly GodotDisplayHandler _displayHandler;
         private readonly GodotLoadHandler _loadHandler;
         private readonly GodotRequestHandler _requestHandler;
+        private readonly GodotPermissionHandler _permissionHandler;
 
         public GodotCefClient(CefGlueControl control)
         {
@@ -23,6 +24,7 @@ namespace GDCefGlue
             _displayHandler = new GodotDisplayHandler(control);
             _loadHandler = new GodotLoadHandler(control);
             _requestHandler = new GodotRequestHandler(control);
+            _permissionHandler = new GodotPermissionHandler(control);
         }
 
         protected override CefRenderHandler GetRenderHandler()
@@ -36,6 +38,7 @@ namespace GDCefGlue
         protected override CefDisplayHandler GetDisplayHandler() => _displayHandler;
         protected override CefLoadHandler GetLoadHandler() => _loadHandler;
         protected override CefRequestHandler GetRequestHandler() => _requestHandler;
+        protected override CefPermissionHandler GetPermissionHandler() => _permissionHandler;
 
         /// <summary>
         /// Receives IPC messages from the CEF renderer process (CefGlue.BrowserProcess).
