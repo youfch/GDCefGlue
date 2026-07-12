@@ -1,3 +1,4 @@
+using System;
 using Godot;
 using Xilium.CefGlue;
 
@@ -133,7 +134,7 @@ namespace GDCefGlue
             _ => (CefMouseButtonType)(-1)
         };
 
-        public override void _Notification(int what)
+public override void _Notification(int what)
         {
             if (Engine.IsEditorHint()) return;
             if (_renderMode == RenderMode.EmbeddedWindow)
@@ -142,10 +143,44 @@ namespace GDCefGlue
                 {
                     case NotificationResized: break;
                     case NotificationMouseExit: _isMousePressed = false; _pressedButton = (CefMouseButtonType)(-1); break;
-                    case NotificationFocusEnter: _browserHost?.SetFocus(true); ActivateIme(); break;
-                    case NotificationFocusExit: DeactivateIme(); break;
+                    case NotificationFocusEnter:
+                        GD.Print($"[CefGlueControl] FocusEnter: godotHwnd=0x{_godotHwnd.ToInt64():X8}, cefHwnd=0x{_cefChildHwnd.ToInt64():X8}");
+                        _browserHost?.SetFocus(true);
+                        break;
+                    case NotificationFocusExit:
+                        GD.Print($"[CefGlueControl] FocusExit: godotHwnd=0x{_godotHwnd.ToInt64():X8}");
+                        ReleaseCefFocus();
+                        break;
                 }
             }
+        }
+
+        /// <summary>
+        /// 全局输入检测：点击 Godot 控件时释放 CEF 子 HWND 的键盘焦点。
+        /// 嵌入模式下 CEF 子 HWND 会截获鼠标事件导致 Godot 的 NotificationFocusExit 不触发，
+        /// 用 _Input 兜底检测点击行为。
+        /// </summary>
+        public override void _Input(InputEvent @event)
+        {
+            if (Engine.IsEditorHint()) return;
+            if (_renderMode != RenderMode.EmbeddedWindow) return;
+            if (@event is InputEventMouseButton btn && btn.Pressed)
+            {
+                // 如果点击不在 CEF 控件区域内，释放 CEF 焦点
+                var mousePos = GetLocalMousePosition();
+                if (mousePos.X < 0 || mousePos.Y < 0 || mousePos.X > Size.X || mousePos.Y > Size.Y)
+                {
+                    ReleaseCefFocus();
+                }
+            }
+        }
+
+        private void ReleaseCefFocus()
+        {
+            GD.Print($"[CefGlueControl] ReleaseCefFocus: godotHwnd=0x{_godotHwnd.ToInt64():X8}");
+            _browserHost?.SetFocus(false);
+            if (_godotHwnd != IntPtr.Zero)
+                NativeWindowMethods.SetFocus(_godotHwnd);
         }
     }
 }
