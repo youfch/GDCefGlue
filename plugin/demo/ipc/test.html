@@ -60,10 +60,10 @@ button:active { transform: scale(0.96); }
   </div>
 </div>
 
-<!-- 方式 C: EvaluateJavaScript (新增机制) -->
+<!-- 方式 C: DotnetBridge.eval (JS → C# EvaluateJavaScript) -->
 <div class="section">
-  <h2>方式 C: EvaluateJavaScript (C# → JS 求值)</h2>
-  <p>C# 执行 JS 代码并取回返回值</p>
+  <h2>方式 C: DotnetBridge.eval (JS → C# 求值)</h2>
+  <p>点按钮后 JS 调 window.dotnetBridge.eval(code, callback)，C# 执行 EvaluateJavaScript 返回结果</p>
   <div class="btn-row">
     <button class="btn-blue" onclick="evalDocumentTitle()">C# eval: document.title</button>
     <button class="btn-blue" onclick="evalLocation()">C# eval: location.href</button>
@@ -133,50 +133,69 @@ function bridgeStatus() {
 }
 
 // ── 方式 B: RegisterJavascriptObject ────────────────────────────
+// CefGlue 的 V8 绑定返回 Promise，需用 .then() 接收结果
 function callHello() {
   log('→ bridge.hello() ...', 'call');
-  window.dotnetBridge.hello(function(result, err) {
-    if (err) { log('✗ ' + err, 'error'); return; }
+  window.dotnetBridge.hello().then(function(result) {
     log('← ' + result, 'ok');
+  }).catch(function(err) {
+    log('✗ ' + err, 'error');
   });
 }
 
 function callEcho() {
   log('→ bridge.echo("hello!") ...', 'call');
-  window.dotnetBridge.echo('hello!', function(result, err) {
-    if (err) { log('✗ ' + err, 'error'); return; }
+  window.dotnetBridge.echo('hello!').then(function(result) {
     log('← ' + result, 'ok');
+  }).catch(function(err) {
+    log('✗ ' + err, 'error');
   });
 }
 
 function callAdd() {
   log('→ bridge.add(42, 58) ...', 'call');
-  window.dotnetBridge.add(42, 58, function(result, err) {
-    if (err) { log('✗ ' + err, 'error'); return; }
+  window.dotnetBridge.add(42, 58).then(function(result) {
     log('← 42 + 58 = ' + result, 'ok');
+  }).catch(function(err) {
+    log('✗ ' + err, 'error');
   });
 }
 
 function callGetVersion() {
   log('→ bridge.getVersion() ...', 'call');
-  window.dotnetBridge.getVersion(function(result, err) {
-    if (err) { log('✗ ' + err, 'error'); return; }
+  window.dotnetBridge.getVersion().then(function(result) {
     log('← version: ' + result, 'ok');
+  }).catch(function(err) {
+    log('✗ ' + err, 'error');
   });
 }
 
-// ── 方式 C: EvaluateJavaScript (C# 主动调用) ────────────────────
+// ── 方式 C: DotnetBridge.eval (JS → C# 求值) ────────────────────
 function evalDocumentTitle() {
-  log('→ C# will EvaluateJavaScript("document.title") ...', 'info');
-  // CefGlueControl will call this if we set a flag
+    log('→ C# will EvaluateJavaScript("document.title") ...', 'info');
+    window.dotnetBridge.eval('document.title').then(function(result) {
+        log('← ' + result, 'ok');
+    }).catch(function(err) {
+        log('✗ ' + err, 'error');
+    });
 }
 
 function evalLocation() {
-  log('→ C# will EvaluateJavaScript("location.href") ...', 'info');
+    log('→ C# will EvaluateJavaScript("location.href") ...', 'info');
+    window.dotnetBridge.eval('location.href').then(function(result) {
+        log('← ' + result, 'ok');
+    }).catch(function(err) {
+        log('✗ ' + err, 'error');
+    });
 }
 
 function evalMath() {
-  log('→ C# will EvaluateJavaScript("Math.PI * 2") ...', 'info');
+    log('→ C# will EvaluateJavaScript("Math.PI * 2") ...', 'info');
+    window.dotnetBridge.eval('Math.PI * 2').then(function(result) {
+        log('← ' + result, 'ok');
+    }).catch(function(err) {
+        log('✗ ' + err, 'error');
+    });
 }
 
 // ── Initialization ──────────────────────────────────────────────

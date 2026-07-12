@@ -12,6 +12,13 @@ namespace GDCefGlue.Demo;
 /// </summary>
 public class DotnetBridge
 {
+    private readonly CefGlueControl _browser;
+
+    public DotnetBridge(CefGlueControl browser)
+    {
+        _browser = browser;
+    }
+
     public string Hello()
     {
         GD.Print("[DotnetBridge] Hello() called from JS");
@@ -35,6 +42,27 @@ public class DotnetBridge
     {
         GD.Print("[DotnetBridge] GetVersion() called from JS");
         return "GDCefGlue 1.0 + CefGlue 149";
+    }
+
+    /// <summary>
+    /// 从 JS 侧触发 EvaluateJavaScript，C# 执行 JS 代码并返回结果。
+    /// JS 调用: window.dotnetBridge.eval('document.title', callback)
+    /// </summary>
+    public async Task<string> Eval(string code)
+    {
+        if (_browser == null)
+            return null;
+        try
+        {
+            var result = await _browser.EvaluateJavaScript<string>(code, timeout: TimeSpan.FromSeconds(5));
+            GD.Print($"[DotnetBridge] Eval('{code}') = '{result}'");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[DotnetBridge] Eval failed: {ex.Message}");
+            return $"Error: {ex.Message}";
+        }
     }
 }
 
@@ -85,7 +113,7 @@ public partial class DemoScript : Control
     /// </summary>
     private void RegisterBridgeObjects()
     {
-        _browser.RegisterJavascriptObject(new DotnetBridge(), "dotnetBridge");
+        _browser.RegisterJavascriptObject(new DotnetBridge(_browser), "dotnetBridge");
         GD.Print("[Demo] Registered 'dotnetBridge' — JS can call window.dotnetBridge.*");
         Log("已注册 dotnetBridge 对象，JS 可通过 window.dotnetBridge.* 调用");
     }

@@ -1519,6 +1519,16 @@ if (_renderMode == RenderMode.EmbeddedWindow)
             }
             catch
             {
+                // 当 T=string 但 JSON 不是字符串（如数字 6.28）时，取原始文本
+                if (typeof(T) == typeof(string))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(json);
+                        return (T)(object)doc.RootElement.GetRawText();
+                    }
+                    catch { }
+                }
                 return default;
             }
         }
