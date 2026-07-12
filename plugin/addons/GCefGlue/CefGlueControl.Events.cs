@@ -4,17 +4,11 @@ using Godot;
 
 namespace GDCefGlue
 {
-    // ── 事件穿透（JS → C# → Godot）— partial class 拆分 ─────────────
-    // 参考 godot_wry 的 JS 事件监听 + IPC 转发模式
     public partial class CefGlueControl
     {
         /// <summary>
         /// 事件转发 JS。注入到每个页面，通过 CEF IPC（RegisterJavascriptObject）将
         /// 浏览器内的鼠标/键盘事件转发到 Godot，实现事件穿透。
-        ///
-        /// 使用 window.__godotEvents.forward() 直接调用 C# 注册的 V8 绑定，
-        /// 不走 iframe/OnBeforeBrowse，避免 URL 长度限制和导航管道开销。
-        /// 参考 godot_wry 的 JS 事件监听 + IPC 转发模式。
         /// </summary>
         private const string EventForwardingScript = @"
 (function(){
@@ -27,7 +21,6 @@ namespace GDCefGlue
         window.__godotEvents.forward(JSON.stringify(p));
     }
 
-    // ── 鼠标事件 ──
     document.addEventListener('mousedown', function(e) {
         godotEvent('mouse_down', {
             button: e.button, x: e.clientX, y: e.clientY,
@@ -56,7 +49,6 @@ namespace GDCefGlue
         });
     }, true);
 
-    // ── 键盘事件 ──
     document.addEventListener('keydown', function(e) {
         godotEvent('key_down', {
             key: e.key, code: e.code, keyCode: e.keyCode,
@@ -75,39 +67,25 @@ namespace GDCefGlue
 ";
 
         /// <summary>
-        /// 注册事件转发 V8 对象 + 注入事件监听 JS。
-        /// 在 OnLoadEnd 中调用，确保每个页面都有事件转发能力。
-        /// 先注册 V8 绑定（RegisterJavascriptObject 发给 BrowserProcess），
-        /// 再注入 JS 事件监听脚本。
+        /// 注册 V8 对象 + 注入事件监听 JS。在 OnLoadEnd 中调用。
         /// </summary>
         internal void InjectEventForwardingScriptIfNeeded()
         {
             if (_renderMode != RenderMode.EmbeddedWindow || _browser == null || !ForwardInputEvents)
                 return;
-
-            // 注册 V8 绑定（可重复调用，BrowserProcess 处理重复注册）
             RegisterEventForwarder();
-
             var frame = _browser.GetMainFrame();
             if (frame != null)
-            {
                 frame.ExecuteJavaScript(EventForwardingScript, "godot://event_forward", 0);
-            }
         }
 
         /// <summary>
-        /// 注册 __godotEvents V8 对象，使 JS 能通过 IPC 直接转发事件到 C#。
-        /// 仅在嵌入模式（EmbeddedWindow）下注册，OSR 模式不需要事件转发。
+        /// 注册 __godotEvents V8 对象。仅嵌入模式。
         /// </summary>
         internal void RegisterEventForwarder()
         {
-            if (_browser == null || !_browserCreated)
-                return;
-
-            // 仅嵌入模式需要事件转发
-            if (_renderMode != RenderMode.EmbeddedWindow)
-                return;
-
+            if (_browser == null || !_browserCreated) return;
+            if (_renderMode != RenderMode.EmbeddedWindow) return;
             if (!_eventForwarderRegistered)
             {
                 RegisterJavascriptObject(new GodotEventForwarder(this), "__godotEvents");
@@ -115,44 +93,20 @@ namespace GDCefGlue
             }
         }
 
-        /// <summary>
-        /// 内部事件转发器，注册为 V8 对象供 JS 直接调用。
-        /// JS 调用: window.__godotEvents.forward(payloadJson)
-        /// CEF IPC 路径: V8 → SendProcessMessage → OnProcessMessageReceived → HandleForwardedEvent
-        /// </summary>
         private sealed class GodotEventForwarder
         {
             private readonly CefGlueControl _control;
-
-            public GodotEventForwarder(CefGlueControl control)
-            {
-                _control = control;
-            }
-
-            /// <summary>
-            /// JS 调用入口：接收事件 JSON payload 转发到 Godot。
-            /// </summary>
+            public GodotEventForwarder(CefGlueControl control) => _control = control;
             public void Forward(string payload)
             {
-                // 调试：打印非鼠标移动事件（mouse_move 太频繁）
                 if (!payload.Contains("\"mouse_move\""))
                     GD.Print($"[GodotEventForwarder] Forward: {payload.Substring(0, Math.Min(payload.Length, 120))}");
                 _control.HandleForwardedEvent(payload);
             }
         }
 
-        /// <summary>
-        /// 标记是否已注册 __godotEvents V8 绑定。
-        /// BrowserProcess 在 OnContextCreated 时会自动重建，此处仅防重复 IPC。
-        /// </summary>
         private bool _eventForwarderRegistered;
 
-        /// <summary>
-        /// 处理从 JS 转发过来的事件，构造 Godot InputEvent 并推回 Godot 事件系统。
-        /// 坐标映射：JS clientX/clientY（CEF 物理像素）→ Godot 虚拟像素坐标
-        ///   godotX = control.GlobalPosition.X + (cefX / contentScale)
-        ///   godotY = control.GlobalPosition.Y + (cefY / contentScale)
-        /// </summary>
         internal void HandleForwardedEvent(string payload)
         {
             if (string.IsNullOrEmpty(payload) || _browserHost == null)
@@ -177,12 +131,79 @@ namespace GDCefGlue
                     case "mouse_wheel":
                         HandleForwardedMouseWheel(root);
                         break;
+                    case "key_down":
+                    case "key_up":
+                        HandleForwardedKeyEvent(root, eventType == "key_down");
+                        break;
                 }
             }
             catch (Exception ex)
             {
                 GD.PrintErr($"[CefGlueControl] Failed to handle forwarded event: {ex.Message}");
             }
+        }
+
+        // ... existing mouse handlers ...
+
+        private void HandleForwardedKeyEvent(JsonElement root, bool pressed)
+        {
+            int keyCode = root.GetProperty("keyCode").GetInt32();
+            string keyStr = root.GetProperty("key").GetString();
+            bool repeat = root.TryGetProperty("repeat", out var r) && r.GetBoolean();
+
+            // Windows VK 到 Godot Key 的映射（大部分直接对应）
+            // 特殊键需要额外处理
+            var godotKey = keyCode switch
+            {
+                0x08 => Key.Backspace,
+                0x09 => Key.Tab,
+                0x0D => Key.Enter,
+                0x10 => Key.Shift,
+                0x11 => Key.Ctrl,
+                0x12 => Key.Alt,
+                0x1B => Key.Escape,
+                0x20 => Key.Space,
+                0x21 => Key.Pageup,
+                0x22 => Key.Pagedown,
+                0x23 => Key.End,
+                0x24 => Key.Home,
+                0x25 => Key.Left,
+                0x26 => Key.Up,
+                0x27 => Key.Right,
+                0x28 => Key.Down,
+                0x2D => Key.Insert,
+                0x2E => Key.Delete,
+                0x70 => Key.F1,   0x71 => Key.F2,  0x72 => Key.F3,  0x73 => Key.F4,
+                0x74 => Key.F5,   0x75 => Key.F6,  0x76 => Key.F7,  0x77 => Key.F8,
+                0x78 => Key.F9,   0x79 => Key.F10, 0x7A => Key.F11, 0x7B => Key.F12,
+                0x90 => Key.Numlock,
+                0x91 => Key.Scrolllock,
+                // 字母键 A-Z (VK 0x41-0x5A)
+                >= 0x41 and <= 0x5A => (Key)(keyCode + 32), // VK_A → Key.A (97)
+                // 数字键 0-9 (VK 0x30-0x39)
+                >= 0x30 and <= 0x39 => (Key)keyCode,
+                _ => (Key)keyCode
+            };
+
+            // Unicode 字符（可打印键取第一个字符）
+            uint unicode = 0;
+            if (!string.IsNullOrEmpty(keyStr) && keyStr.Length == 1 && keyStr[0] >= 32)
+                unicode = keyStr[0];
+
+            var evt = new InputEventKey
+            {
+                Pressed = pressed,
+                Keycode = godotKey,
+                PhysicalKeycode = godotKey,
+                Unicode = unicode,
+                Echo = repeat,
+                ShiftPressed = root.TryGetProperty("shift", out var s) && s.GetBoolean(),
+                CtrlPressed = root.TryGetProperty("ctrl", out var c) && c.GetBoolean(),
+                AltPressed = root.TryGetProperty("alt", out var a) && a.GetBoolean(),
+                MetaPressed = root.TryGetProperty("meta", out var m) && m.GetBoolean()
+            };
+
+            CallDeferred(nameof(PushInputEvent), evt);
         }
 
         /// <summary>
