@@ -83,7 +83,6 @@ namespace GDCefGlue
         internal IntPtr _godotHwnd;
         internal IntPtr _cefChildHwnd;
         internal RenderMode _renderMode = RenderMode.OSR;
-        private bool _nativeStylesPatched;
         private Vector2 _previousGlobalPos;
         private Vector2 _previousSize;
         private Vector2I _previousWindowPos;

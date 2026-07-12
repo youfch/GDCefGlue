@@ -95,15 +95,6 @@ namespace GDCefGlue
 
                 GD.Print($"CefGlueControl: Godot HWND = 0x{_godotHwnd.ToInt64():X8}");
 
-                int currentStyle = NativeWindowMethods.GetWindowLong(_godotHwnd, NativeWindowMethods.GWL_STYLE);
-                if ((currentStyle & NativeWindowMethods.WS_CLIPCHILDREN) != 0)
-                {
-                    int newStyle = currentStyle & ~(int)NativeWindowMethods.WS_CLIPCHILDREN;
-                    NativeWindowMethods.SetWindowLong(_godotHwnd, NativeWindowMethods.GWL_STYLE, newStyle);
-                    _nativeStylesPatched = true;
-                    GD.Print("CefGlueControl: Removed WS_CLIPCHILDREN from Godot window");
-                }
-
                 windowInfo.SetAsChild(_godotHwnd, new CefRectangle(0, 0, width, height));
             }
             else
