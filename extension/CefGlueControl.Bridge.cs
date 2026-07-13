@@ -25,11 +25,10 @@ public partial class CefGlueControl
         return p.ContinueWith(t => JsonSerializer.Deserialize<T>(t.Result));
     }
 
-    public void RegisterJsHandler(string name, Callable callable)
+    public void RegisterJsHandler(string name, Callable callable, string methodsJson = "[\"hello\",\"echo\",\"add\",\"getVersion\",\"eval\"]")
     {
         if (_browser?.GetMainFrame() == null) return;
         _jsHandlers[name] = callable;
-        var methodsJson = "[\"hello\",\"echo\",\"add\",\"getVersion\",\"eval\"]";
         _jsHandlerMethods[name] = methodsJson;
         var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
         using (var a = msg.Arguments) { a.SetString(0, name); a.SetString(1, methodsJson); }

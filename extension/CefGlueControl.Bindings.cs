@@ -50,7 +50,8 @@ public partial class CefGlueControl
         context.BindMethod(new StringName(nameof(RegisterJsHandler)),
             new ParameterInfo(new StringName("name"), VariantType.String),
             new ParameterInfo(new StringName("handler"), VariantType.Callable),
-            (CefGlueControl i, string name, Callable handler) => i.RegisterJsHandler(name, handler));
+            new ParameterInfo(new StringName("methods"), VariantType.String, VariantTypeMetadata.None, Variant.CreateFrom("[\"hello\",\"echo\",\"add\",\"getVersion\",\"eval\"]")),
+            (CefGlueControl i, string name, Callable handler, string methods) => i.RegisterJsHandler(name, handler, methods));
         context.BindMethod(new StringName(nameof(UnregisterJsHandler)), new ParameterInfo(new StringName("name"), VariantType.String),
             (CefGlueControl i, string name) => i.UnregisterJsHandler(name));
         context.BindMethod(new StringName(nameof(SendToJs)), new ParameterInfo(new StringName("json"), VariantType.String),
