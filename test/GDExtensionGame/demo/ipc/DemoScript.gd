@@ -76,7 +76,7 @@ func _inject_bridge() -> void:
 	_browser.ExecuteJavaScript(js)
 
 func _load_test_html() -> void:
-	var file = FileAccess.open("res://demo/test.html", FileAccess.READ)
+	var file = FileAccess.open("res://demo/ipc/test.html", FileAccess.READ)
 	if file == null:
 		_log_add("❌ 找不到 test.html")
 		return
