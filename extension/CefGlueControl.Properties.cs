@@ -13,7 +13,12 @@ public partial class CefGlueControl
     public RenderMode Mode
     {
         get => _mode;
-        set { _mode = value; NotifyPropertyListChanged(); }
+        set
+        {
+            _mode = value;
+            _renderMode = value;
+            NotifyPropertyListChanged();
+        }
     }
 
     public int FrameRate { get; set; } = 60;

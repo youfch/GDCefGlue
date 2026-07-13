@@ -10,7 +10,7 @@ public partial class CefGlueControl
 
     protected override void _GuiInput(InputEvent @event)
     {
-        if (_browserHost == null) return;
+        if (_browserHost == null || _renderMode == RenderMode.EmbeddedWindow) return;
         switch (@event) { case InputEventMouseMotion m: SendMouseMoveEvent(m); break; case InputEventMouseButton b: SendMouseButtonEvent(b); break; case InputEventKey k: SendKeyEvent(k); break; }
     }
 

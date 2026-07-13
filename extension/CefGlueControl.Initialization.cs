@@ -11,6 +11,7 @@ public partial class CefGlueControl
     {
         GD.Print("CefGlueControl: _Ready() called");
         if (Godot.Engine.Singleton.IsEditorHint()) { GD.Print("CefGlueControl: Running in editor, skipping CEF initialization"); return; }
+        _renderMode = Mode;
         UseGpuAcceleration = GpuAcceleration; UseTransparent = Transparent;
         CefInitializer.Initialize();
         CustomMinimumSize = new Vector2(100, 100); FocusMode = FocusModeEnum.Click;
@@ -37,9 +38,28 @@ public partial class CefGlueControl
     {
         _width = width; _height = height; _controlWidth = width; _controlHeight = height;
         var frameRate = Math.Clamp(FrameRate, 1, 360);
-        GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps");
+        GD.Print($"CefGlueControl: Creating browser {width}x{height} @ {frameRate}fps (Mode: {_renderMode})");
+
         var windowInfo = CefWindowInfo.Create();
-        windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
+
+        if (_renderMode == RenderMode.EmbeddedWindow)
+        {
+            _godotHwnd = (IntPtr)DisplayServer.Singleton.WindowGetNativeHandle(
+                DisplayServer.HandleType.WindowHandle, 0);
+
+            if (_godotHwnd == IntPtr.Zero)
+            {
+                GD.PrintErr("CefGlueControl: Failed to get Godot window handle");
+                return;
+            }
+
+            GD.Print($"CefGlueControl: Godot HWND = 0x{_godotHwnd.ToInt64():X8}");
+            windowInfo.SetAsChild(_godotHwnd, new CefRectangle(0, 0, width, height));
+        }
+        else
+        {
+            windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
+        }
         var settings = new CefBrowserSettings { WindowlessFrameRate = frameRate };
         _client = new GodotCefClient(this);
         try { CefBrowserHost.CreateBrowser(windowInfo, _client, settings, InitialUrl); }
@@ -50,11 +70,22 @@ public partial class CefGlueControl
     {
         if (_browser != null) return;
         _browser = browser; _browserHost = browser.GetHost();
+
+        if (_renderMode == RenderMode.EmbeddedWindow && _browserHost != null)
+        {
+            _cefChildHwnd = _browserHost.GetWindowHandle();
+            if (_cefChildHwnd != IntPtr.Zero)
+                GD.Print($"CefGlueControl: CEF child HWND = 0x{_cefChildHwnd.ToInt64():X8}");
+            else
+                GD.Print("CefGlueControl: GetWindowHandle returned zero, will retry in _Process");
+        }
+
         CallDeferred("_notify_browser_initialized");
     }
 
     private void NotifyBrowserInitialized()
     {
+        RegisterEventForwarder();
         BrowserInitialized?.Invoke();
         EmitSignal(new StringName(nameof(BrowserInitialized)));
         GD.Print("CefGlueControl: Browser initialized");

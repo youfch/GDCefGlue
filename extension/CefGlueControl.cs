@@ -34,6 +34,7 @@ public partial class CefGlueControl : Control
     internal int _controlWidth;
     internal int _controlHeight;
     internal Vector2 _cachedGlobalPosition;
+    internal float _cachedContentScale = 1.0f;
     private bool _isFocused;
     private bool _browserCreated;
     private bool _isDirty;
@@ -50,6 +51,18 @@ public partial class CefGlueControl : Control
     private readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _pendingEvals = new();
     private readonly Dictionary<string, Callable> _jsHandlers = new();
     private readonly Dictionary<string, string> _jsHandlerMethods = new();
+    private readonly ConcurrentDictionary<string, RegisteredObject> _registeredObjects = new();
+
+    // ── 嵌入窗口模式 ──
+    internal IntPtr _godotHwnd;
+    internal IntPtr _cefChildHwnd;
+    internal RenderMode _renderMode = RenderMode.OSR;
+    private Vector2 _previousGlobalPos;
+    private Vector2 _previousSize;
+    private Vector2I _previousWindowPos;
+    private float _previousContentScale = 1.0f;
+    private bool _eventForwarderRegistered;
+    private int _embeddedInitFrameCount;
 
     public CefGlueControl()
     {

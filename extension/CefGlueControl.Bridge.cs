@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -74,6 +76,8 @@ public partial class CefGlueControl
     private void HandleJsEvaluationResult(CefProcessMessage m)
     { int id; bool ok; string r, e; using (var a = m.Arguments) { id = a.GetInt(0); ok = a.GetBool(1); r = a.GetString(2); e = a.GetString(3); } if (_pendingEvals.TryRemove(id, out var t)) { if (ok) t.TrySetResult(r); else t.TrySetException(new Exception(e ?? "Unknown JS error")); } }
 
+    // ── 合并版 HandleNativeObjectCallRequest ──
+    // 支持: dotnetBridge.eval, GDScript Callable, RegisteredObject (C# bridge)
     private void HandleNativeObjectCallRequest(CefProcessMessage m)
     {
         int cid; string on, mn, aj;
@@ -95,6 +99,30 @@ public partial class CefGlueControl
             {
                 r = cb.Call(mn, cleanArgs);
                 NativeCall?.Invoke(on, mn, cleanArgs, rr => SendNativeObjectCallResult(cid, rr, null));
+                if (r != null) { SendNativeObjectCallResult(cid, r, null); return; }
+            }
+            else if (_registeredObjects.TryGetValue(on, out var reg))
+            {
+                // RegisteredObject (Reflection) 方式
+                if (reg.Methods.TryGetValue(mn, out var method))
+                {
+                    var parameters = method.GetParameters();
+                    var invokeArgs = DeserializeCallArgs(aj, parameters);
+                    r = method.Invoke(reg.Target, invokeArgs);
+                    if (r is Task task)
+                    {
+                        task.ContinueWith(t =>
+                        {
+                            object taskResult = null; Exception taskEx = null;
+                            try { var resultProp = t.GetType().GetProperty("Result"); if (resultProp != null) taskResult = resultProp.GetValue(t); }
+                            catch (Exception e) { taskEx = e.InnerException ?? e; }
+                            if (taskEx != null) SendNativeObjectCallResult(cid, null, taskEx.Message);
+                            else SendNativeObjectCallResult(cid, taskResult, null);
+                        });
+                        return;
+                    }
+                }
+                else { ex = new Exception($"Method '{mn}' not found on '{on}'"); }
             }
             else
             {
@@ -241,5 +269,76 @@ public partial class CefGlueControl
     {
         try { var u = new System.Uri(url); var q = System.Web.HttpUtility.ParseQueryString(u.Query); string t = q.Get("type") ?? "", c = q.Get("cb"), p = q.Get("payload") ?? ""; BridgeRequest?.Invoke(t, p, c); }
         catch (Exception ex) { GD.PrintErr($"[CefGlueControl] Failed to parse bridge URL '{url}': {ex.Message}"); }
+    }
+
+    // ── RegisterJavascriptObject (CEF IPC) ──
+
+    private sealed class RegisteredObject
+    {
+        public object Target { get; }
+        public Dictionary<string, MethodInfo> Methods { get; }
+        public string[] MethodNames { get; }
+
+        public RegisteredObject(object target)
+        {
+            Target = target;
+            Methods = new Dictionary<string, MethodInfo>();
+            var names = new List<string>();
+            var type = target.GetType();
+            foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            {
+                Methods[m.Name] = m;
+                names.Add(m.Name);
+            }
+            MethodNames = names.ToArray();
+        }
+    }
+
+    public void RegisterJavascriptObject(object target, string name)
+    {
+        if (_browser == null || _browser.GetMainFrame() == null)
+        { GD.PrintErr("[CefGlueControl] Cannot register object: browser not initialized"); return; }
+        var reg = new RegisteredObject(target);
+        _registeredObjects[name] = reg;
+        var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
+        using (var args = msg.Arguments) { args.SetString(0, name); args.SetString(1, JsonSerializer.Serialize(reg.MethodNames)); }
+        _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+        GD.Print($"[CefGlueControl] Registered object '{name}' with {reg.MethodNames.Length} methods");
+    }
+
+    public void UnregisterJavascriptObject(string name)
+    {
+        _registeredObjects.TryRemove(name, out _);
+        if (_browser?.GetMainFrame() != null)
+        {
+            var msg = CefProcessMessage.Create("NativeObjectUnregistrationRequest");
+            using (var args = msg.Arguments) args.SetString(0, name);
+            _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+        }
+    }
+
+    private static object[] DeserializeCallArgs(string argsJson, ParameterInfo[] parameters)
+    {
+        if (string.IsNullOrEmpty(argsJson) || parameters.Length == 0)
+            return Array.Empty<object>();
+        try
+        {
+            var elements = JsonSerializer.Deserialize<JsonElement[]>(argsJson);
+            var result = new object[parameters.Length];
+            for (int i = 0; i < parameters.Length && i < elements.Length; i++)
+            {
+                var el = elements[i];
+                var paramType = parameters[i].ParameterType;
+                if (paramType == typeof(string)) result[i] = StripCefGlueMarker(el.GetString());
+                else if (paramType == typeof(int)) result[i] = el.GetInt32();
+                else if (paramType == typeof(long)) result[i] = el.GetInt64();
+                else if (paramType == typeof(double)) result[i] = el.GetDouble();
+                else if (paramType == typeof(float)) result[i] = el.GetSingle();
+                else if (paramType == typeof(bool)) result[i] = el.GetBoolean();
+                else result[i] = JsonSerializer.Deserialize(el.GetRawText(), paramType);
+            }
+            return result;
+        }
+        catch { return Array.Empty<object>(); }
     }
 }

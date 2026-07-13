@@ -36,6 +36,10 @@ Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
     {
         if (Godot.Engine.Singleton.IsEditorHint()) return;
         _cachedGlobalPosition = GlobalPosition;
+        _cachedContentScale = DisplayServer.Singleton.ScreenGetScale();
+
+        if (_renderMode == RenderMode.EmbeddedWindow) { ProcessEmbeddedMode(delta); return; }
+
         if (_browserHost != null && Size.X > 0 && Size.Y > 0)
         {
             int w = (int)Size.X, h = (int)Size.Y;

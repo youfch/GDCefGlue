@@ -47,6 +47,8 @@ public partial class CefGlueControl
                 using (var a = msg.Arguments) { a.SetString(0, kv.Key); a.SetString(1, kv.Value); }
                 frame.SendProcessMessage(CefProcessId.Renderer, msg);
             }
+            // 嵌入模式下注入事件转发 JS
+            InjectEventForwardingScriptIfNeeded();
         }
         CallDeferred("_notify_load_end");
     }

@@ -35,6 +35,8 @@ public partial class CefGlueControl
         context.AddPropertyGroup("Embedded Mode");
         context.BindProperty(new PropertyInfo(new StringName(nameof(ForwardInputEvents)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.ForwardInputEvents, static (CefGlueControl i, bool v) => i.ForwardInputEvents = v);
+        // SyncCursor 在 EmbeddedWindow 模式下通过 _ValidateProperty 隐藏
+        // ForwardInputEvents 在非 EmbeddedWindow 模式下通过 _ValidateProperty 隐藏
 
         context.BindMethod(new StringName(nameof(GoBack)), (CefGlueControl i) => i.GoBack());
         context.BindMethod(new StringName(nameof(GoForward)), (CefGlueControl i) => i.GoForward());
