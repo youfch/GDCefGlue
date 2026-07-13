@@ -12,6 +12,7 @@ func _ready() -> void:
 	_browser.InitialUrl = "about:blank"
 	_browser.FrameRate = 60
 	_browser.BrowserInitialized.connect(_on_browser_ready)
+	_browser.LoadEnd.connect(_on_load_end)
 	_browser.eval_completed.connect(_on_eval_completed)
 	_browser.bridge_request.connect(_on_bridge_request)
 
@@ -23,13 +24,19 @@ func _ready() -> void:
 
 func _on_browser_ready() -> void:
 	_log_add("浏览器已就绪")
-	# 注册 JS bridge 处理器
+	_register_bridge()
+	# 首次加载测试页面
+	_load_test_html()
+
+func _on_load_end() -> void:
+	# 每次页面加载后重新注册 JS handler（V8 绑定在导航后丢失）
+	# 不重新加载 test.html，避免死循环
+	_register_bridge()
+
+func _register_bridge() -> void:
 	_browser.RegisterJsHandler("dotnetBridge", Callable(self, "_on_js_call"))
 	_log_add("已注册 dotnetBridge，JS 可通过 window.dotnetBridge.* 调用")
-	# 注入 _godotBridge 辅助脚本
 	_inject_bridge()
-	# 加载测试 HTML
-	_load_test_html()
 
 func _inject_bridge() -> void:
 	var js = """

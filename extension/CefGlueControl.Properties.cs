@@ -6,9 +6,16 @@ namespace GDCefGlueExtension;
 
 public partial class CefGlueControl
 {
-    // ── Inspector 属性（通过 BindMembers 注册）──
+    // ── Inspector 属性（通过 BindMembers + _ValidateProperty 注册）──
     public string InitialUrl { get; set; } = "about:blank";
-    public RenderMode Mode { get; set; } = RenderMode.OSR;
+
+    private RenderMode _mode = RenderMode.OSR;
+    public RenderMode Mode
+    {
+        get => _mode;
+        set { _mode = value; NotifyPropertyListChanged(); }
+    }
+
     public int FrameRate { get; set; } = 60;
     public bool Transparent { get; set; } = false;
     public bool GpuAcceleration { get; set; } = true;

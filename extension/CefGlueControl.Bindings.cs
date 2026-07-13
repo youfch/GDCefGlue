@@ -61,6 +61,10 @@ public partial class CefGlueControl
             (CefGlueControl i, string cbId, string json) => i.SendResponse(cbId, json));
         context.BindMethod(new StringName(nameof(ShowDeveloperTools)), (CefGlueControl i) => i.ShowDeveloperTools());
         context.BindMethod(new StringName(nameof(CloseDeveloperTools)), (CefGlueControl i) => i.CloseDeveloperTools());
+        context.BindMethod(new StringName(nameof(OnEvalDone)),
+            new ParameterInfo(new StringName("result"), VariantType.String),
+            new ParameterInfo(new StringName("error"), VariantType.String),
+            (CefGlueControl i, string result, string error) => i.OnEvalDone(result, error));
 
         context.BindMethod(new StringName("_create_browser_deferred"), (CefGlueControl i) => i.CreateBrowserDeferred());
         context.BindMethod(new StringName("_notify_browser_initialized"), (CefGlueControl i) => i.NotifyBrowserInitialized());
