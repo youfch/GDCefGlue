@@ -75,7 +75,7 @@ static func _uri_encode(s: String) -> String:
 
 func _on_js_call(method_name: String, args_json: String) -> Variant:
 	# 来自 CEF 线程，UI 操作需 defer
-	call_deferred("_log_add_deferred", "← JS 调用: " + method_name)
+	_log_add("← JS 调用: " + method_name)
 	match method_name:
 		"hello":
 			return "Hello from GDScript! 你好，世界！"

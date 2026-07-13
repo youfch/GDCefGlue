@@ -60,7 +60,7 @@ public partial class CefGlueControl
     {
         var f = _browser?.GetMainFrame(); if (f == null) return;
         var m = CefProcessMessage.Create("NativeObjectCallResult");
-        using (var a = m.Arguments) { a.SetInt(0, cid); if (err != null) { a.SetBool(1, false); a.SetString(2, null); a.SetString(3, err); } else { a.SetBool(1, true); try { a.SetString(2, JsonSerializer.Serialize(r)); } catch { a.SetString(2, r?.ToString()); } a.SetString(3, null); } }
+        using (var a = m.Arguments) { a.SetInt(0, cid); if (err != null) { a.SetBool(1, false); a.SetString(2, null); a.SetString(3, err); } else { a.SetBool(1, true); try { var json = System.Text.Json.JsonSerializer.Serialize(r?.ToString()); a.SetString(2, json); } catch { a.SetString(2, "\"" + r?.ToString() + "\""); } a.SetString(3, null); } }
         f.SendProcessMessage(CefProcessId.Renderer, m);
     }
 
