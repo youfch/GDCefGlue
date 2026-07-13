@@ -29,6 +29,8 @@ public partial class CefGlueControl
             static (CefGlueControl i) => i.OpenPopupInCurrentBrowser, static (CefGlueControl i, bool v) => i.OpenPopupInCurrentBrowser = v);
         context.BindProperty(new PropertyInfo(new StringName(nameof(SyncCursor)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.SyncCursor, static (CefGlueControl i, bool v) => i.SyncCursor = v);
+        context.BindProperty(new PropertyInfo(new StringName(nameof(EnableMediaStream)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
+            static (CefGlueControl i) => i.EnableMediaStream, static (CefGlueControl i, bool v) => i.EnableMediaStream = v);
 
         context.AddPropertyGroup("Embedded Mode");
         context.BindProperty(new PropertyInfo(new StringName(nameof(ForwardInputEvents)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
