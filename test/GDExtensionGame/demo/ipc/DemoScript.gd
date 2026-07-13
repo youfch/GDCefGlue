@@ -74,7 +74,8 @@ static func _uri_encode(s: String) -> String:
 # ── JS Bridge 处理器 ──
 
 func _on_js_call(method_name: String, args_json: String) -> Variant:
-	_log_add("← JS 调用: " + method_name)
+	# 来自 CEF 线程，UI 操作需 defer
+	call_deferred("_log_add_deferred", "← JS 调用: " + method_name)
 	match method_name:
 		"hello":
 			return "Hello from GDScript! 你好，世界！"
@@ -114,6 +115,11 @@ func _on_bridge_request(type: String, payload: String, cb_id: String) -> void:
 func _clear_log() -> void: _log.clear()
 
 func _log_add(msg: String) -> void:
+	# 可能来自 CEF 线程，用 call_deferred 保证线程安全
+	var time = Time.get_time_string_from_system()
+	call_deferred("_log_add_deferred", time, msg)
+
+func _log_add_deferred(time: String, msg: String) -> void:
 	if _log == null: return
-	_log.add_text("[" + Time.get_time_string_from_system() + "] " + msg + "\n")
+	_log.add_text("[" + time + "] " + msg + "\n")
 	_log.scroll_to_line(9999)
