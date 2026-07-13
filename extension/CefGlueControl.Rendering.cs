@@ -1,6 +1,9 @@
 using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using Godot;
 using Godot.Collections;
 using Xilium.CefGlue;
@@ -23,8 +26,9 @@ public partial class CefGlueControl
                 _pixelBufferSize = bufferSize;
                 _packedBuffer = new PackedByteArray(); _packedBuffer.Resize(bufferSize);
             }
-            Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
-            _isDirty = true;
+Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
+        ConvertBgraToRgba(_pixelBuffer, width * height);
+        _isDirty = true;
         }
     }
 
@@ -84,5 +88,26 @@ public partial class CefGlueControl
             (int)CefCursorType.Move => Control.CursorShape.Move,
             _ => Control.CursorShape.Arrow,
         });
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static unsafe void ConvertBgraToRgba(byte[] buffer, int pixelCount)
+    {
+        if (Avx2.IsSupported)
+        {
+            int vecSize = 32, vecCount = pixelCount / 8;
+            var m = Vector256.Create((byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15, (byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
+            fixed (byte* p = buffer) { for (int i = 0; i < vecCount; i++) { var d = Avx.LoadVector256(p + i * vecSize); Avx.Store(p + i * vecSize, Avx2.Shuffle(d, m)); } for (int i = vecCount * 8; i < pixelCount; i++) { int o = i * 4; byte b = p[o]; p[o] = p[o + 2]; p[o + 2] = b; } }
+        }
+        else if (Ssse3.IsSupported)
+        {
+            int vecSize = 16, vecCount = pixelCount / 4;
+            var m = Vector128.Create((byte)2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
+            fixed (byte* p = buffer) { for (int i = 0; i < vecCount; i++) { var d = Sse2.LoadVector128(p + i * vecSize); Sse2.Store(p + i * vecSize, Ssse3.Shuffle(d, m)); } for (int i = vecCount * 4; i < pixelCount; i++) { int o = i * 4; byte b = p[o]; p[o] = p[o + 2]; p[o + 2] = b; } }
+        }
+        else
+        {
+            for (int i = 0; i < pixelCount; i++) { int o = i * 4; byte b = buffer[o]; buffer[o] = buffer[o + 2]; buffer[o + 2] = b; }
+        }
     }
 }

@@ -30,6 +30,10 @@ public partial class CefGlueControl
         context.BindProperty(new PropertyInfo(new StringName(nameof(SyncCursor)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.SyncCursor, static (CefGlueControl i, bool v) => i.SyncCursor = v);
 
+        context.AddPropertyGroup("Embedded Mode");
+        context.BindProperty(new PropertyInfo(new StringName(nameof(ForwardInputEvents)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
+            static (CefGlueControl i) => i.ForwardInputEvents, static (CefGlueControl i, bool v) => i.ForwardInputEvents = v);
+
         context.BindMethod(new StringName(nameof(GoBack)), (CefGlueControl i) => i.GoBack());
         context.BindMethod(new StringName(nameof(GoForward)), (CefGlueControl i) => i.GoForward());
         context.BindMethod(new StringName(nameof(NavigateToUrl)), new ParameterInfo(new StringName("url"), VariantType.String),

@@ -15,6 +15,9 @@ public partial class CefGlueControl
     public bool OpenPopupInCurrentBrowser { get; set; } = true;
     public bool SyncCursor { get; set; } = false;
 
+    // ── Embedded Mode ──
+    public bool ForwardInputEvents { get; set; } = false;
+
     private static bool _useGpuAcceleration = true;
     private static bool _useTransparent = false;
     public static bool UseGpuAcceleration { get => _useGpuAcceleration; set => _useGpuAcceleration = value; }
