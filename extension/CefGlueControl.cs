@@ -49,6 +49,7 @@ public partial class CefGlueControl : Control
     private int _lastEvalTaskId;
     private readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _pendingEvals = new();
     private readonly Dictionary<string, Callable> _jsHandlers = new();
+    private readonly Dictionary<string, string> _jsHandlerMethods = new();
 
     public CefGlueControl()
     {

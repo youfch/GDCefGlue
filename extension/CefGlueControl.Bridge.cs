@@ -29,13 +29,15 @@ public partial class CefGlueControl
     {
         if (_browser?.GetMainFrame() == null) return;
         _jsHandlers[name] = callable;
+        var methodsJson = "[\"hello\",\"echo\",\"add\",\"getVersion\",\"eval\"]";
+        _jsHandlerMethods[name] = methodsJson;
         var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
-        using (var a = msg.Arguments) { a.SetString(0, name); a.SetString(1, "[\"hello\",\"echo\",\"add\",\"getVersion\",\"eval\"]"); }
+        using (var a = msg.Arguments) { a.SetString(0, name); a.SetString(1, methodsJson); }
         _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
         GD.Print($"[CefGlueControl] Registered JS handler '{name}'");
     }
 
-    public void UnregisterJsHandler(string name) { _jsHandlers.Remove(name); if (_browser?.GetMainFrame() == null) return; var m = CefProcessMessage.Create("NativeObjectUnregistrationRequest"); using (var a = m.Arguments) a.SetString(0, name); _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, m); }
+    public void UnregisterJsHandler(string name) { _jsHandlers.Remove(name); _jsHandlerMethods.Remove(name); if (_browser?.GetMainFrame() == null) return; var m = CefProcessMessage.Create("NativeObjectUnregistrationRequest"); using (var a = m.Arguments) a.SetString(0, name); _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, m); }
 
     internal void HandleProcessMessage(CefProcessMessage message)
     {

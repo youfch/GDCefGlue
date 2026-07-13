@@ -37,7 +37,19 @@ public partial class CefGlueControl
     private void _notify_load_start() { LoadStart?.Invoke(this, new LoadStartEventArgs(null)); EmitSignal(new StringName(nameof(LoadStart))); }
 
     internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
-    { CallDeferred("_notify_load_end"); }
+    {
+        // 每次页面加载后重新注册 JS handler（BrowserProcess的V8上下文重建不可靠）
+        if (frame.IsMain)
+        {
+            foreach (var kv in _jsHandlerMethods)
+            {
+                var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
+                using (var a = msg.Arguments) { a.SetString(0, kv.Key); a.SetString(1, kv.Value); }
+                frame.SendProcessMessage(CefProcessId.Renderer, msg);
+            }
+        }
+        CallDeferred("_notify_load_end");
+    }
     private void _notify_load_end() { LoadEnd?.Invoke(this, new LoadEndEventArgs(null, 0)); EmitSignal(new StringName(nameof(LoadEnd))); }
 
     internal void OnLoadError(CefBrowser browser, CefFrame frame, CefErrorCode errorCode, string errorText, string failedUrl)
