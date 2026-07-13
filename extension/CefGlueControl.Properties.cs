@@ -22,14 +22,49 @@ public partial class CefGlueControl
     }
 
     public int FrameRate { get; set; } = 60;
-    public bool Transparent { get; set; } = false;
-    public bool GpuAcceleration { get; set; } = true;
-    public bool OpenPopupInCurrentBrowser { get; set; } = true;
-    public bool SyncCursor { get; set; } = false;
-    public bool EnableMediaStream { get; set; } = false;
+
+    private bool _transparent;
+    public bool Transparent
+    {
+        get => _transparent;
+        set { GD.Print($"CefGlueControl: Transparent = {value}"); _transparent = value; }
+    }
+
+    private bool _gpuAcceleration = true;
+    public bool GpuAcceleration
+    {
+        get => _gpuAcceleration;
+        set { GD.Print($"CefGlueControl: GpuAcceleration = {value}"); _gpuAcceleration = value; }
+    }
+
+    private bool _openPopupInCurrentBrowser = true;
+    public bool OpenPopupInCurrentBrowser
+    {
+        get => _openPopupInCurrentBrowser;
+        set { GD.Print($"CefGlueControl: OpenPopupInCurrentBrowser = {value}"); _openPopupInCurrentBrowser = value; }
+    }
+
+    private bool _syncCursor;
+    public bool SyncCursor
+    {
+        get => _syncCursor;
+        set { GD.Print($"CefGlueControl: SyncCursor = {value}"); _syncCursor = value; }
+    }
+
+    private bool _enableMediaStream;
+    public bool EnableMediaStream
+    {
+        get => _enableMediaStream;
+        set { GD.Print($"CefGlueControl: EnableMediaStream = {value}"); _enableMediaStream = value; }
+    }
 
     // ── Embedded Mode ──
-    public bool ForwardInputEvents { get; set; } = false;
+    private bool _forwardInputEvents;
+    public bool ForwardInputEvents
+    {
+        get => _forwardInputEvents;
+        set { GD.Print($"CefGlueControl: ForwardInputEvents = {value}"); _forwardInputEvents = value; }
+    }
 
     private static bool _useGpuAcceleration = true;
     private static bool _useTransparent = false;
