@@ -1,22 +1,8 @@
-[gd_scene format=3 uid="uid://6jrj6bl3rch"]
+[gd_scene format=3 uid="uid://b5114w0avnb45"]
 
 [ext_resource type="Script" uid="uid://gwffkhkqsmis" path="res://demo/ipc/DemoScript.gd" id="1_main"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_glv2v"]
-sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-
-[sub_resource type="Sky" id="Sky_uu6xs"]
-sky_material = SubResource("ProceduralSkyMaterial_glv2v")
-
-[sub_resource type="Environment" id="Environment_r0du0"]
-background_mode = 2
-sky = SubResource("Sky_uu6xs")
-tonemap_mode = 2
-glow_enabled = true
-
-[node name="Main" type="Control"]
-custom_minimum_size = Vector2(100, 100)
+[node name="IpcDemo" type="Control" unique_id=879897402]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -24,193 +10,85 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_main")
-metadata/_edit_use_anchors_ = true
 
-[node name="CefGlueControl" type="CefGlueControl" parent="."]
-custom_minimum_size = Vector2(100, 100)
+[node name="Browser" type="CefGlueControl" parent="." unique_id=1295859973]
+FrameRate = 120
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 76.0
-offset_bottom = -204.0
+offset_top = 80.0
+offset_bottom = -28.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
-metadata/_edit_use_anchors_ = true
 
-[node name="Toolbar" type="Panel" parent="."]
+[node name="Toolbar" type="Panel" parent="." unique_id=57621016]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 72.0
+offset_bottom = 80.0
 grow_horizontal = 2
 
-[node name="BackButton" type="Button" parent="Toolbar"]
+[node name="ButtonRow" type="HBoxContainer" parent="Toolbar" unique_id=1236255355]
 layout_mode = 1
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 40.0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 8.0
+offset_top = 8.0
 offset_bottom = 36.0
-text = "◀"
+grow_horizontal = 2
+size_flags_horizontal = 3
 
-[node name="ForwardButton" type="Button" parent="Toolbar"]
+[node name="BtnEvalTitle" type="Button" parent="Toolbar/ButtonRow" unique_id=710266139]
+layout_mode = 2
+text = "Eval: title"
+
+[node name="BtnEvalUrl" type="Button" parent="Toolbar/ButtonRow" unique_id=717142114]
+layout_mode = 2
+text = "Eval: href"
+
+[node name="BtnEvalMath" type="Button" parent="Toolbar/ButtonRow" unique_id=1557369887]
+layout_mode = 2
+text = "Eval: PI*2"
+
+[node name="BtnClearLog" type="Button" parent="Toolbar/ButtonRow" unique_id=2060648767]
+layout_mode = 2
+text = "Clear"
+
+[node name="CustomCode" type="LineEdit" parent="Toolbar" unique_id=1361723067]
 layout_mode = 1
-offset_left = 44.0
-offset_top = 4.0
-offset_right = 80.0
-offset_bottom = 36.0
-text = "▶"
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 8.0
+offset_top = 44.0
+offset_bottom = 72.0
+size_flags_horizontal = 3
+placeholder_text = "Custom JS code (e.g. 1+2+3)..."
 
-[node name="ReloadButton" type="Button" parent="Toolbar"]
-layout_mode = 1
-offset_left = 84.0
-offset_top = 4.0
-offset_right = 120.0
-offset_bottom = 36.0
-text = "↻"
-
-[node name="UrlInput" type="LineEdit" parent="Toolbar"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.120659724
-anchor_top = 0.1
-anchor_right = 0.9210069
-anchor_bottom = 0.9
-grow_vertical = 2
-placeholder_text = "Enter URL..."
-metadata/_edit_use_anchors_ = true
-
-[node name="GoButton" type="Button" parent="Toolbar"]
+[node name="BtnEvalCustom" type="Button" parent="Toolbar" unique_id=368338564]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -137.0
-offset_top = 4.0
-offset_right = -87.0
-offset_bottom = 36.0
-grow_horizontal = 0
-text = "Go"
-
-[node name="OpenDevButton" type="Button" parent="Toolbar"]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -82.0
-offset_top = 4.0
-offset_right = -11.0
-offset_bottom = 36.0
-grow_horizontal = 0
-text = "DevTool"
-
-[node name="CustomCode" type="LineEdit" parent="Toolbar"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.120659724
-anchor_top = 0.55
-anchor_right = 0.9210069
-anchor_bottom = 0.95
-grow_vertical = 2
-placeholder_text = "Custom JS code..."
-
-[node name="BtnEvalTitle" type="Button" parent="Toolbar"]
-layout_mode = 1
-offset_left = 4.0
-offset_top = 42.0
-offset_right = 100.0
-offset_bottom = 68.0
-text = "Eval Title"
-
-[node name="BtnEvalUrl" type="Button" parent="Toolbar"]
-layout_mode = 1
-offset_left = 104.0
-offset_top = 42.0
-offset_right = 200.0
-offset_bottom = 68.0
-text = "Eval URL"
-
-[node name="BtnEvalMath" type="Button" parent="Toolbar"]
-layout_mode = 1
-offset_left = 204.0
-offset_top = 42.0
-offset_right = 300.0
-offset_bottom = 68.0
-text = "Eval PI*2"
-
-[node name="BtnEvalCustom" type="Button" parent="Toolbar"]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -137.0
-offset_top = 42.0
-offset_right = -87.0
-offset_bottom = 68.0
+offset_left = -72.0
+offset_top = 44.0
+offset_right = -8.0
+offset_bottom = 72.0
 grow_horizontal = 0
 text = "Eval"
 
-[node name="BtnClearLog" type="Button" parent="Toolbar"]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -82.0
-offset_top = 42.0
-offset_right = -11.0
-offset_bottom = 68.0
-grow_horizontal = 0
-text = "Clear"
-
-[node name="StatusBar" type="Panel" parent="."]
+[node name="LogPanel" type="Panel" parent="." unique_id=1474728622]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -24.0
+offset_top = -28.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="StatusLabel" type="Label" parent="StatusBar"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 4.0
-offset_right = -8.0
-offset_bottom = -4.0
-grow_horizontal = 2
-grow_vertical = 2
-text = "Initializing..."
-vertical_alignment = 1
-
-[node name="Node3D" type="Node3D" parent="."]
-
-[node name="Camera3D" type="Camera3D" parent="Node3D"]
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="Node3D"]
-environment = SubResource("Environment_r0du0")
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Node3D"]
-transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
-shadow_enabled = true
-
-[node name="LogPanel" type="Panel" parent="."]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -200.0
-offset_right = -8.0
-offset_bottom = -28.0
-grow_horizontal = 2
-grow_vertical = 0
-
-[node name="Log" type="RichTextLabel" parent="LogPanel"]
+[node name="Log" type="RichTextLabel" parent="LogPanel" unique_id=1851240157]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -222,5 +100,3 @@ offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
 bbcode_enabled = true
-text = ""
-scroll_active = true

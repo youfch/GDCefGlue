@@ -1,9 +1,9 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://yw4qu8ur7gmu"]
 
-[ext_resource type="Script" path="res://addons/GCefGlue/CefGlueControl.cs" id="1_y1xs1"]
-[ext_resource type="Script" path="res://demo/ipc/DemoScript.cs" id="2_zahb2"]
+[ext_resource type="Script" uid="uid://d25hmir240bvt" path="res://addons/GCefGlue/CefGlueControl.cs" id="1_y1xs1"]
+[ext_resource type="Script" uid="uid://ckh4v65kuhqck" path="res://demo/ipc/DemoScript.cs" id="2_zahb2"]
 
-[node name="DemoScene" type="Control"]
+[node name="DemoScene" type="Control" unique_id=1263654347]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,7 +12,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_zahb2")
 
-[node name="Browser" type="Control" parent="."]
+[node name="Browser" type="Control" parent="." unique_id=1890871943]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -23,59 +23,56 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 script = ExtResource("1_y1xs1")
-FrameRate = 60
 SyncCursor = true
+"Embedded Mode" = null
 
-[node name="Toolbar" type="Panel" parent="."]
+[node name="Toolbar" type="Panel" parent="." unique_id=1200268326]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 80.0
 grow_horizontal = 2
 
-[node name="ButtonRow" type="HBoxContainer" parent="Toolbar"]
+[node name="ButtonRow" type="HBoxContainer" parent="Toolbar" unique_id=340504663]
 layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 0.0
 offset_bottom = 36.0
-anchor_right = 1.0
-anchor_left = 0.0
 grow_horizontal = 2
 size_flags_horizontal = 3
 
-[node name="BtnEvalTitle" type="Button" parent="Toolbar/ButtonRow"]
+[node name="BtnEvalTitle" type="Button" parent="Toolbar/ButtonRow" unique_id=2021962823]
 layout_mode = 2
-size_flags_horizontal = 1
 text = "Eval: title"
 
-[node name="BtnEvalUrl" type="Button" parent="Toolbar/ButtonRow"]
+[node name="BtnEvalUrl" type="Button" parent="Toolbar/ButtonRow" unique_id=1252720818]
 layout_mode = 2
-size_flags_horizontal = 1
 text = "Eval: href"
 
-[node name="BtnEvalMath" type="Button" parent="Toolbar/ButtonRow"]
+[node name="BtnEvalMath" type="Button" parent="Toolbar/ButtonRow" unique_id=814003130]
 layout_mode = 2
-size_flags_horizontal = 1
 text = "Eval: Math.PI*2"
 
-[node name="BtnClearLog" type="Button" parent="Toolbar/ButtonRow"]
+[node name="BtnClearLog" type="Button" parent="Toolbar/ButtonRow" unique_id=704965235]
 layout_mode = 2
 size_flags_horizontal = 0
 text = "清空日志"
 
-[node name="CustomCode" type="LineEdit" parent="Toolbar"]
+[node name="CustomCode" type="LineEdit" parent="Toolbar" unique_id=1024720943]
 layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
 offset_left = 8.0
 offset_top = 44.0
-offset_right = 0.0
 offset_bottom = 72.0
-anchor_right = 1.0
 size_flags_horizontal = 3
 placeholder_text = "自定义 JS 代码（如 1+2+3）..."
 
-[node name="BtnEvalCustom" type="Button" parent="Toolbar"]
+[node name="BtnEvalCustom" type="Button" parent="Toolbar" unique_id=1842877859]
 layout_mode = 1
+anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -72.0
@@ -85,7 +82,7 @@ offset_bottom = 72.0
 grow_horizontal = 0
 text = "执行"
 
-[node name="LogPanel" type="Panel" parent="."]
+[node name="LogPanel" type="Panel" parent="." unique_id=1106535274]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -95,7 +92,7 @@ offset_top = -28.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="Log" type="RichTextLabel" parent="LogPanel"]
+[node name="Log" type="RichTextLabel" parent="LogPanel" unique_id=714934291]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -107,4 +104,3 @@ offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
 bbcode_enabled = true
-scroll_active = true

@@ -13,10 +13,14 @@ public partial class CefGlueControl
         context.AddPropertyGroup("Browser Settings");
         context.BindProperty(new PropertyInfo(new StringName(nameof(InitialUrl)), VariantType.String) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.InitialUrl, static (CefGlueControl i, string v) => i.InitialUrl = v);
+        context.BindProperty(new PropertyInfo(new StringName(nameof(Mode)), VariantType.Int) { Hint = PropertyHint.Enum, HintString = "OSR,EmbeddedWindow", Usage = PropertyUsageFlags.Default },
+            static (CefGlueControl i) => (int)i.Mode, static (CefGlueControl i, int v) => i.Mode = (RenderMode)v);
         context.BindProperty(new PropertyInfo(new StringName(nameof(FrameRate)), VariantType.Int) { Hint = PropertyHint.Range, HintString = "1,360", Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.FrameRate, static (CefGlueControl i, int v) => i.FrameRate = v);
         context.BindProperty(new PropertyInfo(new StringName(nameof(Transparent)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.Transparent, static (CefGlueControl i, bool v) => i.Transparent = v);
+        context.BindProperty(new PropertyInfo(new StringName(nameof(Address)), VariantType.String) { Usage = PropertyUsageFlags.Default },
+            static (CefGlueControl i) => i.Address, static (CefGlueControl i, string v) => i.Address = v);
 
         context.AddPropertyGroup("Feature Toggles");
         context.BindProperty(new PropertyInfo(new StringName(nameof(GpuAcceleration)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
@@ -26,7 +30,6 @@ public partial class CefGlueControl
         context.BindProperty(new PropertyInfo(new StringName(nameof(SyncCursor)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.SyncCursor, static (CefGlueControl i, bool v) => i.SyncCursor = v);
 
-        // ── 方法 ──
         context.BindMethod(new StringName(nameof(GoBack)), (CefGlueControl i) => i.GoBack());
         context.BindMethod(new StringName(nameof(GoForward)), (CefGlueControl i) => i.GoForward());
         context.BindMethod(new StringName(nameof(NavigateToUrl)), new ParameterInfo(new StringName("url"), VariantType.String),
@@ -55,7 +58,6 @@ public partial class CefGlueControl
         context.BindMethod(new StringName(nameof(ShowDeveloperTools)), (CefGlueControl i) => i.ShowDeveloperTools());
         context.BindMethod(new StringName(nameof(CloseDeveloperTools)), (CefGlueControl i) => i.CloseDeveloperTools());
 
-        // ── 内部方法（CallDeferred 字符串名）──
         context.BindMethod(new StringName("_create_browser_deferred"), (CefGlueControl i) => i.CreateBrowserDeferred());
         context.BindMethod(new StringName("_notify_browser_initialized"), (CefGlueControl i) => i.NotifyBrowserInitialized());
         context.BindMethod(new StringName("_notify_address_changed"), new ParameterInfo(new StringName("url"), VariantType.String),
@@ -67,7 +69,6 @@ public partial class CefGlueControl
         context.BindMethod(new StringName("_notify_load_error"), new ParameterInfo(new StringName("errorText"), VariantType.String), new ParameterInfo(new StringName("failedUrl"), VariantType.String),
             (CefGlueControl i, string errorText, string failedUrl) => i._notify_load_error(errorText, failedUrl));
 
-        // ── 信号 ──
         context.BindSignal(new SignalInfo(new StringName(nameof(BrowserInitialized))));
         context.BindSignal(new SignalInfo(new StringName(nameof(AddressChanged))));
         context.BindSignal(new SignalInfo(new StringName(nameof(TitleChanged))));

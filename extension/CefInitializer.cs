@@ -10,25 +10,31 @@ using Xilium.CefGlue;
 namespace GDCefGlueExtension;
 
 public static class CefInitializer
-{
-    private static bool _initialized;
-    private static GodotBrowserProcessHandler _browserProcessHandler;
-    private static string _extensionDirectory;
-
-    public static void Initialize()
     {
-        if (_initialized) return;
-        _initialized = true;
+        private static bool _initialized;
+        private static GodotBrowserProcessHandler _browserProcessHandler;
+        private static string _extensionDirectory;
 
-        try
+        /// <summary>
+        /// CEF 缓存目录。可在首次调用 Initialize() 前修改。
+        /// 默认: user://cef_cache
+        /// </summary>
+        public static string CacheDirectory { get; set; } = "user://cef_cache";
+
+        public static void Initialize()
         {
-            GD.Print("CefInitializer: Starting CEF initialization...");
+            if (_initialized) return;
+            _initialized = true;
 
-            _extensionDirectory = GetExtensionDirectory();
-            GD.Print($"CefInitializer: ExtensionDirectory = {_extensionDirectory}");
+            try
+            {
+                GD.Print("CefInitializer: Starting CEF initialization...");
 
-            var cachePath = Path.Combine(Godot.OS.Singleton.GetUserDataDir(), "cef_cache");
-            Directory.CreateDirectory(cachePath);
+                _extensionDirectory = GetExtensionDirectory();
+                GD.Print($"CefInitializer: ExtensionDirectory = {_extensionDirectory}");
+
+                var cachePath = ProjectSettings.Singleton.GlobalizePath(CacheDirectory);
+                Directory.CreateDirectory(cachePath);
 
             var resourcesDirPath = FindResourcesDirPath();
             var localesDirPath = Path.Combine(resourcesDirPath, "locales");

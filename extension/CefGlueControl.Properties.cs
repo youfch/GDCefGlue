@@ -8,6 +8,7 @@ public partial class CefGlueControl
 {
     // ── Inspector 属性（通过 BindMembers 注册）──
     public string InitialUrl { get; set; } = "about:blank";
+    public RenderMode Mode { get; set; } = RenderMode.OSR;
     public int FrameRate { get; set; } = 60;
     public bool Transparent { get; set; } = false;
     public bool GpuAcceleration { get; set; } = true;

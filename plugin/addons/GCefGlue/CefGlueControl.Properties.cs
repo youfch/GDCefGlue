@@ -21,6 +21,14 @@ namespace GDCefGlue
         [Export]
         public string InitialUrl { get; set; } = "about:blank";
 
+        /// <summary>
+        /// CEF 缓存目录。使用 Godot 路径格式，如 user://cef_cache。
+        /// 浏览器缓存、Cookie、LocalStorage 等数据存储在此目录。
+        /// 需在浏览器初始化前设置。
+        /// </summary>
+        [Export]
+        public string CacheDirectory { get; set; } = "user://cef_cache";
+
         private RenderMode _mode = RenderMode.OSR;
 
         /// <summary>

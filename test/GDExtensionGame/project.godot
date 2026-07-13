@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="GDCefGlueExtension"
 config/tags=PackedStringArray("gdextension", "template", "dotnet")
-run/main_scene="res://demo/ipc/IpcDemo.tscn"
+run/main_scene="res://MainUI.tscn"
 config/features=PackedStringArray("4.6")
 config/icon="res://icon.svg"
 

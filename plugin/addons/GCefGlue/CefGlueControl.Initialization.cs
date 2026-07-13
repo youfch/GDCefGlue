@@ -17,6 +17,9 @@ namespace GDCefGlue
             if (Engine.IsEditorHint())
                 return;
 
+            // 将控件的 CacheDirectory 传给 CEF 初始化器
+            CefInitializer.CacheDirectory = CacheDirectory;
+
             UseGpuAcceleration = GpuAcceleration;
             UseTransparent = Transparent;
             ActiveRenderMode = Mode;

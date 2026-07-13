@@ -18,6 +18,13 @@ namespace GDCefGlue
         private static GodotBrowserProcessHandler _browserProcessHandler;
 
         /// <summary>
+        /// CEF 缓存目录。可在首次调用 Initialize() 前修改。
+        /// 默认: user://cef_cache
+        /// 可使用 user://，res://，或绝对路径。
+        /// </summary>
+        public static string CacheDirectory { get; set; } = "user://cef_cache";
+
+        /// <summary>
         /// Initializes the CEF runtime with default settings.
         /// This method is idempotent - subsequent calls will be ignored.
         /// </summary>
@@ -31,7 +38,7 @@ namespace GDCefGlue
                 GD.Print("CefInitializer: Starting CEF initialization...");
 
                 var basePath = AppContext.BaseDirectory;
-                var cachePath = Path.Combine(OS.GetUserDataDir(), "cef_cache");
+                var cachePath = ProjectSettings.GlobalizePath(CacheDirectory);
                 Directory.CreateDirectory(cachePath);
 
                 var resourcesDirPath = FindResourcesDirPath();
