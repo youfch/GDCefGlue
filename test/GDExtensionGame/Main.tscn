@@ -32,8 +32,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 40.0
-offset_bottom = -24.0
+offset_top = 76.0
+offset_bottom = -204.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
@@ -43,7 +43,7 @@ metadata/_edit_use_anchors_ = true
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 40.0
+offset_bottom = 72.0
 grow_horizontal = 2
 
 [node name="BackButton" type="Button" parent="Toolbar"]
@@ -105,6 +105,64 @@ offset_bottom = 36.0
 grow_horizontal = 0
 text = "DevTool"
 
+[node name="CustomCode" type="LineEdit" parent="Toolbar"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.120659724
+anchor_top = 0.55
+anchor_right = 0.9210069
+anchor_bottom = 0.95
+grow_vertical = 2
+placeholder_text = "Custom JS code..."
+
+[node name="BtnEvalTitle" type="Button" parent="Toolbar"]
+layout_mode = 1
+offset_left = 4.0
+offset_top = 42.0
+offset_right = 100.0
+offset_bottom = 68.0
+text = "Eval Title"
+
+[node name="BtnEvalUrl" type="Button" parent="Toolbar"]
+layout_mode = 1
+offset_left = 104.0
+offset_top = 42.0
+offset_right = 200.0
+offset_bottom = 68.0
+text = "Eval URL"
+
+[node name="BtnEvalMath" type="Button" parent="Toolbar"]
+layout_mode = 1
+offset_left = 204.0
+offset_top = 42.0
+offset_right = 300.0
+offset_bottom = 68.0
+text = "Eval PI*2"
+
+[node name="BtnEvalCustom" type="Button" parent="Toolbar"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -137.0
+offset_top = 42.0
+offset_right = -87.0
+offset_bottom = 68.0
+grow_horizontal = 0
+text = "Eval"
+
+[node name="BtnClearLog" type="Button" parent="Toolbar"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -82.0
+offset_top = 42.0
+offset_right = -11.0
+offset_bottom = 68.0
+grow_horizontal = 0
+text = "Clear"
+
 [node name="StatusBar" type="Panel" parent="."]
 layout_mode = 1
 anchors_preset = 12
@@ -139,3 +197,30 @@ environment = SubResource("Environment_r0du0")
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="Node3D"]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
+
+[node name="LogPanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -200.0
+offset_right = -8.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Log" type="RichTextLabel" parent="LogPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+bbcode_enabled = true
+text = ""
+scroll_active = true

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GDCefGlue GDE JS↔C# Bridge Test</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+h1 { font-size: 20px; margin-bottom: 12px; color: #7ec8e3; }
+h2 { font-size: 14px; margin-bottom: 8px; color: #f0c27f; }
+.section { background: #16213e; border: 1px solid #0f3460; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.section p { font-size: 13px; color: #aaa; margin-bottom: 10px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+button {
+  padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-weight: 600; transition: transform .1s, opacity .1s;
+}
+button:active { transform: scale(0.96); }
+.btn-blue { background: #4361ee; color: #fff; }
+.btn-green { background: #2a9d8f; color: #fff; }
+.btn-purple { background: #8338ec; color: #fff; }
+#log {
+  background: #0d1b2a; border: 1px solid #1b3a4b; border-radius: 6px;
+  padding: 10px; height: 200px; overflow-y: auto; font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px; line-height: 1.6;
+}
+#log .ok    { color: #2a9d8f; }
+#log .info  { color: #7ec8e3; }
+#log .call  { color: #c77dff; }
+#log .error { color: #e76f51; }
+</style>
+</head>
+<body>
+
+<h1>🧪 GDCefGlue GDE JS ↔ C# Bridge Test</h1>
+
+<!-- 方式 B: RegisterJsHandler (GDScript Callable) -->
+<div class="section">
+  <h2>方式 B: RegisterJsHandler (GDScript Callable)</h2>
+  <p>JS → C# 通过 RegisterJsHandler 注册的 V8 对象调用</p>
+  <div class="btn-row">
+    <button class="btn-purple" onclick="callHello()">bridge.hello()</button>
+    <button class="btn-purple" onclick="callEcho()">bridge.echo('hello!')</button>
+    <button class="btn-purple" onclick="callAdd()">bridge.add(42, 58)</button>
+    <button class="btn-purple" onclick="callGetVersion()">bridge.getVersion()</button>
+  </div>
+</div>
+
+<!-- 方式 C: EvalJs (C# → JS 求值) -->
+<div class="section">
+  <h2>方式 C: EvalJs (C# → JS 求值)</h2>
+  <p>点按钮后 JS 调 C# EvalJs，C# 执行 JS 代码并返回结果</p>
+  <div class="btn-row">
+    <button class="btn-blue" onclick="evalDocumentTitle()">C# eval: document.title</button>
+    <button class="btn-blue" onclick="evalLocation()">C# eval: location.href</button>
+    <button class="btn-blue" onclick="evalMath()">C# eval: Math.PI * 2</button>
+  </div>
+</div>
+
+<!-- 日志 -->
+<div class="section">
+  <h2>📋 通信日志</h2>
+  <div id="log"></div>
+</div>
+
+<script>
+var _cbId = 0;
+
+function log(msg, cls) {
+  var el = document.getElementById('log');
+  var line = document.createElement('div');
+  line.className = cls || 'info';
+  line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+// Setup _godotBridge callbacks (for C# → JS push/response)
+window._godotBridge = {
+  _onMessage: function(msg) {
+    log('C# pushed: ' + msg, 'info');
+  },
+  _onResponse: function(cbId, msg) {
+    log('C# response [' + cbId + ']: ' + msg, 'ok');
+    if (window['__cb_' + cbId]) {
+      window['__cb_' + cbId](msg);
+      delete window['__cb_' + cbId];
+    }
+  }
+};
+
+// ── 方式 B: RegisterJsHandler (Promise) ──
+function callHello() {
+  log('→ bridge.hello() ...', 'call');
+  window.dotnetBridge.hello().then(function(r) { log('← ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
+}
+
+function callEcho() {
+  log('→ bridge.echo("hello!") ...', 'call');
+  window.dotnetBridge.echo('hello!').then(function(r) { log('← ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
+}
+
+function callAdd() {
+  log('→ bridge.add(42, 58) ...', 'call');
+  window.dotnetBridge.add(42, 58).then(function(r) { log('← 42 + 58 = ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
+}
+
+function callGetVersion() {
+  log('→ bridge.getVersion() ...', 'call');
+  window.dotnetBridge.getVersion().then(function(r) { log('← version: ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
+}
+
+// ── 方式 C: EvalJs ──
+function evalDocumentTitle() {
+  log('→ C# will EvaluateJavaScript("document.title") ...', 'info');
+  window.dotnetBridge.eval('document.title').then(function(r) { log('← ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
+}
+
+function evalLocation() {
+  log('→ C# will EvaluateJavaScript("location.href") ...', 'info');
+  window.dotnetBridge.eval('location.href').then(function(r) { log('← ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
+}
+
+function evalMath() {
+  log('→ C# will EvaluateJavaScript("Math.PI * 2") ...', 'info');
+  window.dotnetBridge.eval('Math.PI * 2').then(function(r) { log('← ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
+}
+
+log('✅ HTML loaded.', 'ok');
+log('ℹ️  window.dotnetBridge methods:', 'info');
+log('   hello(cb), echo(msg,cb), add(a,b,cb), getVersion(cb), eval(code,cb)', 'info');
+log('ℹ️  Click buttons to test.', 'info');
+</script>
+</body>
+</html>
