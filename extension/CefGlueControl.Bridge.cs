@@ -301,7 +301,13 @@ public partial class CefGlueControl
         var reg = new RegisteredObject(target);
         _registeredObjects[name] = reg;
         var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
-        using (var args = msg.Arguments) { args.SetString(0, name); args.SetString(1, JsonSerializer.Serialize(reg.MethodNames)); }
+        using (var args = msg.Arguments)
+        {
+            args.SetString(0, name);
+            // 手动构建 JSON 数组，避免 NativeAOT 下 JsonSerializer 反射失败
+            var methodNamesJson = "[" + string.Join(",", Array.ConvertAll(reg.MethodNames, n => "\"" + n + "\"")) + "]";
+            args.SetString(1, methodNamesJson);
+        }
         _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
         GD.Print($"[CefGlueControl] Registered object '{name}' with {reg.MethodNames.Length} methods");
     }
