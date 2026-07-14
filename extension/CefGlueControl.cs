@@ -62,7 +62,6 @@ public partial class CefGlueControl : Control
     private Vector2I _previousWindowPos;
     private float _previousContentScale = 1.0f;
     private bool _eventForwarderRegistered;
-    private int _embeddedInitFrameCount;
 
     public CefGlueControl()
     {

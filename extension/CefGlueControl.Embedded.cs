@@ -25,29 +25,14 @@ private void ProcessEmbeddedMode(double delta)
         float contentScale = DisplayServer.Singleton.ScreenGetScale();
         var windowPos = DisplayServer.Singleton.WindowGetPosition();
 
-        // 延后 2 帧再执行首次 MoveWindowPos，确保 CEF 子窗口完全就绪
         if (_cefChildHwnd == IntPtr.Zero)
         {
             _cefChildHwnd = _browserHost.GetWindowHandle();
             if (_cefChildHwnd == IntPtr.Zero)
                 return;
-            _embeddedInitFrameCount = 0;
             GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
-        }
-
-        // 首次获取 HWND 后等 2 帧再定位，避免 CEF 窗口未就绪时 SetWindowPos 崩溃
-        if (_embeddedInitFrameCount < 2)
-        {
-            _embeddedInitFrameCount++;
-            _previousGlobalPos = globalPos;
-            _previousSize = size;
-            _previousWindowPos = windowPos;
-            _previousContentScale = contentScale;
-            int pw = (int)(size.X * contentScale);
-            int ph = (int)(size.Y * contentScale);
-            _controlWidth = pw;
-            _controlHeight = ph;
-            return;
+            // 强制首次定位：重置 _previousGlobalPos 让变化检测触发
+            _previousGlobalPos = new Vector2(-1, -1);
         }
 
         // 仅当有任何变化时才触发 SetWindowPos
