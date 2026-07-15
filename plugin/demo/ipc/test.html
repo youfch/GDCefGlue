@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -38,20 +38,20 @@ button:active { transform: scale(0.96); }
 
 <h1>🧪 GDCefGlue JS ↔ C# Bridge Test</h1>
 
-<!-- 方式 A: godot:// bridge (iframe → OnBeforeBrowse, 已弃用) -->
+<!-- Method A: godot:// bridge (iframe → OnBeforeBrowse, deprecated) -->
 <div class="section" style="opacity:0.5">
-  <h2>方式 A: godot:// bridge (iframe) <span style="color:#e76f51;font-size:11px">[已弃用]</span></h2>
-  <p>JS → C# 单向消息，通过 iframe.src = 'godot://bridge?...' 发送。推荐使用方式 B (IPC)。</p>
+  <h2>Method A: godot:// bridge (iframe) <span style="color:#e76f51;font-size:11px">[deprecated]</span></h2>
+  <p>JS → C# one-way message via iframe.src = 'godot://bridge?...'. Prefer Method B (IPC).</p>
   <div class="btn-row">
     <button class="btn-blue" onclick="bridgePing()">Ping C#</button>
     <button class="btn-green" onclick="bridgeStatus()">Get Status</button>
   </div>
 </div>
 
-<!-- 方式 B: RegisterJavascriptObject (新增机制) -->
+<!-- Method B: RegisterJavascriptObject (V8 IPC) -->
 <div class="section">
-  <h2>方式 B: RegisterJavascriptObject (V8 IPC)</h2>
-  <p>JS → C# 调用注册对象的方法，通过 CefGlue IPC 通道</p>
+  <h2>Method B: RegisterJavascriptObject (V8 IPC)</h2>
+  <p>JS calls registered C# object methods via CefGlue IPC channel</p>
   <div class="btn-row">
     <button class="btn-purple" onclick="callHello()">bridge.hello()</button>
     <button class="btn-purple" onclick="callEcho()">bridge.echo('hello!')</button>
@@ -60,11 +60,11 @@ button:active { transform: scale(0.96); }
   </div>
 </div>
 
-<!-- 方式 C: DotnetBridge.eval (JS → C# EvaluateJavaScript) -->
+<!-- Method C: DotnetBridge.eval (JS → C# evaluation) -->
 <div class="section">
-  <h2>方式 C: DotnetBridge.eval (JS → C# 求值)</h2>
-  <p>JS 调 window.dotnetBridge.eval(code) → C# 执行 EvaluateJavaScript 返回结果。<br>
-  <small>（IPC 往返演示，实际 JS 直接用 eval() 即可）</small></p>
+  <h2>Method C: DotnetBridge.eval (JS → C# evaluation)</h2>
+  <p>JS calls window.dotnetBridge.eval(code) → C# runs EvaluateJavaScript and returns the result.<br>
+  <small>(IPC round-trip demo; JS can just use eval() directly)</small></p>
   <div class="btn-row">
     <button class="btn-blue" onclick="evalDocumentTitle()">C# eval: document.title</button>
     <button class="btn-blue" onclick="evalLocation()">C# eval: location.href</button>
@@ -118,7 +118,7 @@ function sendToGodot(type, payload, cb) {
   setTimeout(function() { i.remove(); }, 100);
 }
 
-// ── 方式 A: godot:// bridge ─────────────────────────────────────
+// ── Method A: godot:// bridge ─────────────────────────────────────
 function bridgePing() {
   log('→ godot://bridge?type=ping ...', 'info');
   sendToGodot('ping', {}, function(msg) {
@@ -133,8 +133,8 @@ function bridgeStatus() {
   });
 }
 
-// ── 方式 B: RegisterJavascriptObject ────────────────────────────
-// CefGlue 的 V8 绑定返回 Promise，需用 .then() 接收结果
+// ── Method B: RegisterJavascriptObject ────────────────────────────
+// CefGlue V8 bindings return Promise, use .then() to receive results
 function callHello() {
   log('→ bridge.hello() ...', 'call');
   window.dotnetBridge.hello().then(function(result) {
@@ -171,7 +171,7 @@ function callGetVersion() {
   });
 }
 
-// ── 方式 C: DotnetBridge.eval (JS → C# 求值) ────────────────────
+// ── Method C: DotnetBridge.eval (JS → C# evaluation) ──────────────
 function evalDocumentTitle() {
     log('→ C# will EvaluateJavaScript("document.title") ...', 'info');
     window.dotnetBridge.eval('document.title').then(function(result) {

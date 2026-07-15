@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -35,10 +35,10 @@ button:active { transform: scale(0.96); }
 
 <h1>🧪 GDCefGlue GDE JS ↔ C# Bridge Test</h1>
 
-<!-- 方式 B: RegisterJsHandler (GDScript Callable) -->
+<!-- Method B: RegisterJsHandler (GDScript Callable) -->
 <div class="section">
-  <h2>方式 B: RegisterJsHandler (GDScript Callable)</h2>
-  <p>JS → C# 通过 RegisterJsHandler 注册的 V8 对象调用</p>
+  <h2>Method B: RegisterJsHandler (GDScript Callable)</h2>
+  <p>JS calls C# via RegisterJsHandler-registered V8 objects</p>
   <div class="btn-row">
     <button class="btn-purple" onclick="callHello()">bridge.hello()</button>
     <button class="btn-purple" onclick="callEcho()">bridge.echo('hello!')</button>
@@ -47,10 +47,10 @@ button:active { transform: scale(0.96); }
   </div>
 </div>
 
-<!-- 方式 C: EvalJs (C# → JS 求值) -->
+<!-- Method C: EvalJs (C# → JS evaluation) -->
 <div class="section">
-  <h2>方式 C: EvalJs (C# → JS 求值)</h2>
-  <p>点按钮后 JS 调 C# EvalJs，C# 执行 JS 代码并返回结果</p>
+  <h2>Method C: EvalJs (C# → JS evaluation)</h2>
+  <p>Button triggers JS to call C# EvalJs; C# executes JS code and returns the result</p>
   <div class="btn-row">
     <button class="btn-blue" onclick="evalDocumentTitle()">C# eval: document.title</button>
     <button class="btn-blue" onclick="evalLocation()">C# eval: location.href</button>
@@ -90,7 +90,7 @@ window._godotBridge = {
   }
 };
 
-// ── 方式 B: RegisterJsHandler (Promise) ──
+// ── Method B: RegisterJsHandler (Promise) ──
 function callHello() {
   log('→ bridge.hello() ...', 'call');
   window.dotnetBridge.hello().then(function(r) { log('← ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
@@ -111,7 +111,7 @@ function callGetVersion() {
   window.dotnetBridge.getVersion().then(function(r) { log('← version: ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
 }
 
-// ── 方式 C: EvalJs ──
+// ── Method C: EvalJs ──
 function evalDocumentTitle() {
   log('→ C# will EvaluateJavaScript("document.title") ...', 'info');
   window.dotnetBridge.eval('document.title').then(function(r) { log('← ' + r, 'ok'); }).catch(function(e) { log('✗ ' + e, 'error'); });
