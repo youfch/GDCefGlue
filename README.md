@@ -1,9 +1,5 @@
 # GDCefGlue
 
-A CEF (Chromium Embedded Framework) browser control for Godot 4.x using CefGlue.
-
-[中文文档](README_CN.md)
-
 ## Features
 
 - **Dual render mode**: OSR (off-screen rendering with alpha transparency) and EmbeddedWindow (native child window, higher performance)
@@ -25,7 +21,7 @@ A CEF (Chromium Embedded Framework) browser control for Godot 4.x using CefGlue.
 
 Supports WebGL rendering with 20,000 fish at stable 120fps:
 
-![WebGL Aquarium](img/WebGL水族馆.png)
+![WebGL Aquarium](img/WebGL_aquarium.png)
 
 ## Quick Start
 
