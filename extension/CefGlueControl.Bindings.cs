@@ -27,16 +27,10 @@ public partial class CefGlueControl
             static (CefGlueControl i) => i.GpuAcceleration, static (CefGlueControl i, bool v) => i.GpuAcceleration = v);
         context.BindProperty(new PropertyInfo(new StringName(nameof(OpenPopupInCurrentBrowser)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.OpenPopupInCurrentBrowser, static (CefGlueControl i, bool v) => i.OpenPopupInCurrentBrowser = v);
-        context.BindProperty(new PropertyInfo(new StringName(nameof(SyncCursor)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
-            static (CefGlueControl i) => i.SyncCursor, static (CefGlueControl i, bool v) => i.SyncCursor = v);
         context.BindProperty(new PropertyInfo(new StringName(nameof(EnableMediaStream)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.EnableMediaStream, static (CefGlueControl i, bool v) => i.EnableMediaStream = v);
 
-        context.AddPropertyGroup("Embedded Mode");
-        context.BindProperty(new PropertyInfo(new StringName(nameof(ForwardInputEvents)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
-            static (CefGlueControl i) => i.ForwardInputEvents, static (CefGlueControl i, bool v) => i.ForwardInputEvents = v);
-        // SyncCursor 在 EmbeddedWindow 模式下通过 _ValidateProperty 隐藏
-        // ForwardInputEvents 在非 EmbeddedWindow 模式下通过 _ValidateProperty 隐藏
+        // SyncCursor / ForwardInputEvents 通过 _GetPropertyList 动态添加
 
         context.BindMethod(new StringName(nameof(GoBack)), (CefGlueControl i) => i.GoBack());
         context.BindMethod(new StringName(nameof(GoForward)), (CefGlueControl i) => i.GoForward());

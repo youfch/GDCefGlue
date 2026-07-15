@@ -14,6 +14,7 @@ script = ExtResource("1_vfs0v")
 [node name="Browser" type="CefGlueControl" parent="." unique_id=247526417]
 Mode = 1
 FrameRate = 120
+ForwardInputEvents = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
