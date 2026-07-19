@@ -135,6 +135,8 @@ namespace GDCefGlue
 
         internal void OnCursorChanged(CefCursorType type)
         {
+            // 嵌入窗口模式下 CEF 原生窗口自行处理光标，忽略 SyncCursor 设置
+            if (_renderMode == RenderMode.EmbeddedWindow) return;
             if (!SyncCursor) return;
             CallDeferred(nameof(UpdateCursorShape), (int)type);
         }

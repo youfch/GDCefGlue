@@ -75,7 +75,7 @@ Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
         }
     }
 
-    internal void OnCursorChanged(CefCursorType type) { if (!SyncCursor) return; CallDeferred(nameof(UpdateCursorShape), (int)type); }
+    internal void OnCursorChanged(CefCursorType type) { if (_renderMode == RenderMode.EmbeddedWindow) return; if (!SyncCursor) return; CallDeferred(nameof(UpdateCursorShape), (int)type); }
 
     private void UpdateCursorShape(int cefCursorType)
     {

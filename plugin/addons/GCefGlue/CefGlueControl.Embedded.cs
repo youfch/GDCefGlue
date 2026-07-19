@@ -23,18 +23,28 @@ namespace GDCefGlue
                 return;
 
             // 从 DisplayServer 获取内容缩放比（物理像素 / 虚拟像素）
-            // 等价于 godot_wry 的 screen_get_content_scale_ex
             float contentScale = DisplayServer.ScreenGetScale();
 
             // 获取 Godot 窗口在屏幕上的位置（用于检测窗口移动）
             var windowPos = DisplayServer.WindowGetPosition();
+
+            // 先获取 HWND（异步创建，可能还没准备好）
+            if (_cefChildHwnd == IntPtr.Zero)
+            {
+                _cefChildHwnd = _browserHost.GetWindowHandle();
+                if (_cefChildHwnd == IntPtr.Zero)
+                    return;
+
+                GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
+                // 强制首次定位：重置 _previousGlobalPos 让变化检测触发
+                _previousGlobalPos = new Vector2(-1, -1);
+            }
 
             // 仅当有任何变化时才触发 SetWindowPos
             if (globalPos == _previousGlobalPos
                 && size == _previousSize
                 && windowPos == _previousWindowPos
                 && Math.Abs(contentScale - _previousContentScale) < 0.001f
-                && _cefChildHwnd != IntPtr.Zero
                 && size.X == _controlWidth && size.Y == _controlHeight)
             {
                 return; // 无变化，跳过
@@ -50,16 +60,6 @@ namespace GDCefGlue
             int physY = (int)(globalPos.Y * contentScale);
             int physW = (int)(size.X * contentScale);
             int physH = (int)(size.Y * contentScale);
-
-            if (_cefChildHwnd == IntPtr.Zero)
-            {
-                // GetWindowHandle 可能还没准备好（异步创建），重试
-                _cefChildHwnd = _browserHost.GetWindowHandle();
-                if (_cefChildHwnd == IntPtr.Zero)
-                    return;
-
-                GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
-            }
 
             // 同步 CEF 子窗口位置和大小（坐标相对于父窗口客户区）
             NativeWindowMethods.MovePlatformWindow(

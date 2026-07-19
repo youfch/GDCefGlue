@@ -38,6 +38,8 @@ namespace GDCefGlue
         protected override bool OnCursorChange(CefBrowser browser, IntPtr cursorHandle, CefCursorType type, CefCursorInfo customCursorInfo)
         {
             _control.OnCursorChanged(type);
+            // 嵌入窗口模式下 CEF 原生窗口自行处理光标，告诉 CEF 我们没有处理，让其自行处理
+            if (_control._renderMode == RenderMode.EmbeddedWindow) return false;
             return _control.SyncCursor;
         }
     }

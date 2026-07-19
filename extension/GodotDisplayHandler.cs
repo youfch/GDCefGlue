@@ -25,6 +25,7 @@ internal class GodotDisplayHandler : CefDisplayHandler
     protected override bool OnCursorChange(CefBrowser browser, IntPtr cursorHandle, CefCursorType type, CefCursorInfo customCursorInfo)
     {
         _control.OnCursorChanged(type);
+        if (_control._renderMode == GDCefGlueExtension.RenderMode.EmbeddedWindow) return false;
         return _control.SyncCursor;
     }
 }
