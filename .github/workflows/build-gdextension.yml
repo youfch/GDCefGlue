@@ -159,7 +159,11 @@ jobs:
         run: |
           mkdir -p addons/gdcefglue
           for dir in _artifacts/gdcefglue-*/; do
-            [ -d "$dir" ] && cp -r "$dir"/* addons/gdcefglue/
+            [ -d "$dir" ] || continue
+            platform=$(basename "$dir" | sed 's/^gdcefglue-//')
+            mkdir -p "addons/gdcefglue/$platform"
+            cp -r "$dir"/* "addons/gdcefglue/$platform/"
+            echo "  $platform: $(find "$dir" -type f | wc -l) files"
           done
           echo "=== Package structure ==="
           find addons/gdcefglue -type f | sort
