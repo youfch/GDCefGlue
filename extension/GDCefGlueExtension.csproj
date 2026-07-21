@@ -20,6 +20,7 @@
     <PackageReference Include="cef.redist.osxarm64" Version="149.0.4" />
     <PackageReference Include="CefGlue.BrowserProcess.runtime" Version="149.7827.156" />
     <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
+    <PackageReference Include="CefGlue.Common.ARM64" Version="149.7827.156" />
     <PackageReference Include="chromiumembeddedframework.runtime" Version="149.0.4" />
     <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
   </ItemGroup>
