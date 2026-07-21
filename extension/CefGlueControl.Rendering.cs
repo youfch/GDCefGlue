@@ -40,6 +40,9 @@ Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
 
         if (_renderMode == RenderMode.EmbeddedWindow) { ProcessEmbeddedMode(delta); return; }
 
+        // OSR: skip texture update when hidden (browser/audio/JS still runs in background)
+        if (!Visible) return;
+
         if (_browserHost != null && Size.X > 0 && Size.Y > 0)
         {
             int w = (int)Size.X, h = (int)Size.Y;

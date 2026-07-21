@@ -37,6 +37,17 @@ internal static class NativeWindowMethods
                 SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
+    internal static void SetPlatformWindowVisible(IntPtr window, bool visible)
+    {
+        if (window == IntPtr.Zero) return;
+        if (OperatingSystem.IsLinux())
+            X11Methods.SetWindowVisible(window, visible);
+        else if (OperatingSystem.IsMacOS())
+            MacMethods.SetViewVisible(window, visible);
+        else
+            Win32ShowWindow(window, visible ? SW_SHOW : SW_HIDE);
+    }
+
     // ── Win32 实现 ──
     // 注意: NativeAOT + DisableRuntimeMarshalling 下 bool 不是 blittable，
     // 所以返回类型用 int (Win32 BOOL) 代替 bool
@@ -48,7 +59,12 @@ internal static class NativeWindowMethods
     private static extern int Win32SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
 
+    [DllImport("user32.dll", EntryPoint = "ShowWindow")]
+    private static extern int Win32ShowWindow(IntPtr hWnd, int nCmdShow);
+
     internal const uint SWP_NOZORDER = 0x0004;
     internal const uint SWP_NOACTIVATE = 0x0010;
+    internal const int SW_HIDE = 0;
+    internal const int SW_SHOW = 5;
     internal static readonly IntPtr HWND_TOP = IntPtr.Zero;
 }

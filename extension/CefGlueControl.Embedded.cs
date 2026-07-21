@@ -22,6 +22,10 @@ private void ProcessEmbeddedMode(double delta)
         if (size.X <= 0 || size.Y <= 0)
             return;
 
+        // 同步 CEF 子窗口可见性（节点隐藏时也隐藏嵌入窗口）
+        if (_cefChildHwnd != IntPtr.Zero)
+            NativeWindowMethods.SetPlatformWindowVisible(_cefChildHwnd, Visible);
+
         float contentScale = DisplayServer.Singleton.ScreenGetScale();
         var windowPos = DisplayServer.Singleton.WindowGetPosition();
 

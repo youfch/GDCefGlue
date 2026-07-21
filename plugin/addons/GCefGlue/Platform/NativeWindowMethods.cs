@@ -37,6 +37,20 @@ namespace GDCefGlue
                     SWP_NOZORDER | SWP_NOACTIVATE);
         }
 
+        /// <summary>
+        /// 显示或隐藏嵌入的 CEF 子窗口。
+        /// </summary>
+        internal static void SetPlatformWindowVisible(IntPtr window, bool visible)
+        {
+            if (window == IntPtr.Zero) return;
+            if (OperatingSystem.IsLinux())
+                X11Methods.SetWindowVisible(window, visible);
+            else if (OperatingSystem.IsMacOS())
+                MacMethods.SetViewVisible(window, visible);
+            else
+                Win32ShowWindow(window, visible ? SW_SHOW : SW_HIDE);
+        }
+
         // ── Win32 实现 ──
 
         [DllImport("user32.dll", EntryPoint = "SetFocus", SetLastError = true)]
@@ -46,8 +60,13 @@ namespace GDCefGlue
         private static extern bool Win32SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
             int X, int Y, int cx, int cy, uint uFlags);
 
+        [DllImport("user32.dll", EntryPoint = "ShowWindow", SetLastError = true)]
+        private static extern bool Win32ShowWindow(IntPtr hWnd, int nCmdShow);
+
         internal const uint SWP_NOZORDER = 0x0004;
         internal const uint SWP_NOACTIVATE = 0x0010;
+        internal const int SW_HIDE = 0;
+        internal const int SW_SHOW = 5;
         internal static readonly IntPtr HWND_TOP = IntPtr.Zero;
     }
 }

@@ -42,6 +42,16 @@ namespace GDCefGlue
                 objc_msgSend(nsWindow, makeFirstResponderSel, nsView);
         }
 
+        /// <summary>
+        /// 显示或隐藏 NSView。调用 [view setHidden:flag]。
+        /// </summary>
+        internal static void SetViewVisible(IntPtr nsView, bool visible)
+        {
+            if (nsView == IntPtr.Zero) return;
+            var setHiddenSel = sel_registerName("setHidden:");
+            objc_msgSend_bool(nsView, setHiddenSel, !visible);
+        }
+
         // ── Cocoa / Objective-C runtime ──
 
         [DllImport("/usr/lib/libobjc.dylib")]
@@ -55,6 +65,9 @@ namespace GDCefGlue
 
         [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
         private static extern IntPtr objc_msgSend_retPtr(IntPtr self, IntPtr op);
+
+        [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+        private static extern void objc_msgSend_bool(IntPtr self, IntPtr op, bool arg);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct NSPoint

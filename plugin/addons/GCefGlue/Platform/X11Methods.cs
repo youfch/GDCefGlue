@@ -47,12 +47,20 @@ namespace GDCefGlue
         /// <summary>
         /// 将键盘焦点设置到指定窗口。
         /// </summary>
-        internal static void SetInputFocus(IntPtr window)
+internal static void SetInputFocus(IntPtr window)
         {
             var display = GetDisplay();
             if (display == IntPtr.Zero) return;
-            // RevertTo.Parent, CurrentTime
             XSetInputFocus(display, window, 1 /* RevertToParent */, IntPtr.Zero /* CurrentTime */);
+            XFlush(display);
+        }
+
+        internal static void SetWindowVisible(IntPtr window, bool visible)
+        {
+            var display = GetDisplay();
+            if (display == IntPtr.Zero) return;
+            if (visible) XMapWindow(display, window);
+            else XUnmapWindow(display, window);
             XFlush(display);
         }
 
@@ -68,6 +76,12 @@ namespace GDCefGlue
         // RevertTo: 0=None, 1=Parent, 2=PointerRoot
         [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
         private static extern int XSetInputFocus(IntPtr display, IntPtr window, int revertTo, IntPtr time);
+
+        [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int XMapWindow(IntPtr display, IntPtr window);
+
+        [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int XUnmapWindow(IntPtr display, IntPtr window);
 
         [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
         private static extern int XFlush(IntPtr display);

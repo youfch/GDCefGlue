@@ -1,103 +1,119 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 using GDCefGlue;
 using Xilium.CefGlue;
 
+/// <summary>
+/// Multi-tab browser demo.
+/// Each tab is an independent CefGlueControl (= independent CEF render process).
+/// Memory usage: ~150MB base + ~100MB per tab.
+/// </summary>
 public partial class Browser : Control
 {
-    private CefGlueControl _browser;
+    private TabContainer _tabContainer;
     private LineEdit _urlInput;
     private Button _goButton;
     private Button _backButton;
     private Button _forwardButton;
     private Button _reloadButton;
+    private Button _addTabButton;
     private Button _openDevButton;
     private Label _statusLabel;
+    private int _tabCounter = 2;
+
+    private CefGlueControl CurrentBrowser
+    {
+        get
+        {
+            var tab = _tabContainer?.GetCurrentTabControl();
+            return tab as CefGlueControl;
+        }
+    }
 
     public override void _Ready()
     {
-        _browser = GetNode<CefGlueControl>("Browser");
+        _tabContainer = GetNode<TabContainer>("TabContainer");
         _urlInput = GetNode<LineEdit>("Toolbar/UrlInput");
         _goButton = GetNode<Button>("Toolbar/GoButton");
         _backButton = GetNode<Button>("Toolbar/BackButton");
         _forwardButton = GetNode<Button>("Toolbar/ForwardButton");
         _reloadButton = GetNode<Button>("Toolbar/ReloadButton");
+        _addTabButton = GetNode<Button>("Toolbar/AddTabButton");
         _openDevButton = GetNode<Button>("Toolbar/OpenDevButton");
         _statusLabel = GetNode<Label>("StatusBar/StatusLabel");
-
-        _browser.InitialUrl = "https://www.bing.com";
-        _browser.BrowserInitialized += OnBrowserInitialized;
-        _browser.AddressChanged += OnAddressChanged;
-        _browser.LoadStart += OnLoadStart;
-        _browser.LoadEnd += OnLoadEnd;
-        _browser.LoadError += OnLoadError;
-        _browser.BridgeRequest += OnBridgeRequest;
 
         _goButton.Pressed += OnGoPressed;
         _backButton.Pressed += OnBackPressed;
         _forwardButton.Pressed += OnForwardPressed;
         _reloadButton.Pressed += OnReloadPressed;
+        _addTabButton.Pressed += OnAddTabPressed;
         _openDevButton.Pressed += OnOpenDevPressed;
         _urlInput.TextSubmitted += OnUrlSubmitted;
-    }
 
-    /// <summary>
-    /// JS → C# bridge handler.
-    /// Test in browser console:
-    ///   fetch('godot://bridge?type=ping&cb=test1&payload={}').catch(()=>{})
-    ///   var i=document.createElement('iframe'); i.src='godot://bridge?type=ping&cb=test1&payload=%7B%7D'; document.body.appendChild(i);
-    /// Or if __hostBridge is injected:
-    ///   window.__hostBridge.send({type:'ping', payload:{}})
-    /// </summary>
-    private void OnBridgeRequest(string type, string payload, string cbId)
-    {
-        GD.Print($"[Bridge] type={type}, cb={cbId ?? "none"}, payload={payload}");
+        _tabContainer.TabChanged += OnTabChanged;
+        _tabContainer.TabClosePressed += OnTabClosePressed;
 
-        switch (type)
+        // Connect existing tabs
+        foreach (var child in _tabContainer.GetChildren())
         {
-            case "ping":
-                _browser.SendResponse(cbId, "{\"status\":\"pong\"}");
-                CallDeferred(nameof(UpdateStatusLabel), "Bridge: ping → pong");
-                break;
-
-            case "status":
-                var status = $"{{\"initialized\":{_browser.IsBrowserInitialized.ToString().ToLower()},\"loading\":{_browser.IsLoading.ToString().ToLower()},\"title\":\"{_browser.Title}\"}}";
-                _browser.SendResponse(cbId, status);
-                break;
-
-            case "navigate":
-                var json = Json.ParseString(payload);
-                if (json.VariantType == Variant.Type.Dictionary)
-                {
-                    var dict = json.AsGodotDictionary();
-                    string url = dict.ContainsKey("url") ? dict["url"].AsString() : "";
-                    if (!string.IsNullOrEmpty(url))
-                    {
-                        CallDeferred(nameof(NavigateFromBridge), url);
-                        _browser.SendResponse(cbId, "{\"status\":\"navigating\"}");
-                    }
-                    else
-                    {
-                        _browser.SendResponse(cbId, "{\"error\":\"url is empty\"}");
-                    }
-                }
-                break;
-
-            default:
-                GD.PrintErr($"[Bridge] Unknown type: {type}");
-                _browser.SendResponse(cbId, "{\"error\":\"unknown type\"}");
-                break;
+            if (child is CefGlueControl cef)
+                ConnectTab(cef);
         }
+
+        // Sync URL bar to first tab
+        UpdateUrlBar();
     }
 
-    private void NavigateFromBridge(string url)
+    private void ConnectTab(CefGlueControl cef)
     {
-        if (_browser != null)
-        {
-            _browser.Address = url;
-            UpdateStatusLabel($"Bridge navigate: {url}");
-        }
+        cef.BrowserInitialized += OnBrowserInitialized;
+        cef.AddressChanged += OnAddressChanged;
+        cef.TitleChanged += OnTitleChanged;
+        cef.LoadStart += OnLoadStart;
+        cef.LoadEnd += OnLoadEnd;
+        cef.LoadError += OnLoadError;
     }
+
+    private void OnTabChanged(long tabIndex)
+    {
+        UpdateUrlBar();
+        _statusLabel.Text = CurrentBrowser?.IsLoading == true ? "Loading..." : "Ready";
+    }
+
+    private void OnTabClosePressed(long tabIndex)
+    {
+        var tab = _tabContainer.GetChild<Control>((int)tabIndex);
+        if (tab == null || _tabContainer.GetTabCount() <= 1) return; // keep at least 1 tab
+        tab.QueueFree();
+    }
+
+    private void UpdateUrlBar()
+    {
+        var cef = CurrentBrowser;
+        if (cef != null && _urlInput != null)
+            _urlInput.Text = cef.Address;
+    }
+
+    private void OnAddTabPressed()
+    {
+        _tabCounter++;
+        var tab = new CefGlueControl
+        {
+            Name = $"Tab{_tabCounter}",
+            FrameRate = 120,
+            InitialUrl = "https://www.bing.com",
+            Mode = RenderMode.EmbeddedWindow,
+            OpenPopupInCurrentBrowser = false,
+            SyncCursor = true,
+        };
+        ConnectTab(tab);
+        _tabContainer.AddChild(tab);
+        _tabContainer.CurrentTab = _tabContainer.GetTabCount() - 1;
+        _statusLabel.Text = $"Tab {_tabCounter}: new tab (CEF process #{_tabCounter})";
+    }
+
+    // ── CEF callbacks ──
 
     private void OnBrowserInitialized()
     {
@@ -106,22 +122,32 @@ public partial class Browser : Control
 
     private void OnAddressChanged(object sender, string url)
     {
-        CallDeferred(nameof(UpdateUrlInput), url);
+        if (sender == CurrentBrowser)
+            CallDeferred(nameof(UpdateUrlInput), url);
+    }
+
+    private void OnTitleChanged(object sender, string title)
+    {
+        if (sender is CefGlueControl cef && !string.IsNullOrEmpty(title))
+            cef.Name = title.Length > 20 ? title[..20] + "…" : title;
     }
 
     private void OnLoadStart(object sender, Xilium.CefGlue.Common.Events.LoadStartEventArgs e)
     {
-        CallDeferred(nameof(UpdateStatusLabel), "Loading...");
+        if (sender == CurrentBrowser)
+            CallDeferred(nameof(UpdateStatusLabel), "Loading...");
     }
 
     private void OnLoadEnd(object sender, Xilium.CefGlue.Common.Events.LoadEndEventArgs e)
     {
-        CallDeferred(nameof(UpdateStatusLabel), "Done");
+        if (sender == CurrentBrowser)
+            CallDeferred(nameof(UpdateStatusLabel), "Done");
     }
 
     private void OnLoadError(object sender, Xilium.CefGlue.Common.Events.LoadErrorEventArgs e)
     {
-        CallDeferred(nameof(UpdateStatusLabel), $"Error: {e.ErrorText}");
+        if (sender == CurrentBrowser)
+            CallDeferred(nameof(UpdateStatusLabel), $"Error: {e.ErrorText}");
     }
 
     private void UpdateStatusLabel(string text)
@@ -136,50 +162,23 @@ public partial class Browser : Control
             _urlInput.Text = url;
     }
 
-    private void OnBackPressed()
-    {
-        _browser?.GoBack();
-    }
+    // ── Toolbar actions ──
 
-    private void OnForwardPressed()
-    {
-        _browser?.GoForward();
-    }
+    private void OnBackPressed() => CurrentBrowser?.GoBack();
+    private void OnForwardPressed() => CurrentBrowser?.GoForward();
+    private void OnReloadPressed() => CurrentBrowser?.Reload();
+    private void OnOpenDevPressed() => CurrentBrowser?.ShowDeveloperTools();
 
-    private void OnReloadPressed()
-    {
-        _browser?.Reload();
-    }
-
-    private void OnOpenDevPressed()
-    {
-        _browser?.ShowDeveloperTools();
-    }
-
-    private void OnGoPressed()
-    {
-        NavigateToUrl();
-    }
-
-    private void OnUrlSubmitted(string text)
-    {
-        NavigateToUrl();
-    }
+    private void OnGoPressed() => NavigateToUrl();
+    private void OnUrlSubmitted(string text) => NavigateToUrl();
 
     private void NavigateToUrl()
     {
         var url = _urlInput?.Text?.Trim();
-        if (string.IsNullOrEmpty(url))
-            return;
-
+        if (string.IsNullOrEmpty(url)) return;
         if (!url.StartsWith("http://") && !url.StartsWith("https://") && !url.StartsWith("about:") && !url.StartsWith("file://"))
-        {
             url = "https://" + url;
-        }
-
-        if (_browser != null)
-        {
-            _browser.Address = url;
-        }
+        if (CurrentBrowser != null)
+            CurrentBrowser.Address = url;
     }
 }

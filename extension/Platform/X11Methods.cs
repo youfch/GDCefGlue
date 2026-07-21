@@ -56,6 +56,15 @@ namespace GDCefGlueExtension
             XFlush(display);
         }
 
+        internal static void SetWindowVisible(IntPtr window, bool visible)
+        {
+            var display = GetDisplay();
+            if (display == IntPtr.Zero) return;
+            if (visible) XMapWindow(display, window);
+            else XUnmapWindow(display, window);
+            XFlush(display);
+        }
+
         // ── libX11 P/Invoke ──
 
         [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
@@ -68,6 +77,12 @@ namespace GDCefGlueExtension
         // RevertTo: 0=None, 1=Parent, 2=PointerRoot
         [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
         private static extern int XSetInputFocus(IntPtr display, IntPtr window, int revertTo, IntPtr time);
+
+        [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int XMapWindow(IntPtr display, IntPtr window);
+
+        [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int XUnmapWindow(IntPtr display, IntPtr window);
 
         [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
         private static extern int XFlush(IntPtr display);

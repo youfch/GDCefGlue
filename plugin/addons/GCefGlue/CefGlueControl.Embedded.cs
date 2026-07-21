@@ -22,6 +22,10 @@ namespace GDCefGlue
             if (size.X <= 0 || size.Y <= 0)
                 return;
 
+            // 同步 CEF 子窗口可见性（节点隐藏时也隐藏嵌入窗口）
+            if (_cefChildHwnd != IntPtr.Zero)
+                NativeWindowMethods.SetPlatformWindowVisible(_cefChildHwnd, Visible);
+
             // 从 DisplayServer 获取内容缩放比（物理像素 / 虚拟像素）
             float contentScale = DisplayServer.ScreenGetScale();
 

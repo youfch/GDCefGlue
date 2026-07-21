@@ -77,6 +77,9 @@ namespace GDCefGlue
 
             if (_renderMode == RenderMode.EmbeddedWindow) { ProcessEmbeddedMode(delta); return; }
 
+            // OSR: skip texture update when hidden (browser/audio/JS still runs in background)
+            if (!Visible) return;
+
             if (_browserHost != null && Size.X > 0 && Size.Y > 0)
             {
                 int newWidth = (int)Size.X, newHeight = (int)Size.Y;
