@@ -18,6 +18,7 @@ public partial class Browser : Control
     private Button _forwardButton;
     private Button _reloadButton;
     private Button _addTabButton;
+    private Button _closeTabButton;
     private Button _openDevButton;
     private Label _statusLabel;
     private int _tabCounter = 2;
@@ -40,6 +41,7 @@ public partial class Browser : Control
         _forwardButton = GetNode<Button>("Toolbar/ForwardButton");
         _reloadButton = GetNode<Button>("Toolbar/ReloadButton");
         _addTabButton = GetNode<Button>("Toolbar/AddTabButton");
+        _closeTabButton = GetNode<Button>("Toolbar/CloseTabButton");
         _openDevButton = GetNode<Button>("Toolbar/OpenDevButton");
         _statusLabel = GetNode<Label>("StatusBar/StatusLabel");
 
@@ -48,11 +50,11 @@ public partial class Browser : Control
         _forwardButton.Pressed += OnForwardPressed;
         _reloadButton.Pressed += OnReloadPressed;
         _addTabButton.Pressed += OnAddTabPressed;
+        _closeTabButton.Pressed += OnCloseTabPressed;
         _openDevButton.Pressed += OnOpenDevPressed;
         _urlInput.TextSubmitted += OnUrlSubmitted;
 
         _tabContainer.TabChanged += OnTabChanged;
-        _tabContainer.TabClosePressed += OnTabClosePressed;
 
         // Connect existing tabs
         foreach (var child in _tabContainer.GetChildren())
@@ -73,6 +75,32 @@ public partial class Browser : Control
         cef.LoadStart += OnLoadStart;
         cef.LoadEnd += OnLoadEnd;
         cef.LoadError += OnLoadError;
+        cef.NewWindowRequested += OnNewWindowRequested;
+    }
+
+    private void OnNewWindowRequested(string url, bool isNewWindow)
+    {
+        if (string.IsNullOrEmpty(url)) return;
+        // 新窗口 → 创建新标签页（当前 demo 以标签代替独立窗口）
+        // 新标签页 → 创建新标签页
+        CallDeferred(nameof(AddTabWithUrl), url);
+    }
+
+    private void AddTabWithUrl(string url)
+    {
+        _tabCounter++;
+        var tab = new CefGlueControl
+        {
+            Name = $"Tab{_tabCounter}",
+            FrameRate = 120,
+            InitialUrl = url,
+            Mode = RenderMode.EmbeddedWindow,
+            OpenPopupInCurrentBrowser = false,
+            SyncCursor = true,
+        };
+        ConnectTab(tab);
+        _tabContainer.AddChild(tab);
+        _tabContainer.CurrentTab = _tabContainer.GetTabCount() - 1;
     }
 
     private void OnTabChanged(long tabIndex)
@@ -110,7 +138,16 @@ public partial class Browser : Control
         ConnectTab(tab);
         _tabContainer.AddChild(tab);
         _tabContainer.CurrentTab = _tabContainer.GetTabCount() - 1;
-        _statusLabel.Text = $"Tab {_tabCounter}: new tab (CEF process #{_tabCounter})";
+        _statusLabel.Text = $"Tab {_tabCounter}: new tab";
+    }
+
+    private void OnCloseTabPressed()
+    {
+        var tab = _tabContainer.GetCurrentTabControl();
+        if (tab == null) return;
+        tab.QueueFree();
+        if (_tabContainer.GetTabCount() == 0)
+            GetTree().Quit(); // close last tab → quit app
     }
 
     // ── CEF callbacks ──

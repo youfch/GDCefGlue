@@ -31,7 +31,6 @@ namespace GDCefGlue
         /// <returns>True to cancel the popup, false to allow it.</returns>
         protected override bool OnBeforePopup(CefBrowser browser, CefFrame frame, int popupId, string targetUrl, string targetFrameName, CefWindowOpenDisposition targetDisposition, bool userGesture, CefPopupFeatures popupFeatures, CefWindowInfo windowInfo, ref CefClient client, CefBrowserSettings settings, ref CefDictionaryValue extraInfo, ref bool noJavascriptAccess)
         {
-            
             if (_control.OpenPopupInCurrentBrowser)
             {
                 switch (targetDisposition)
@@ -44,8 +43,16 @@ namespace GDCefGlue
                         return true;
                 }
             }
-            
-            return false;
+
+            // 新窗口/新标签请求 → 触发 NewWindowRequested 事件（由上层 UI 创建新标签）
+            if (_control.HasNewWindowSubscribers)
+            {
+                bool isNewWindow = targetDisposition == CefWindowOpenDisposition.NewWindow
+                                || targetDisposition == CefWindowOpenDisposition.NewPopup;
+                _control.RaiseNewWindowRequested(targetUrl, isNewWindow);
+                return true; // 有订阅者 → 取消默认弹窗，由订阅者处理
+            }
+            return false; // 无订阅者 → 让 CEF 创建原生窗口
         }
     }
 }

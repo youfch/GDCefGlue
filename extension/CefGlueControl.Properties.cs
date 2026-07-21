@@ -88,4 +88,7 @@ public partial class CefGlueControl
     public event LoadErrorEventHandler LoadError;
     public event Action<string, string, string> BridgeRequest;
     public event Action<string, string, string, Action<string>> NativeCall;
+    public event Action<string, bool> NewWindowRequested;
+    internal void RaiseNewWindowRequested(string url, bool isNewWindow) => NewWindowRequested?.Invoke(url, isNewWindow);
+    internal bool HasNewWindowSubscribers => NewWindowRequested != null;
 }

@@ -230,5 +230,14 @@ namespace GDCefGlue
         /// 参数: (type, payload, cbId) — cbId 可能为 null(无回调) 或字符串(需通过 SendResponse 回复)。
         /// </summary>
         public event Action<string, string, string> BridgeRequest;
+
+        /// <summary>
+        /// 浏览器请求打开新窗口/新标签时触发。参数为目标 URL。
+        /// 需在 OnBeforePopup 中拦截并触发此事件，由上层 UI（如多标签 demo）创建新标签。
+        /// </summary>
+        public event Action<string, bool> NewWindowRequested;
+
+        internal void RaiseNewWindowRequested(string url, bool isNewWindow) => NewWindowRequested?.Invoke(url, isNewWindow);
+        internal bool HasNewWindowSubscribers => NewWindowRequested != null;
     }
 }

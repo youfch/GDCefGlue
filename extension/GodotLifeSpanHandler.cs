@@ -19,7 +19,6 @@ internal class GodotLifeSpanHandler : CefLifeSpanHandler
 
     protected override bool OnBeforePopup(CefBrowser browser, CefFrame frame, int popupId, string targetUrl, string targetFrameName, CefWindowOpenDisposition targetDisposition, bool userGesture, CefPopupFeatures popupFeatures, CefWindowInfo windowInfo, ref CefClient client, CefBrowserSettings settings, ref CefDictionaryValue extraInfo, ref bool noJavascriptAccess)
     {
-        
         if (_control.OpenPopupInCurrentBrowser)
         {
             switch (targetDisposition)
@@ -32,7 +31,18 @@ internal class GodotLifeSpanHandler : CefLifeSpanHandler
                     return true;
             }
         }
-        
+
+        if (_control.NewWindowRequested != null)
+        {
+if (_control.HasNewWindowSubscribers)
+        {
+            bool isNewWindow = targetDisposition == CefWindowOpenDisposition.NewWindow
+                            || targetDisposition == CefWindowOpenDisposition.NewPopup;
+            _control.RaiseNewWindowRequested(targetUrl, isNewWindow);
+            return true;
+        }
+        return false;
+        }
         return false;
     }
 }
