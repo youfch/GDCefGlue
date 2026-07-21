@@ -147,7 +147,7 @@ jobs:
             $SRC = "$CACHE/cef.redist.osx64/$VER/CEF"
           }
           if (Test-Path $SRC) {
-            Copy-Item "$SRC/*" "$OUT/" -Force -Exclude "*.so", "*.dylib"
+            Copy-Item "$SRC/*" "$OUT/" -Force
             Copy-Item "$SRC/locales/*.pak" "$OUT/locales/" -Force -ErrorAction SilentlyContinue
             Write-Host "  CEF: copied from $SRC"
           } else { Write-Host "::warning::CEF source not found: $SRC" }
