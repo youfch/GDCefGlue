@@ -5,6 +5,8 @@
     <PublishAot>true</PublishAot>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- CefGlue.Common.targets expects Pkgcef_redist_osx_arm64 but NuGet generates Pkgcef_redist_osxarm64 -->
+    <Pkgcef_redist_osx_arm64>$(Pkgcef_redist_osxarm64)</Pkgcef_redist_osx_arm64>
   </PropertyGroup>
 
   <ItemGroup>
