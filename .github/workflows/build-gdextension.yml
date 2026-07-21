@@ -65,28 +65,24 @@ jobs:
             --pattern "*.nupkg"
           dotnet nuget add source "$PWD/_nuget-feed" --name local-cefglue
 
-      # cef.redist packages for Linux/macOS from youfch's repos
-      - name: Download cef.redist packages (Linux/macOS)
-        if: ${{ matrix.platform != 'windows' }}
+      # cef.redist packages for all platforms (csproj references all of them)
+      - name: Download cef.redist packages
         shell: pwsh
         run: |
           $VER = "${{ github.event.inputs.cef_version }}"
-          $PLATFORM = "${{ matrix.platform }}"
-          if ($PLATFORM -eq "linux") {
-            $REPO = "youfch/cef.redist.linux"
-            $PKGS = @("linux64", "linuxarm64")
-          } else {
-            $REPO = "youfch/cef.redist.osx"
-            $PKGS = @("osx64", "osxarm64")
-          }
-          foreach ($pkg in $PKGS) {
-            $URL = "https://github.com/$REPO/releases/download/v${VER}/cef.redist.${pkg}.${VER}.nupkg"
+          # Linux
+          foreach ($pkg in @("linux64", "linuxarm64")) {
+            $URL = "https://github.com/youfch/cef.redist.linux/releases/download/v${VER}/cef.redist.${pkg}.${VER}.nupkg"
             Write-Host "Downloading: $URL"
-            $null = curl -L -f -o "_nuget-feed/cef.redist.${pkg}.${VER}.nupkg" "$URL"
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "::error::Failed to download $URL - check cef_version input"
-              exit 1
-            }
+            $null = curl -L -f -o "_nuget-feed/cef.redist.${pkg}.${VER}.nupkg" "$URL" 2>&1
+            if ($LASTEXITCODE -ne 0) { Write-Host "::warning::Failed: $URL" }
+          }
+          # macOS
+          foreach ($pkg in @("osx64", "osxarm64")) {
+            $URL = "https://github.com/youfch/cef.redist.osx/releases/download/v${VER}/cef.redist.${pkg}.${VER}.nupkg"
+            Write-Host "Downloading: $URL"
+            $null = curl -L -f -o "_nuget-feed/cef.redist.${pkg}.${VER}.nupkg" "$URL" 2>&1
+            if ($LASTEXITCODE -ne 0) { Write-Host "::warning::Failed: $URL" }
           }
 
       - name: Restore
