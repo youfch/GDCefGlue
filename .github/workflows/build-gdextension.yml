@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. 1.0, 2.0-beta1)"
-        required: true
-        default: "1.0"
+        description: "Release version (leave empty for auto: vYYYY.MM.DD.run)"
+        required: false
+        default: ""
       cefglue_tag:
         description: "CefGlue release tag for NuGet packages"
         required: true
@@ -74,6 +74,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "tag=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "archive=gdcefglue-${{ github.event.inputs.version }}.zip" >> $GITHUB_OUTPUT
+          else
+            DATE=$(date +'%Y.%m.%d')
+            VER="v${DATE}.${{ github.run_number }}"
+            echo "tag=$VER" >> $GITHUB_OUTPUT
+            echo "archive=gdcefglue-${VER}.zip" >> $GITHUB_OUTPUT
+          fi
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -94,15 +107,15 @@ jobs:
       - name: Create archive
         run: |
           cd addons
-          zip -r ../gdcefglue-${{ github.event.inputs.version }}.zip gdcefglue/
-          echo "Archive: gdcefglue-${{ github.event.inputs.version }}.zip"
+          zip -r ../${{ steps.version.outputs.archive }} gdcefglue/
+          echo "Archive: ${{ steps.version.outputs.archive }}"
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ github.event.inputs.version }}" \
+          gh release create "${{ steps.version.outputs.tag }}" \
             --repo ${{ github.repository }} \
-            --title "GDCefGlue v${{ github.event.inputs.version }}" \
+            --title "GDCefGlue ${{ steps.version.outputs.tag }}" \
             --notes "See [README](https://github.com/${{ github.repository }}) for usage." \
-            gdcefglue-${{ github.event.inputs.version }}.zip
+            ${{ steps.version.outputs.archive }}
