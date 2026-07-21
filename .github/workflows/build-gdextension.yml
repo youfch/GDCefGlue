@@ -168,8 +168,21 @@ jobs:
           echo "=== Package structure ==="
           find addons/gdcefglue -type f | sort
 
-      - name: Generate .gdextension
-        run: python extension/build_package.py --no-build --rid win-x64 || true
+      - name: Generate gdcefglue.gdextension
+        run: |
+          cat > addons/gdcefglue/gdcefglue.gdextension << 'GEXT'
+[configuration]
+entry_symbol = "gdcefglue_library_init"
+compatibility_minimum = 4.6
+
+[libraries]
+windows.x86_64.debug = "res://addons/gdcefglue/windows/GDCefGlueExtension.dll"
+windows.x86_64.release = "res://addons/gdcefglue/windows/GDCefGlueExtension.dll"
+linux.x86_64.debug = "res://addons/gdcefglue/linux/GDCefGlueExtension.so"
+linux.x86_64.release = "res://addons/gdcefglue/linux/GDCefGlueExtension.so"
+macos.debug = "res://addons/gdcefglue/macos/GDCefGlueExtension.dylib"
+macos.release = "res://addons/gdcefglue/macos/GDCefGlueExtension.dylib"
+GEXT
 
       - name: Create archive
         run: |
