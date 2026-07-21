@@ -25,19 +25,20 @@ public partial class CefGlueControl
 
     // ── CEF 事件回调 ──
     internal void OnAddressChange(CefBrowser browser, CefFrame frame, string url)
-    { if (frame.IsMain) CallDeferred("_notify_address_changed", url); }
+    { if (!_disposed && frame.IsMain) CallDeferred("_notify_address_changed", url); }
     private void _notify_address_changed(string url) => AddressChanged?.Invoke(this, url);
 
     internal void OnTitleChange(CefBrowser browser, string title)
-    { Title = title; CallDeferred("_notify_title_changed", title); }
+    { if (!_disposed) { Title = title; CallDeferred("_notify_title_changed", title); } }
     private void _notify_title_changed(string title) => TitleChanged?.Invoke(this, title);
 
     internal void OnLoadStart(CefBrowser browser, CefFrame frame, CefTransitionType transitionType)
-    => CallDeferred("_notify_load_start");
+    { if (!_disposed) CallDeferred("_notify_load_start"); }
     private void _notify_load_start() { LoadStart?.Invoke(this, new LoadStartEventArgs(null)); EmitSignal(new StringName(nameof(LoadStart))); }
 
     internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
     {
+        if (_disposed) return;
         // 每次页面加载后重新注册 JS handler（BrowserProcess的V8上下文重建不可靠）
         if (frame.IsMain)
         {
@@ -55,7 +56,7 @@ public partial class CefGlueControl
     private void _notify_load_end() { LoadEnd?.Invoke(this, new LoadEndEventArgs(null, 0)); EmitSignal(new StringName(nameof(LoadEnd))); }
 
     internal void OnLoadError(CefBrowser browser, CefFrame frame, CefErrorCode errorCode, string errorText, string failedUrl)
-    { CallDeferred("_notify_load_error", errorText, failedUrl); }
+    { if (!_disposed) CallDeferred("_notify_load_error", errorText, failedUrl); }
     private void _notify_load_error(string errorText, string failedUrl)
     { LoadError?.Invoke(this, new LoadErrorEventArgs(null, CefErrorCode.None, errorText, failedUrl)); EmitSignal(new StringName(nameof(LoadError)), errorText, failedUrl); }
 }

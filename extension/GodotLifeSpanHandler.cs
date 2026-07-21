@@ -32,16 +32,12 @@ internal class GodotLifeSpanHandler : CefLifeSpanHandler
             }
         }
 
-        if (_control.NewWindowRequested != null)
-        {
-if (_control.HasNewWindowSubscribers)
+        if (_control.HasNewWindowSubscribers)
         {
             bool isNewWindow = targetDisposition == CefWindowOpenDisposition.NewWindow
                             || targetDisposition == CefWindowOpenDisposition.NewPopup;
             _control.RaiseNewWindowRequested(targetUrl, isNewWindow);
             return true;
-        }
-        return false;
         }
         return false;
     }

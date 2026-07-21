@@ -84,5 +84,6 @@ public partial class CefGlueControl
         context.BindSignal(new SignalInfo(new StringName(nameof(LoadError))));
         context.BindSignal(new SignalInfo(new StringName("eval_completed")));
         context.BindSignal(new SignalInfo(new StringName("bridge_request")));
+        context.BindSignal(new SignalInfo(new StringName(nameof(NewWindowRequested))));
     }
 }

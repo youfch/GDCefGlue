@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cvo52ickueh41" path="res://demo/browser/Browser.gd" id="1_vfs0v"]
 
-[node name="MainUI" type="Control" unique_id=1937512627]
+[node name="Browser" type="Control" unique_id=1937512627]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -10,20 +10,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_vfs0v")
-
-[node name="Browser" type="CefGlueControl" parent="." unique_id=247526417]
-Mode = 1
-FrameRate = 120
-ForwardInputEvents = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = 40.0
-offset_bottom = -23.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
 
 [node name="Toolbar" type="Panel" parent="." unique_id=208286544]
 layout_mode = 1
@@ -56,10 +42,26 @@ offset_right = 120.0
 offset_bottom = 36.0
 text = "↻"
 
+[node name="AddTabButton" type="Button" parent="Toolbar" unique_id=1000000001]
+layout_mode = 1
+offset_left = 124.0
+offset_top = 4.0
+offset_right = 150.0
+offset_bottom = 36.0
+text = "+"
+
+[node name="CloseTabButton" type="Button" parent="Toolbar" unique_id=1000000003]
+layout_mode = 1
+offset_left = 154.0
+offset_top = 4.0
+offset_right = 180.0
+offset_bottom = 36.0
+text = "×"
+
 [node name="UrlInput" type="LineEdit" parent="Toolbar" unique_id=764011681]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.1207
+anchor_left = 0.18
 anchor_top = 0.1
 anchor_right = 0.8715
 anchor_bottom = 0.9
@@ -90,6 +92,28 @@ offset_bottom = 36.0
 grow_horizontal = 0
 text = "DevTool"
 
+[node name="TabContainer" type="TabContainer" parent="." unique_id=1000000002]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 40.0
+offset_bottom = -23.0
+grow_horizontal = 2
+grow_vertical = 2
+tab_alignment = 0
+tabs_position = 0
+drag_to_rearrange = true
+current_tab = 0
+
+[node name="Tab1" type="CefGlueControl" parent="TabContainer" unique_id=247526417]
+layout_mode = 2
+Mode = 1
+FrameRate = 120
+OpenPopupInCurrentBrowser = false
+SyncCursor = true
+InitialUrl = "https://www.bing.com"
+
 [node name="StatusBar" type="Panel" parent="." unique_id=97218884]
 layout_mode = 1
 anchors_preset = 12
@@ -111,5 +135,5 @@ offset_right = -8.0
 offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "Initializing..."
+text = "Multi-tab demo"
 vertical_alignment = 1

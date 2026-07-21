@@ -23,19 +23,20 @@ namespace GDCefGlue
 
         // ── CEF 事件回调 ──
         internal void OnAddressChange(CefBrowser browser, CefFrame frame, string url)
-        { if (frame.IsMain) CallDeferred(nameof(NotifyAddressChanged), url); }
+        { if (!_disposed && frame.IsMain) CallDeferred(nameof(NotifyAddressChanged), url); }
         private void NotifyAddressChanged(string url) => AddressChanged?.Invoke(this, url);
 
         internal void OnTitleChange(CefBrowser browser, string title)
-        { Title = title; CallDeferred(nameof(NotifyTitleChanged), title); }
+        { if (!_disposed) { Title = title; CallDeferred(nameof(NotifyTitleChanged), title); } }
         private void NotifyTitleChanged(string title) => TitleChanged?.Invoke(this, title);
 
         internal void OnLoadStart(CefBrowser browser, CefFrame frame, CefTransitionType transitionType)
-            => CallDeferred(nameof(NotifyLoadStart));
+        { if (!_disposed) CallDeferred(nameof(NotifyLoadStart)); }
         private void NotifyLoadStart() => LoadStart?.Invoke(this, new LoadStartEventArgs(null));
 
         internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
         {
+            if (_disposed) return;
             if (_renderMode == RenderMode.EmbeddedWindow && frame.IsMain)
                 InjectEventForwardingScriptIfNeeded();
             CallDeferred(nameof(NotifyLoadEnd));
@@ -43,7 +44,7 @@ namespace GDCefGlue
         private void NotifyLoadEnd() => LoadEnd?.Invoke(this, new LoadEndEventArgs(null, 0));
 
         internal void OnLoadError(CefBrowser browser, CefFrame frame, CefErrorCode errorCode, string errorText, string failedUrl)
-            => CallDeferred(nameof(NotifyLoadError), errorText, failedUrl);
+        { if (!_disposed) CallDeferred(nameof(NotifyLoadError), errorText, failedUrl); }
         private void NotifyLoadError(string errorText, string failedUrl)
             => LoadError?.Invoke(this, new LoadErrorEventArgs(null, CefErrorCode.None, errorText, failedUrl));
     }

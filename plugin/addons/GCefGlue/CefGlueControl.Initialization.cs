@@ -38,6 +38,8 @@ namespace GDCefGlue
             if (Engine.IsEditorHint())
                 return;
 
+            _disposed = true;
+
             if (_browserHost != null)
             {
                 _browserHost.CloseBrowser(true);

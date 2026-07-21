@@ -92,6 +92,7 @@ namespace GDCefGlue
         private int _lastEvalTaskId;
         private readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _pendingEvals = new();
         private readonly ConcurrentDictionary<string, RegisteredObject> _registeredObjects = new();
+        private bool _disposed;
 
         public CefGlueControl()
         {

@@ -113,16 +113,6 @@ FrameRate = 120
 SyncCursor = true
 metadata/_tab_index = 0
 
-[node name="Tab2" type="Control" parent="TabContainer" unique_id=1118790719]
-visible = false
-layout_mode = 2
-script = ExtResource("2_guh61")
-InitialUrl = "https://www.google.com"
-Mode = 1
-FrameRate = 120
-SyncCursor = true
-metadata/_tab_index = 1
-
 [node name="StatusBar" type="Panel" parent="." unique_id=1622732083]
 layout_mode = 1
 anchors_preset = 12

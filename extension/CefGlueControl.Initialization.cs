@@ -21,6 +21,7 @@ public partial class CefGlueControl
 
     protected override void _ExitTree()
     {
+        _disposed = true;
         if (_browserHost != null) { _browserHost.CloseBrowser(true); _browserHost = null; _browser = null; }
         _client = null;
         if (_pixelBuffer != null && _pixelBufferSize > 0) { ArrayPool<byte>.Shared.Return(_pixelBuffer); _pixelBuffer = null; _pixelBufferSize = 0; }
