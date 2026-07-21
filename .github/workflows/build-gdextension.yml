@@ -98,24 +98,34 @@ jobs:
         shell: pwsh
         run: |
           dotnet publish extension/GDCefGlueExtension.csproj `
-            -c Release -r ${{ matrix.rid }} -p:PublishAot=true
+            -c Release -r ${{ matrix.rid }} -p:PublishAot=true -p:CopyCefFiles=false
 
-      - name: Debug - list publish output
+- name: Debug - list publish output
         shell: pwsh
         run: |
-          $PUB = "extension/bin/Release/net10.0/${{ matrix.rid }}/publish"
-          if (Test-Path $PUB) {
-            Get-ChildItem $PUB -Name | Write-Host
-          } else {
-            Write-Host "::error::Publish directory not found: $PUB"
-            Get-ChildItem "extension/bin/Release/net10.0/${{ matrix.rid }}" -Name 2>&1 | Write-Host
-            exit 1
+          $BASE = "extension/bin/Release/net10.0/${{ matrix.rid }}"
+          $DIRS = @("$BASE/publish", "$BASE", "$BASE/native")
+          foreach ($d in $DIRS) {
+            if (Test-Path $d) {
+              Write-Host "=== $d ==="
+              Get-ChildItem $d -Name | Write-Host
+            }
+          }
+          if (-not (Test-Path $BASE)) {
+            Write-Host "::error::Build output not found at $BASE"
+            Get-ChildItem "extension/bin/Release/net10.0" -Name -ErrorAction SilentlyContinue | Write-Host
           }
 
       - name: Assemble package
         shell: pwsh
         run: |
-          $PUB = "extension/bin/Release/net10.0/${{ matrix.rid }}/publish"
+          # Find publish output (may be in publish/ or direct bin/)
+          $BASE = "extension/bin/Release/net10.0/${{ matrix.rid }}"
+          $PUB = if (Test-Path "$BASE/publish") { "$BASE/publish" } elseif (Test-Path $BASE) { $BASE } else { $null }
+          if (-not $PUB) {
+            Write-Host "::error::Build output not found at $BASE"
+            exit 1
+          }
           $OUT = "addons/gdcefglue/${{ matrix.platform }}"
           $NULL = New-Item -ItemType Directory -Force -Path "$OUT/CefGlueBrowserProcess"
           $NULL = New-Item -ItemType Directory -Force -Path "$OUT/locales"
