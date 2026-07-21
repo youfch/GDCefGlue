@@ -31,7 +31,7 @@ jobs:
             rid: linux-x64
             platform: linux
           - os: macos-latest
-            rid: osx-x64
+            rid: osx-arm64
             platform: macos
 
     runs-on: ${{ matrix.os }}
@@ -42,8 +42,16 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # CefGlue packages (CefGlue.Common, CefGlue.BrowserProcess.runtime.*)
-      # are from youfch/CefGlue GitHub Releases, NOT NuGet.org
+      # Install NativeAOT prerequisites
+      - name: Install AOT prerequisites (Linux)
+        if: ${{ matrix.platform == 'linux' }}
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Setup MSVC (Windows AOT)
+        if: ${{ matrix.platform == 'windows' }}
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # CefGlue packages from youfch/CefGlue GitHub Releases
       - name: Download CefGlue packages
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,8 +64,7 @@ jobs:
             --pattern "*.nupkg"
           dotnet nuget add source "$PWD/_nuget-feed" --name local-cefglue
 
-      # cef.redist packages for Linux/macOS are from youfch's repos
-      # (Windows CEF runtime is on NuGet.org as chromiumembeddedframework.runtime.win-x64)
+      # cef.redist packages for Linux/macOS from youfch's repos
       - name: Download cef.redist packages (Linux/macOS)
         if: ${{ matrix.platform != 'windows' }}
         shell: pwsh
