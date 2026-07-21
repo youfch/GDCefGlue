@@ -8,9 +8,13 @@ on:
         required: false
         default: ""
       cefglue_tag:
-        description: "CefGlue release tag for NuGet packages"
+        description: "CefGlue release tag (e.g. v149.7827.156)"
         required: true
         default: "v149.7827.156"
+      cef_version:
+        description: "CEF runtime version for cef.redist (e.g. 149.0.6)"
+        required: true
+        default: "149.0.6"
 
 env:
   DOTNET_VERSION: "10.0.x"
@@ -38,18 +42,40 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # CefGlue NuGet packages are on GitHub Releases, not NuGet.org
-      - name: Download CefGlue NuGet packages
+      # CefGlue packages (CefGlue.Common, CefGlue.BrowserProcess.runtime.*)
+      # are from youfch/CefGlue GitHub Releases, NOT NuGet.org
+      - name: Download CefGlue packages
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          mkdir -p _cefglue-nuget
+          mkdir -p _nuget-feed
           gh release download "${{ github.event.inputs.cefglue_tag }}" `
             --repo youfch/CefGlue `
-            --dir _cefglue-nuget `
+            --dir _nuget-feed `
             --pattern "*.nupkg"
-          dotnet nuget add source "$PWD/_cefglue-nuget" --name local-cefglue
+          dotnet nuget add source "$PWD/_nuget-feed" --name local-cefglue
+
+      # cef.redist packages for Linux/macOS are from youfch's repos
+      # (Windows CEF runtime is on NuGet.org as chromiumembeddedframework.runtime.win-x64)
+      - name: Download cef.redist packages (Linux/macOS)
+        if: ${{ matrix.platform != 'windows' }}
+        shell: pwsh
+        run: |
+          $VER = "${{ github.event.inputs.cef_version }}"
+          $PLATFORM = "${{ matrix.platform }}"
+          if ($PLATFORM -eq "linux") {
+            $REPO = "youfch/cef.redist.linux"
+            $PKGS = @("linux64", "linuxarm64")
+          } else {
+            $REPO = "youfch/cef.redist.osx"
+            $PKGS = @("osx64", "osxarm64")
+          }
+          foreach ($pkg in $PKGS) {
+            $URL = "https://github.com/$REPO/releases/download/v${VER}/cef.redist.${pkg}.${VER}.nupkg"
+            Write-Host "Downloading: $URL"
+            curl -L -o "_nuget-feed/cef.redist.${pkg}.${VER}.nupkg" "$URL"
+          }
 
       - name: Restore
         run: dotnet restore extension/GDCefGlueExtension.csproj -r ${{ matrix.rid }}
