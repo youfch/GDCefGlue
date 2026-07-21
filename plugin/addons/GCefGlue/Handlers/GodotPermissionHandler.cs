@@ -29,7 +29,6 @@ namespace GDCefGlue
             CefMediaAccessPermissionTypes requestedPermissions,
             CefMediaAccessCallback callback)
         {
-            GD.Print($"[GodotPermissionHandler] OnRequestMediaAccessPermission: origin={requestingOrigin}, permissions={requestedPermissions}");
 
             if (!_control.EnableMediaStream)
             {
@@ -55,7 +54,6 @@ namespace GDCefGlue
             CefPermissionRequestTypes requestedPermissions,
             CefPermissionPromptCallback callback)
         {
-            GD.Print($"[GodotPermissionHandler] OnShowPermissionPrompt: origin={requestingOrigin}, permissions={requestedPermissions}");
 
             // 默认拒绝所有权限提示（可后续根据需求开放）
             callback.Continue(CefPermissionRequestResult.Deny);

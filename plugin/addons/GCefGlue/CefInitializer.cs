@@ -37,16 +37,12 @@ namespace GDCefGlue
             {
                 GD.Print("CefInitializer: Starting CEF initialization...");
 
-                var basePath = AppContext.BaseDirectory;
+var basePath = AppContext.BaseDirectory;
                 var cachePath = ProjectSettings.GlobalizePath(CacheDirectory);
                 Directory.CreateDirectory(cachePath);
 
                 var resourcesDirPath = FindResourcesDirPath();
                 var localesDirPath = Path.Combine(resourcesDirPath, "locales");
-
-                GD.Print($"CefInitializer: BasePath = {basePath}");
-                GD.Print($"CefInitializer: CachePath = {cachePath}");
-                GD.Print($"CefInitializer: ResourcesDirPath = {resourcesDirPath}");
 
                 var settings = new CefSettings
                 {
@@ -65,8 +61,6 @@ namespace GDCefGlue
                 };
 
                 CefRuntime.Load();
-                GD.Print("CefInitializer: CefRuntime.Load() completed");
-                GD.Print($"CefInitializer: Platform = {CefRuntime.Platform}");
 
                 var subProcessPath = FindBrowserSubprocessPath();
                 if (subProcessPath == null)
@@ -75,11 +69,8 @@ namespace GDCefGlue
                     return;
                 }
                 settings.BrowserSubprocessPath = subProcessPath;
-                GD.Print($"CefInitializer: BrowserSubprocessPath = {subProcessPath}");
 
                 var exeFileName = Process.GetCurrentProcess().MainModule?.FileName ?? "Godot";
-                GD.Print($"CefInitializer: Main process = {exeFileName}");
-
                 _browserProcessHandler = new GodotBrowserProcessHandler();
 
                 CefRuntime.Initialize(new CefMainArgs(new[] { exeFileName }), settings, new GodotCefApp(), IntPtr.Zero);
@@ -135,7 +126,6 @@ namespace GDCefGlue
 
             foreach (var path in searchPaths)
             {
-                GD.Print($"CefInitializer: Checking subprocess path: {path}");
                 if (File.Exists(path))
                 {
                     return path;
@@ -179,12 +169,10 @@ namespace GDCefGlue
                 var localesDir = Path.Combine(path, "locales");
                 if (File.Exists(pakFile) && Directory.Exists(localesDir))
                 {
-                    GD.Print($"CefInitializer: Found resources at: {path}");
                     return path;
                 }
             }
 
-            GD.Print($"CefInitializer: Using fallback resources path: {basePath}");
             return basePath;
         }
     }

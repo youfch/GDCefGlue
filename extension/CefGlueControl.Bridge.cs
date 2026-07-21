@@ -57,19 +57,18 @@ public partial class CefGlueControl
         var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
         using (var a = msg.Arguments) { a.SetString(0, name); a.SetString(1, methodsJson); }
         _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
-        GD.Print($"[CefGlueControl] Registered JS handler '{name}'");
     }
 
     public void UnregisterJsHandler(string name) { _jsHandlers.Remove(name); _jsHandlerMethods.Remove(name); if (_browser?.GetMainFrame() == null) return; var m = CefProcessMessage.Create("NativeObjectUnregistrationRequest"); using (var a = m.Arguments) a.SetString(0, name); _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, m); }
 
     internal void HandleProcessMessage(CefProcessMessage message)
     {
-        var n = message.Name; GD.Print($"[CefGlueControl] IPC received: {n}");
+        var n = message.Name;
         switch (n)
         {
             case "JsEvaluationResult": HandleJsEvaluationResult(message); break;
             case "NativeObjectCallRequest": HandleNativeObjectCallRequest(message); break;
-            case "JsUncaughtException": using (var a = message.Arguments) { var m = a.GetString(0); if (!string.IsNullOrEmpty(m)) GD.Print($"[CefGlueControl] JS uncaught: {m}"); } break;
+            case "JsUncaughtException": break;
         }
     }
 
@@ -309,7 +308,6 @@ public partial class CefGlueControl
             args.SetString(1, methodNamesJson);
         }
         _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
-        GD.Print($"[CefGlueControl] Registered object '{name}' with {reg.MethodNames.Length} methods");
     }
 
     public void UnregisterJavascriptObject(string name)

@@ -35,7 +35,6 @@ namespace GDCefGlue
                 if (_cefChildHwnd == IntPtr.Zero)
                     return;
 
-                GD.Print($"CefGlueControl: CEF child HWND acquired = 0x{_cefChildHwnd.ToInt64():X8}");
                 // 强制首次定位：重置 _previousGlobalPos 让变化检测触发
                 _previousGlobalPos = new Vector2(-1, -1);
             }
@@ -77,7 +76,6 @@ namespace GDCefGlue
             if (!_browserCreated)
             {
                 _browserCreated = true;
-                GD.Print("CefGlueControl: Embedded browser fully created and positioned");
             }
         }
     }

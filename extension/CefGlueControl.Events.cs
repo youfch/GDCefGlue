@@ -100,8 +100,6 @@ public partial class CefGlueControl
         public GodotEventForwarder(CefGlueControl control) => _control = control;
         public void Forward(string payload)
         {
-            if (!payload.Contains("\"mouse_move\""))
-                GD.Print($"[GodotEventForwarder] Forward: {payload.Substring(0, Math.Min(payload.Length, 120))}");
             _control.HandleForwardedEvent(payload);
         }
     }

@@ -16,12 +16,10 @@ internal class GodotBrowserProcessHandler : CefBrowserProcessHandler
     protected override void OnBeforeChildProcessLaunch(CefCommandLine commandLine)
     {
         commandLine.AppendSwitch("--parent-pid", _currentProcessId);
-        GD.Print($"GodotBrowserProcessHandler: OnBeforeChildProcessLaunch, parent-pid = {_currentProcessId}");
     }
 
     protected override void OnContextInitialized()
     {
-        GD.Print("GodotBrowserProcessHandler: OnContextInitialized");
     }
 
     protected override void OnScheduleMessagePumpWork(long delayMs)

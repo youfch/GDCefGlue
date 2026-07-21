@@ -31,7 +31,6 @@ public static class CefInitializer
                 GD.Print("CefInitializer: Starting CEF initialization...");
 
                 _extensionDirectory = GetExtensionDirectory();
-                GD.Print($"CefInitializer: ExtensionDirectory = {_extensionDirectory}");
 
                 var cachePath = ProjectSettings.Singleton.GlobalizePath(CacheDirectory);
                 Directory.CreateDirectory(cachePath);
@@ -39,17 +38,8 @@ public static class CefInitializer
             var resourcesDirPath = FindResourcesDirPath();
             var localesDirPath = Path.Combine(resourcesDirPath, "locales");
 
-            GD.Print($"CefInitializer: CachePath = {cachePath}");
-            GD.Print($"CefInitializer: ResourcesDirPath = {resourcesDirPath}");
-            GD.Print($"CefInitializer: LocalesDirPath = {localesDirPath}");
-
             var cefLibraryPath = FindCefLibraryPath();
             if (cefLibraryPath == null)
-            {
-                GD.PrintErr("CefInitializer: libcef not found!");
-                return;
-            }
-            GD.Print($"CefInitializer: CefLibraryPath = {cefLibraryPath}");
 
             PreloadCefDependencies(_extensionDirectory);
 
@@ -70,11 +60,9 @@ public static class CefInitializer
             };
 
             var libcefHandle = NativeLibrary.Load(cefLibraryPath);
-            GD.Print($"CefInitializer: libcef loaded, handle = {libcefHandle}");
+            if (libcefHandle == IntPtr.Zero) { GD.PrintErr("CefInitializer: Failed to load libcef"); return; }
 
             CefRuntime.Load();
-            GD.Print("CefInitializer: CefRuntime.Load() completed");
-            GD.Print($"CefInitializer: Platform = {CefRuntime.Platform}");
 
             var subProcessPath = FindBrowserSubprocessPath();
             if (subProcessPath == null)
@@ -83,10 +71,8 @@ public static class CefInitializer
                 return;
             }
             settings.BrowserSubprocessPath = subProcessPath;
-            GD.Print($"CefInitializer: BrowserSubprocessPath = {subProcessPath}");
 
             var exeFileName = Process.GetCurrentProcess().MainModule?.FileName ?? "Godot";
-            GD.Print($"CefInitializer: Main process = {exeFileName}");
 
             _browserProcessHandler = new GodotBrowserProcessHandler();
 
@@ -111,40 +97,24 @@ public static class CefInitializer
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return;
 
-        string[] dllFiles;
-        
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        string[] dllFiles = new[]
         {
-            dllFiles = new[]
-            {
-                "libcef.dll",
-                "chrome_elf.dll",
-                "d3dcompiler_47.dll",
-                "libEGL.dll",
-                "libGLESv2.dll",
-                "vk_swiftshader.dll",
-                "vulkan-1.dll"
-            };
-        }
-        else
-        {
-            return;
-        }
+            "libcef.dll",
+            "chrome_elf.dll",
+            "d3dcompiler_47.dll",
+            "libEGL.dll",
+            "libGLESv2.dll",
+            "vk_swiftshader.dll",
+            "vulkan-1.dll"
+        };
 
         foreach (var dll in dllFiles)
         {
             var dllPath = Path.Combine(directory, dll);
             if (File.Exists(dllPath))
             {
-                try
-                {
-                    var handle = NativeLibrary.Load(dllPath);
-                    GD.Print($"CefInitializer: Preloaded {dll}");
-                }
-                catch (Exception ex)
-                {
-                    GD.Print($"CefInitializer: Failed to preload {dll}: {ex.Message}");
-                }
+                try { NativeLibrary.Load(dllPath); }
+                catch { }
             }
         }
     }
@@ -158,7 +128,6 @@ public static class CefInitializer
             var gdeAddonsPath = Path.Combine(projectPath, "addons", "gdcefglue");
             if (Directory.Exists(gdeAddonsPath))
             {
-                GD.Print($"CefInitializer: Found extension at: {gdeAddonsPath}");
                 return gdeAddonsPath;
             }
 
@@ -168,7 +137,6 @@ public static class CefInitializer
                 var dllPath = Path.Combine(libPath, "GDCefGlueExtension.dll");
                 if (File.Exists(dllPath))
                 {
-                    GD.Print($"CefInitializer: Found extension at: {libPath}");
                     return libPath;
                 }
             }
@@ -176,13 +144,11 @@ public static class CefInitializer
             var addonsPath = Path.Combine(projectPath, "addons", "GCefGlue");
             if (Directory.Exists(addonsPath))
             {
-                GD.Print($"CefInitializer: Found extension at: {addonsPath}");
                 return addonsPath;
             }
         }
 
         var baseDirectory = AppContext.BaseDirectory;
-        GD.Print($"CefInitializer: Using base directory: {baseDirectory}");
         return baseDirectory;
     }
 
@@ -223,7 +189,6 @@ public static class CefInitializer
 
         foreach (var path in searchPaths)
         {
-            GD.Print($"CefInitializer: Checking libcef path: {path}");
             if (File.Exists(path))
             {
                 return path;
@@ -251,7 +216,6 @@ public static class CefInitializer
 
         foreach (var path in searchPaths)
         {
-            GD.Print($"CefInitializer: Checking subprocess path: {path}");
             if (File.Exists(path))
             {
                 return path;
@@ -297,12 +261,10 @@ public static class CefInitializer
             var localesDir = Path.Combine(path, "locales");
             if (File.Exists(pakFile) && Directory.Exists(localesDir))
             {
-                GD.Print($"CefInitializer: Found resources at: {path}");
                 return path;
             }
         }
 
-        GD.Print($"CefInitializer: Using fallback resources path: {_extensionDirectory}");
         return _extensionDirectory;
     }
 }

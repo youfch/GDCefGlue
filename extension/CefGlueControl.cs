@@ -65,6 +65,5 @@ public partial class CefGlueControl : Control
 
     public CefGlueControl()
     {
-        GD.Print("CefGlueControl: Constructor called");
     }
 }

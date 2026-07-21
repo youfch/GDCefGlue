@@ -76,11 +76,9 @@ public partial class CefGlueControl
                 case NotificationResized: break;
                 case NotificationMouseExit: _isMousePressed = false; _pressedButton = (CefMouseButtonType)(-1); break;
                 case NotificationFocusEnter:
-                    GD.Print($"[CefGlueControl] FocusEnter: godotHwnd=0x{_godotHwnd.ToInt64():X8}, cefHwnd=0x{_cefChildHwnd.ToInt64():X8}");
                     _browserHost?.SetFocus(true);
                     break;
                 case NotificationFocusExit:
-                    GD.Print($"[CefGlueControl] FocusExit: godotHwnd=0x{_godotHwnd.ToInt64():X8}");
                     ReleaseCefFocus();
                     break;
             }
@@ -108,7 +106,6 @@ public partial class CefGlueControl
 
     private void ReleaseCefFocus()
     {
-        GD.Print($"[CefGlueControl] ReleaseCefFocus: godotHwnd=0x{_godotHwnd.ToInt64():X8}");
         _browserHost?.SetFocus(false);
         if (_godotHwnd != IntPtr.Zero)
             NativeWindowMethods.SetPlatformFocus(_godotHwnd);

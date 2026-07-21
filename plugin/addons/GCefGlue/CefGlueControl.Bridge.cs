@@ -91,7 +91,6 @@ namespace GDCefGlue
             var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
             using (var args = msg.Arguments) { args.SetString(0, name); args.SetString(1, JsonSerializer.Serialize(reg.MethodNames)); }
             _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
-            GD.Print($"[CefGlueControl] Registered object '{name}' with {reg.MethodNames.Length} methods");
         }
 
         public void UnregisterJavascriptObject(string name)
@@ -109,18 +108,11 @@ namespace GDCefGlue
         internal void HandleProcessMessage(CefProcessMessage message)
         {
             var name = message.Name;
-            GD.Print($"[CefGlueControl] IPC received: {name}");
             switch (name)
             {
                 case "JsEvaluationResult": HandleJsEvaluationResult(message); break;
                 case "NativeObjectCallRequest": HandleNativeObjectCallRequest(message); break;
                 case "JsUncaughtException":
-                    using (var args = message.Arguments)
-                    {
-                        var msg = args.GetString(0);
-                        if (!string.IsNullOrEmpty(msg))
-                            GD.Print($"[CefGlueControl] JS uncaught (init noise): {msg}");
-                    }
                     break;
             }
         }
@@ -256,7 +248,6 @@ namespace GDCefGlue
                 string payloadStr = query.Get("payload") ?? "";
                 if (_renderMode == RenderMode.EmbeddedWindow && ForwardInputEvents && type == "event_forward")
                 { HandleForwardedEvent(payloadStr); return; }
-                GD.Print($"[CefGlueControl] Bridge request: type={type}, cb={cbId ?? "none"}, payloadLen={payloadStr.Length}");
                 BridgeRequest?.Invoke(type, payloadStr, cbId);
             }
             catch (Exception ex) { GD.PrintErr($"[CefGlueControl] Failed to parse bridge URL '{url}': {ex.Message}"); }

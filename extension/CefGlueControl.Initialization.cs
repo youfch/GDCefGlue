@@ -9,8 +9,7 @@ public partial class CefGlueControl
 {
     protected override void _Ready()
     {
-        GD.Print("CefGlueControl: _Ready() called");
-        if (Godot.Engine.Singleton.IsEditorHint()) { GD.Print("CefGlueControl: Running in editor, skipping CEF initialization"); return; }
+        if (Godot.Engine.Singleton.IsEditorHint()) { return; }
         _renderMode = Mode;
         UseGpuAcceleration = GpuAcceleration; UseTransparent = Transparent;
         CefInitializer.Initialize();
@@ -53,7 +52,6 @@ public partial class CefGlueControl
                 return;
             }
 
-            GD.Print($"CefGlueControl: Godot HWND = 0x{_godotHwnd.ToInt64():X8}");
             windowInfo.SetAsChild(_godotHwnd, new CefRectangle(0, 0, width, height));
         }
         else
@@ -74,9 +72,7 @@ public partial class CefGlueControl
         if (_renderMode == RenderMode.EmbeddedWindow && _browserHost != null)
         {
             _cefChildHwnd = _browserHost.GetWindowHandle();
-            if (_cefChildHwnd != IntPtr.Zero)
-                GD.Print($"CefGlueControl: CEF child HWND = 0x{_cefChildHwnd.ToInt64():X8}");
-            else
+            if (_cefChildHwnd == IntPtr.Zero)
                 GD.Print("CefGlueControl: GetWindowHandle returned zero, will retry in _Process");
         }
 

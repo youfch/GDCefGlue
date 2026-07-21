@@ -16,7 +16,6 @@ internal sealed class GodotPermissionHandler : CefPermissionHandler
         CefBrowser browser, CefFrame frame, string requestingOrigin,
         CefMediaAccessPermissionTypes requestedPermissions, CefMediaAccessCallback callback)
     {
-        GD.Print($"[GodotPermissionHandler] OnRequestMediaAccessPermission: origin={requestingOrigin}, permissions={requestedPermissions}");
 
         if (!_control.EnableMediaStream)
         {
@@ -32,7 +31,6 @@ internal sealed class GodotPermissionHandler : CefPermissionHandler
         CefBrowser browser, ulong promptId, string requestingOrigin,
         CefPermissionRequestTypes requestedPermissions, CefPermissionPromptCallback callback)
     {
-        GD.Print($"[GodotPermissionHandler] OnShowPermissionPrompt: origin={requestingOrigin}, permissions={requestedPermissions}");
         callback.Continue(CefPermissionRequestResult.Deny);
         return true;
     }

@@ -95,7 +95,6 @@ namespace GDCefGlue
 
         public CefGlueControl()
         {
-            GD.Print("CefGlueControl: Constructor called");
         }
     }
 }

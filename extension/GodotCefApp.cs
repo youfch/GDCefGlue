@@ -29,8 +29,6 @@ internal class GodotCefApp : CefApp
             }
             
             commandLine.AppendSwitch("disable-smooth-scrolling");
-            
-            GD.Print($"GodotCefApp: Command line switches added (GPU Acceleration: {CefGlueControl.UseGpuAcceleration}, Transparent: {CefGlueControl.UseTransparent})");
         }
     }
 

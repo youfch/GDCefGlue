@@ -12,8 +12,6 @@ namespace GDCefGlue
     {
         public override void _Ready()
         {
-            GD.Print("CefGlueControl: _Ready() called");
-
             if (Engine.IsEditorHint())
                 return;
 
@@ -96,8 +94,6 @@ namespace GDCefGlue
                     return;
                 }
 
-                GD.Print($"CefGlueControl: Godot HWND = 0x{_godotHwnd.ToInt64():X8}");
-
                 windowInfo.SetAsChild(_godotHwnd, new CefRectangle(0, 0, width, height));
             }
             else
@@ -115,7 +111,6 @@ namespace GDCefGlue
             try
             {
                 CefBrowserHost.CreateBrowser(windowInfo, _client, settings, InitialUrl);
-                GD.Print($"CefGlueControl: Browser creation initiated for {InitialUrl}");
             }
             catch (Exception ex)
             {
@@ -126,10 +121,7 @@ namespace GDCefGlue
         internal void OnBrowserCreated(CefBrowser browser)
         {
             if (_browser != null)
-            {
-                GD.Print("CefGlueControl: Ignoring popup browser creation");
                 return;
-            }
 
             _browser = browser;
             _browserHost = browser.GetHost();
@@ -138,14 +130,8 @@ namespace GDCefGlue
             {
                 _cefChildHwnd = _browserHost.GetWindowHandle();
 
-                if (_cefChildHwnd != IntPtr.Zero)
-                {
-                    GD.Print($"CefGlueControl: CEF child HWND = 0x{_cefChildHwnd.ToInt64():X8}");
-                }
-                else
-                {
+                if (_cefChildHwnd == IntPtr.Zero)
                     GD.Print("CefGlueControl: GetWindowHandle returned zero, will retry in _Process");
-                }
             }
 
             CallDeferred(nameof(NotifyBrowserInitialized));
