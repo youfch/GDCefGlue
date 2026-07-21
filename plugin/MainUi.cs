@@ -46,8 +46,8 @@ public partial class MainUi : Control
     /// Test in browser console:
     ///   fetch('godot://bridge?type=ping&cb=test1&payload={}').catch(()=>{})
     ///   var i=document.createElement('iframe'); i.src='godot://bridge?type=ping&cb=test1&payload=%7B%7D'; document.body.appendChild(i);
-    /// Or if _godotBridge is injected:
-    ///   window._godotBridge.sendToGodot({type:'ping', payload:{}})
+    /// Or if __hostBridge is injected:
+    ///   window.__hostBridge.send({type:'ping', payload:{}})
     /// </summary>
     private void OnBridgeRequest(string type, string payload, string cbId)
     {

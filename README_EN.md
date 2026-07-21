@@ -1,4 +1,4 @@
-# GDCefGlue
+﻿# GDCefGlue
 
 A CEF (Chromium Embedded Framework) browser control for Godot 4.x using CefGlue.
 
@@ -11,105 +11,86 @@ A CEF (Chromium Embedded Framework) browser control for Godot 4.x using CefGlue.
 - **Dynamic property visibility**: OSR mode hides embedded-mode properties, EmbeddedWindow hides OSR-specific properties
 - **Cross-platform embedded window**: Windows (Win32), Linux (X11), macOS (Cocoa)
 - **Keyboard event forwarding**: Forward browser keyboard events to Godot in EmbeddedWindow mode
-- GPU hardware acceleration support
+- GPU hardware acceleration
 - IME support for Chinese/Japanese/Korean input
 - Popup handling
 - Complete keyboard and mouse support
-- Easy integration with Godot 4.x
 - **JS ↔ C# bridge** via RegisterJavascriptObject (CEF IPC, no iframe needed)
-
-## Performance Demo
-
-### WebGL Aquarium
-
-Supports WebGL rendering with 20,000 fish at stable 120fps:
-
-![WebGL Aquarium](img/WebGL水族馆.png)
+- **Engine-agnostic JS API**: window.__hostBridge / window.__hostEvents — write once, works across Godot, Unreal, or any CEF host
 
 ## Quick Start
 
 ### C# (Plugin)
 
-Add a `CefGlueControl` node to your scene:
-
-```csharp
+`csharp
 var browser = new CefGlueControl();
 browser.InitialUrl = "https://godotengine.org";
 browser.Mode = RenderMode.OSR;        // OSR (transparent) or EmbeddedWindow
 browser.Transparent = true;           // OSR only
 AddChild(browser);
-```
+`
 
 ### GDScript (GDExtension)
 
-```gdscript
-var browser: CefGlueControl = $CefGlueControl
+`gdscript
+var browser: CefGlueControl = 
 browser.InitialUrl = "https://godotengine.org"
 browser.FrameRate = 120
 browser.Mode = 0  # 0=OSR, 1=EmbeddedWindow
 
-# Connect to signals
 browser.BrowserInitialized.connect(_on_ready)
 browser.AddressChanged.connect(_on_address_changed)
 browser.LoadStart.connect(_on_loading)
 browser.LoadEnd.connect(_on_done)
 browser.LoadError.connect(_on_error)
-```
+`
 
 ## Requirements
 
 - **Godot Engine**: 4.6.0 or later (with .NET/Mono support)
 - **.NET SDK**: 8.0 or later
-- **Windows**: x64 architecture (Linux/macOS also supported)
+- **Windows/Linux/macOS**: x64 architecture (ARM64 also supported)
 
-## Dependency Options
+## NuGet Packages
 
-### Option 1: NuGet Package (Recommended)
+The CefGlue NuGet packages are published on [GitHub Releases](https://github.com/youfch/CefGlue/releases) (not on NuGet.org). Download the required `.nupkg` files and set up a local feed.
 
-The easiest way to use GDCefGlue. All necessary files are automatically copied during build.
+### Setup
 
-**CEF 149 (Recommended):**
+1. **Download all** `.nupkg` files from [GitHub Releases](https://github.com/youfch/CefGlue/releases/tag/v149.7827.156) — `CefGlue.BrowserProcess.runtime.jit` is a meta-package, its dependencies must be resolved locally.
+
+2. **Place** them in a local folder, e.g. `./nuget-feed/` in your project.
+
+3. **Create** a `nuget.config` in your project root:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="local-cefglue" value="./nuget-feed" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+  </packageSources>
+</configuration>
+```
+
+4. **Add** the packages to your `.csproj`:
+
 ```xml
 <ItemGroup>
   <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
+  <PackageReference Include="CefGlue.BrowserProcess.runtime.jit" Version="149.7827.156" />
+  <PackageReference Include="chromiumembeddedframework.runtime" Version="149.0.4" />
   <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
 </ItemGroup>
 ```
 
-**CEF 120 (Official, not recommended — too old):**
-```xml
-<ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="120.6099.0" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="120.2.3" />
-</ItemGroup>
-```
+All CEF files are copied automatically during build. No manual steps required.
 
-### Option 2: Build from Source
-
-If you need the latest version or want to customize CefGlue:
-
-```bash
-git clone https://github.com/youfch/CefGlue.git
-```
-
-Place the cloned repository in your project directory:
-```
-YourProject/
-├── GDCefGlue/                    ← This repository
-│   ├── plugin/                   ← Godot .NET project (addon source + demo)
-│   │   └── addons/GCefGlue/     ←    CefGlueControl C# scripts
-│   ├── extension/                ← GDExtension C# project (AOT native lib)
-│   │   └── Dll/                  ←    godot-dotnet bindings
-│   ├── test/GDExtensionGame/     ← Godot project for testing GDExtension
-│   ├── Nuget/                    ← Local NuGet packages (LFS)
-│   ├── img/
-│   └── README*.md
-└── CefGlue/                      ← Cloned CefGlue repository
-```
+> **Note:** For cross-platform builds (Linux/macOS), add the corresponding `cef.redist.*` packages.
 
 ## Project Structure
 
-```
+`
 addons/GCefGlue/                    ← Plugin source code
 ├── CefGlueControl.cs               Skeleton (enum, fields, constructor)
 ├── CefGlueControl.Properties.cs    Export properties, static properties, events
@@ -135,273 +116,125 @@ addons/GCefGlue/                    ← Plugin source code
     ├── NativeWindowMethods.cs      Platform abstraction layer
     ├── X11Methods.cs               Linux X11 P/Invoke
     └── MacMethods.cs               macOS Cocoa P/Invoke
-```
-
-## Project Types
-
-### GDExtension Project (Experimental)
-
-Located in `extension/` directory. For Godot 4.6+.
-
-**Features:**
-- Uses Godot's GDExtension system
-- Compiled as native AOT library
-- Better performance and smaller file size
-- Requires manual CEF file copying during export
-- Entry point: `gdcefglue_library_init`
-
-**Structure:**
-- `extension/` - C# source code for GDExtension
-- `extension/Dll/` - Godot .NET bindings (from [godot-dotnet](https://github.com/raulsntos/godot-dotnet))
-- `test/GDExtensionGame/` - Godot project for testing
-
-**Build Instructions:**
-
-1. **Get Godot .NET Bindings:**
-   
-   Different Godot versions require corresponding godot-dotnet versions:
-   
-   | Godot Version | godot-dotnet Branch |
-   |---------------|---------------------|
-   | 4.6.x         | master or corresponding tag |
-   | 4.5.x         | Check corresponding release tag |
-   | 4.4.x         | Check corresponding release tag |
-   
-   > **Note:** godot-dotnet does not publish release packages. You need to check the commit history, download the source code for your Godot version, and compile manually.
-   
-   ```bash
-   git clone https://github.com/raulsntos/godot-dotnet.git
-   cd godot-dotnet
-   dotnet build -p:GenerateGodotBindings=true
-   ```
-   Copy the generated `Godot.Bindings.dll` and related files to `extension/Dll/`.
-
-2. **CEF Dependencies (Cross-Platform):**
-   
-   - **Windows:** Automatically obtained via NuGet package `chromiumembeddedframework.runtime.win-x64`
-   - **Linux:** Requires [cef.redist.linux](https://github.com/OutSystems/cef.redist.linux) dependency
-   - **macOS:** Requires [cef.redist.osx](https://github.com/OutSystems/cef.redist.osx) dependency
-   
-   See [CefGlue repository](https://github.com/youfch/CefGlue) for how to add cross-platform dependencies.
-
-3. **Build GDExtension:**
-   
-   Navigate to `extension` directory and run:
-   
-   **Windows x64:**
-   ```bash
-   dotnet publish -c Debug -r win-x64 --self-contained true
-   dotnet publish -c Release -r win-x64 --self-contained true
-   ```
-   
-   **Linux x64:**
-   ```bash
-   dotnet publish -c Release -r linux-x64 --self-contained true
-   ```
-   
-   **macOS x64/ARM64:**
-   ```bash
-   dotnet publish -c Release -r osx-x64 --self-contained true
-   dotnet publish -c Release -r osx-arm64 --self-contained true
-   ```
-
-4. **Deploy:**
-   Build output is located at `bin\Release(Debug)\net10.0\win-x64\publish\` (Windows)
-   Copy all files from the publish directory to `test/GDExtensionGame/lib/`.
-
-5. **Run:**
-   Open `test/GDExtensionGame/` project with Godot 4.6 and run.
-
-### Normal C# Project
-
-Located in `plugin/` directory. Traditional Godot C# project approach.
-
-**Features:**
-- Standard Godot .NET SDK project
-- Uses `Godot.NET.Sdk`
-- CEF files are automatically copied when using NuGet packages
-- Source code in `addons/GCefGlue/`
-
-Update your `.csproj` to reference the projects:
-```xml
-<ItemGroup>
-  <ProjectReference Include="..\CefGlue\CefGlue\CefGlue.csproj" />
-  <ProjectReference Include="..\CefGlue\CefGlue.Common\CefGlue.Common.csproj" />
-  <ProjectReference Include="..\CefGlue\CefGlue.Common.Shared\CefGlue.Common.Shared.csproj" />
-</ItemGroup>
-```
-
-### CefGlue Sources
-
-| Source | CEF Version | Status | Link |
-|--------|-------------|--------|------|
-| youfch/CefGlue | 149 | Maintained (Recommended) | [GitHub](https://github.com/youfch/CefGlue) |
-| youfch/cef.redist.linux | 149 | Linux runtime | [GitHub](https://github.com/youfch/cef.redist.linux) |
-| youfch/cef.redist.osx | 149 | macOS runtime | [GitHub](https://github.com/youfch/cef.redist.osx) |
-| OutSystems/CefGlue | 120 | Official (Legacy) | [GitHub](https://github.com/OutSystems/CefGlue) |
-
-## Build Instructions
-
-### Using NuGet Package
-
-```powershell
-dotnet restore
-dotnet build
-```
-
-### Using Source Code
-
-```powershell
-git clone https://github.com/youfch/CefGlue.git
-dotnet restore
-dotnet build
-```
-
-## Build Output
-
-**Core Files:**
-- `GDCefGlue.dll` - Main plugin assembly
-- `Xilium.CefGlue.dll` - CefGlue wrapper
-- `Xilium.CefGlue.Common.dll` - Common functionality
-
-**CEF Native Files:**
-- `libcef.dll` - Chromium core library
-- `chrome_*.pak` - UI resources
-- `resources.pak` - Application resources
-- `locales\*.pak` - Language packs
-
-**BrowserProcess Files:**
-- `CefGlueBrowserProcess\` - Browser subprocess files
-
-## Export for Distribution
-
-When using NuGet packages, all necessary files are automatically copied during build. Just export your Godot project normally.
+`
 
 ## CefGlueControl Properties
 
 | Property | Type | Default | Group | Description |
 |----------|------|---------|-------|-------------|
-| `InitialUrl` | string | "about:blank" | Browser Settings | URL to load when browser is created |
-| `Mode` | RenderMode | OSR | Browser Settings | Render mode: OSR / EmbeddedWindow |
-| `FrameRate` | int | 60 | Browser Settings | Browser frame rate, 1-360 |
-| `Transparent` | bool | false | Browser Settings | Enable transparent background (OSR only) |
-| `GpuAcceleration` | bool | true | Feature Toggles | Enable GPU hardware acceleration |
-| `OpenPopupInCurrentBrowser` | bool | true | Feature Toggles | Open popups in current browser |
-| `SyncCursor` | bool | false | Feature Toggles | Sync cursor with web content (OSR only) |
-| `ForwardInputEvents` | bool | false | Embedded Mode | Forward browser events to Godot (EmbeddedWindow only) |
+| InitialUrl | string | "about:blank" | Browser Settings | URL to load when browser is created |
+| Mode | RenderMode | OSR | Browser Settings | Render mode: OSR / EmbeddedWindow |
+| FrameRate | int | 60 | Browser Settings | Browser frame rate, 1-360 |
+| Transparent | bool | false | Browser Settings | Enable transparent background (OSR only) |
+| GpuAcceleration | bool | true | Feature Toggles | Enable GPU hardware acceleration |
+| OpenPopupInCurrentBrowser | bool | true | Feature Toggles | Open popups in current browser |
+| SyncCursor | bool | false | Feature Toggles | Sync cursor with web content (OSR only) |
+| ForwardInputEvents | bool | false | Embedded Mode | Forward browser events to Godot (EmbeddedWindow only) |
 
 ### Dynamic Property Visibility
 
-Properties automatically show/hide based on the selected `Mode`:
-
 | Mode | Visible | Hidden |
 |------|---------|--------|
-| `OSR` | `SyncCursor`, `Transparent` | `ForwardInputEvents`, "Embedded Mode" group |
-| `EmbeddedWindow` | `ForwardInputEvents`, "Embedded Mode" group | `SyncCursor` |
+| OSR | SyncCursor, Transparent | ForwardInputEvents, "Embedded Mode" group |
+| EmbeddedWindow | ForwardInputEvents, "Embedded Mode" group | SyncCursor |
 
 ### RenderMode Enum
 
 | Value | Description |
 |-------|-------------|
-| `OSR` (0) | Off-screen rendering. CEF renders to memory → Godot texture. **Supports transparency**. Cross-platform (Windows/Linux/macOS) |
-| `EmbeddedWindow` (1) | Embedded native child window. CEF renders directly to OS window. **Better performance** (video/WebGL), **no transparency**. Cross-platform: Windows (Win32), Linux (X11), macOS (Cocoa) |
+| OSR (0) | Off-screen rendering. CEF renders to memory → Godot texture. **Supports transparency**. Cross-platform (Windows/Linux/macOS) |
+| EmbeddedWindow (1) | Embedded native child window. CEF renders directly to OS window. **Better performance** (video/WebGL), **no transparency**. Cross-platform: Windows (Win32), Linux (X11), macOS (Cocoa) |
 
 ### ForwardInputEvents
 
-When `Mode = EmbeddedWindow` and `ForwardInputEvents = true`, browser mouse/keyboard events are forwarded to Godot via IPC:
-
-```
-JS events → window.__godotEvents.forward(payload) → CEF IPC → C# → viewport.PushInput()
-```
-
-**Supported events:**
-
-| Event | JS capture | Godot event |
-|-------|-----------|-------------|
-| `mouse_down` / `mouse_up` | `mousedown` / `mouseup` | `InputEventMouseButton` |
-| `mouse_move` | `mousemove` | `InputEventMouseMotion` |
-| `mouse_wheel` | `wheel` | `InputEventMouseButton(WheelUp/Down)` |
-| `key_down` / `key_up` | `keydown` / `keyup` | `InputEventKey` |
-
-**Coordinate mapping:** JS `clientX/clientY` (physical pixels) → Godot virtual pixels, respecting `ContentScale`.
+`
+JS events → window.__hostEvents.forward(payload) → CEF IPC → C# → viewport.PushInput()
+`
 
 ### Static Properties
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `UseGpuAcceleration` | bool | Global GPU acceleration, must be set before CEF initialization |
-| `UseTransparent` | bool | Global transparency setting, must be set before CEF initialization |
+| UseGpuAcceleration | bool | Global GPU acceleration, must be set before CEF initialization |
+| UseTransparent | bool | Global transparency setting, must be set before CEF initialization |
 
 ### Read-only Properties
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Address` | string | Current page URL |
-| `IsBrowserInitialized` | bool | Whether the browser is initialized |
-| `IsLoading` | bool | Whether the page is loading |
-| `Title` | string | Current page title |
+| Address | string | Current page URL |
+| IsBrowserInitialized | bool | Whether the browser is initialized |
+| IsLoading | bool | Whether the page is loading |
+| Title | string | Current page title |
 
 ## CefGlueControl Methods
 
 | Method | Description |
 |--------|-------------|
-| `GoBack()` | Navigate back |
-| `GoForward()` | Navigate forward |
-| `NavigateToUrl(string url)` | Navigate to URL |
-| `Reload(bool ignoreCache = false)` | Reload page |
-| `ExecuteJavaScript(string code, ...)` | Execute JavaScript |
-| `EvaluateJavaScript<T>(string code, ...)` | Execute JS and return result |
-| `ShowDeveloperTools()` | Open DevTools |
-| `CloseDeveloperTools()` | Close DevTools |
+| GoBack() | Navigate back |
+| GoForward() | Navigate forward |
+| NavigateToUrl(string url) | Navigate to URL |
+| Reload(bool ignoreCache = false) | Reload page |
+| ExecuteJavaScript(string code, ...) | Execute JavaScript |
+| EvaluateJavaScript<T>(string code, ...) | Execute JS and return result |
+| ShowDeveloperTools() | Open DevTools |
+| CloseDeveloperTools() | Close DevTools |
 
 ## JS ↔ C# Bridge
 
-### Method 1: RegisterJavascriptObject (Recommended) ✅
+### RegisterJavascriptObject (Recommended) ✅
 
-**C# registration:**
-```csharp
+`csharp
 browser.RegisterJavascriptObject(new MyBridge(), "myBridge");
-```
+`
 
-**JS call (returns Promise, use .then()):**
-```javascript
+**JS call (returns Promise):**
+`javascript
 window.myBridge.hello().then(function(result) {
     console.log(result);
 }).catch(function(err) {
     console.error(err);
 });
-```
+`
 
 **C# → JS: evaluate and get result:**
-```csharp
+`csharp
 var title = await browser.EvaluateJavaScript<string>("document.title");
-```
+`
 
-**C# → JS: push message:**
-```csharp
+**C# → JS: push message (JS receives via window.__hostBridge._onMessage):**
+`csharp
 browser.SendToJs("{\"type\":\"update\",\"payload\":{\"count\":42}}");
-```
+`
+
+### JS API Reference
+
+| Object | Method | Description |
+|--------|--------|-------------|
+| window.__hostBridge | ._onMessage(msg) | Receive push messages from host |
+| window.__hostBridge | ._onResponse(cbId, json) | Receive response from host |
+| window.__hostEvents | .forward(payload) | Forward input events to host (EmbeddedWindow mode) |
 
 ### API Overview
 
-| API | Direction | Description | Status |
-|-----|-----------|-------------|--------|
-| `RegisterJavascriptObject(target, name)` | C# → JS | Register object callable from JS | ✅ Recommended |
-| `EvaluateJavaScript<T>(code, ...)` | C# → JS | Execute JS and return result | ✅ Recommended |
-| `SendToJs(json)` | C# → JS | Push message to JS | ✅ Active |
-| `SendResponse(cbId, json)` | C# → JS | Reply to legacy iframe request | 🔴 Deprecated |
-| `BridgeRequest` event | JS → C# | Legacy iframe bridge entry | 🔴 Deprecated |
+| API | Direction | Description |
+|-----|-----------|-------------|
+| RegisterJavascriptObject(target, name) | C# → JS | Register object callable from JS |
+| EvaluateJavaScript<T>(code, ...) | C# → JS | Execute JS and return result |
+| SendToJs(json) | C# → JS | Push message to JS |
+| SendResponse(cbId, json) | C# → JS | Reply to bridge request |
+| BridgeRequest event | JS → C# | Bridge request entry |
 
 ## CefGlueControl Signals
 
 | Signal | Parameters | Description |
 |--------|-----------|-------------|
-| `BrowserInitialized` | — | Browser initialization complete |
-| `AddressChanged` | `url: string` | URL changed |
-| `TitleChanged` | `title: string` | Title changed |
-| `LoadStart` | — | Page starts loading |
-| `LoadEnd` | — | Page finishes loading |
-| `LoadError` | `errorText, failedUrl` | Page failed to load |
+| BrowserInitialized | — | Browser initialization complete |
+| AddressChanged | url: string | URL changed |
+| TitleChanged | 	itle: string | Title changed |
+| LoadStart | — | Page starts loading |
+| LoadEnd | — | Page finishes loading |
+| LoadError | errorText, failedUrl | Page failed to load |
 
 ## Troubleshooting
 
@@ -410,23 +243,23 @@ browser.SendToJs("{\"type\":\"update\",\"payload\":{\"count\":42}}");
 2. Try disabling GPU acceleration
 
 ### Missing DLLs
-1. Run `dotnet restore`
+1. Run dotnet restore
 2. Clean and rebuild
 
 ### Blank Page
-1. Check if `locales` directory exists
-2. Ensure `resources.pak` is present
+1. Check if locales directory exists
+2. Ensure esources.pak is present
 
 ## Known Issues
 
 1. **Right-click Context Menu**: Not supported
-2. **Network Notification**: `WSALookupServiceBegin failed with: 10108` is a normal warning
+2. **Network Notification**: WSALookupServiceBegin failed with: 10108 is a normal warning
 3. **Embedded window focus**: Clicking Godot input after CEF may not release keyboard focus. Auto-handled via platform-specific APIs.
 4. **JS Bridge S prefix**: CefGlue's serialization prepends 'S' marker to strings. Automatically stripped.
 
 ## License
 
-GDCefGlue is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+GDCefGlue is licensed under the MIT License.
 
 Third-party dependencies:
 - [CefGlue](https://github.com/youfch/CefGlue) - BSD-3-Clause

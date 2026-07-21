@@ -226,7 +226,7 @@ namespace GDCefGlue
         public event LoadErrorEventHandler LoadError;
 
         /// <summary>
-        /// JS → C# 桥接请求事件。JS 调用 window._godotBridge.sendToGodot(msg) 时触发。
+        /// JS → C# 桥接请求事件。JS 调用 window.__hostBridge.send({type:'...', payload:{}}) 时触发。
         /// 参数: (type, payload, cbId) — cbId 可能为 null(无回调) 或字符串(需通过 SendResponse 回复)。
         /// </summary>
         public event Action<string, string, string> BridgeRequest;

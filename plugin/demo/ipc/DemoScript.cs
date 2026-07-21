@@ -104,7 +104,7 @@ public partial class DemoScript : Control
         // 注册 C# 对象到 JS — 在 OnLoadEnd 也会重新注册以确保导航后 V8 绑定可用
         RegisterBridgeObjects();
 
-        // 注入 _godotBridge 辅助脚本（兼容现有 godot:// bridge 机制）
+        // 注入 __hostBridge 辅助脚本（兼容现有 godot:// bridge 机制）
         InjectBridgeScript();
 
         // 用 data: URI 加载测试 HTML
@@ -125,9 +125,9 @@ public partial class DemoScript : Control
     {
         var js = @"
 (function() {
-    if (window._godotBridge) return;
+    if (window.__hostBridge) return;
     var pending = {};
-    window._godotBridge = {
+    window.__hostBridge = {
         _onMessage: function(m){},
         _onResponse: function(id,msg){
             if(pending[id]){ pending[id](msg); delete pending[id]; }

@@ -41,9 +41,9 @@ func _register_bridge() -> void:
 func _inject_bridge() -> void:
 	var js = """
 (function() {
-	if (window._godotBridge) return;
+	if (window.__hostBridge) return;
 	var pending = {};
-	window._godotBridge = {
+	window.__hostBridge = {
 		_onMessage: function(m){},
 		_onResponse: function(id,msg){
 			if(pending[id]){ pending[id](msg); delete pending[id]; }

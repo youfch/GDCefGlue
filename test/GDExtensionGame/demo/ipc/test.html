@@ -76,8 +76,8 @@ function log(msg, cls) {
   el.scrollTop = el.scrollHeight;
 }
 
-// Setup _godotBridge callbacks (for C# → JS push/response)
-window._godotBridge = {
+// Setup __hostBridge callbacks (for C# → JS push/response)
+window.__hostBridge = {
   _onMessage: function(msg) {
     log('C# pushed: ' + msg, 'info');
   },

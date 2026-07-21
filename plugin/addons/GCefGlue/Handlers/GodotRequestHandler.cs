@@ -7,8 +7,8 @@ namespace GDCefGlue
     ///
     /// JS → C#:  iframe.src = "godot://bridge?type=X&cb=ID&payload=JSON"
     ///           (triggers OnBeforeBrowse; we cancel & dispatch via BridgeRequest event)
-    /// C# → JS:  control.SendToJs(json)  →  window._godotBridge._onMessage(msg)
-    ///           control.SendResponse(cbId, json)  →  window._godotBridge._onResponse(id, msg)
+    /// C# → JS:  control.SendToJs(json)  →  window.__hostBridge._onMessage(msg)
+    ///           control.SendResponse(cbId, json)  →  window.__hostBridge._onResponse(id, msg)
     /// </summary>
     internal sealed class GodotRequestHandler : CefRequestHandler
     {

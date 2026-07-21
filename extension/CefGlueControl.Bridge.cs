@@ -255,13 +255,13 @@ public partial class CefGlueControl
     public void SendToJs(string json)
     {
         var e = json.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
-        _browser?.GetMainFrame()?.ExecuteJavaScript($"window._godotBridge && window._godotBridge._onMessage('{e}');", "godot://response", 1);
+        _browser?.GetMainFrame()?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onMessage('{e}');", "godot://response", 1);
     }
 
     public void SendResponse(string cbId, string json)
     {
         var e = json.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
-        _browser?.GetMainFrame()?.ExecuteJavaScript($"window._godotBridge && window._godotBridge._onResponse('{cbId}',\"{e}\");", "godot://response", 1);
+        _browser?.GetMainFrame()?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onResponse('{cbId}',\"{e}\");", "godot://response", 1);
     }
 
     internal void OnBridgeRequest(string url)

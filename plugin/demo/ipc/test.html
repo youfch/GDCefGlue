@@ -91,8 +91,8 @@ function log(msg, cls) {
   el.scrollTop = el.scrollHeight;
 }
 
-// Setup _godotBridge callbacks (for C# → JS push/response)
-window._godotBridge = {
+// Setup __hostBridge callbacks (for C# → JS push/response)
+window.__hostBridge = {
   _onMessage: function(msg) {
     log('C# pushed: ' + msg, 'info');
   },
@@ -200,7 +200,7 @@ function evalMath() {
 }
 
 // ── Initialization ──────────────────────────────────────────────
-log('✅ HTML loaded. Waiting for _godotBridge → C#.', 'ok');
+log('✅ HTML loaded. Waiting for __hostBridge → C#.', 'ok');
 log('ℹ️  window.dotnetBridge methods:', 'info');
 log('   hello(cb), echo(msg,cb), add(a,b,cb), getVersion(cb)', 'info');
 log('ℹ️  Click buttons to test.', 'info');

@@ -13,13 +13,13 @@ public partial class CefGlueControl
     /// </summary>
     private const string EventForwardingScript = @"
 (function(){
-    if (window.__godotEventForwardInjected) return;
-    window.__godotEventForwardInjected = true;
+    if (window.__hostEventForwardInjected) return;
+    window.__hostEventForwardInjected = true;
 
     function godotEvent(type, data) {
         var p = {eventType: type};
         for (var k in data) { p[k] = data[k]; }
-        window.__godotEvents.forward(JSON.stringify(p));
+        window.__hostEvents.forward(JSON.stringify(p));
     }
 
     document.addEventListener('mousedown', function(e) {
@@ -81,7 +81,7 @@ public partial class CefGlueControl
     }
 
     /// <summary>
-    /// 注册 __godotEvents V8 对象。仅嵌入模式。
+    /// 注册 __hostEvents V8 对象。仅嵌入模式。
     /// </summary>
     internal void RegisterEventForwarder()
     {
@@ -89,7 +89,7 @@ public partial class CefGlueControl
         if (_renderMode != RenderMode.EmbeddedWindow) return;
         if (!_eventForwarderRegistered)
         {
-            RegisterJavascriptObject(new GodotEventForwarder(this), "__godotEvents");
+            RegisterJavascriptObject(new GodotEventForwarder(this), "__hostEvents");
             _eventForwarderRegistered = true;
         }
     }
