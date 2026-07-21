@@ -100,7 +100,7 @@ jobs:
           dotnet publish extension/GDCefGlueExtension.csproj `
             -c Release -r ${{ matrix.rid }} -p:PublishAot=true -p:CopyCefFiles=false
 
-- name: Debug - list publish output
+      - name: Debug - list publish output
         shell: pwsh
         run: |
           $BASE = "extension/bin/Release/net10.0/${{ matrix.rid }}"
