@@ -1,0 +1,108 @@
+name: Build GDExtension (all platforms)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0, 2.0-beta1)"
+        required: true
+        default: "1.0"
+      cefglue_tag:
+        description: "CefGlue release tag for NuGet packages"
+        required: true
+        default: "v149.7827.156"
+
+env:
+  DOTNET_VERSION: "10.0.x"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            platform: windows
+          - os: ubuntu-latest
+            rid: linux-x64
+            platform: linux
+          - os: macos-latest
+            rid: osx-x64
+            platform: macos
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # CefGlue NuGet packages are on GitHub Releases, not NuGet.org
+      - name: Download CefGlue NuGet packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          mkdir -p _cefglue-nuget
+          gh release download "${{ github.event.inputs.cefglue_tag }}" `
+            --repo youfch/CefGlue `
+            --dir _cefglue-nuget `
+            --pattern "*.nupkg"
+          dotnet nuget add source "$PWD/_cefglue-nuget" --name local-cefglue
+
+      - name: Restore
+        run: dotnet restore extension/GDCefGlueExtension.csproj -r ${{ matrix.rid }}
+
+      - name: Publish (NativeAOT)
+        run: >
+          dotnet publish extension/GDCefGlueExtension.csproj
+          -c Release -r ${{ matrix.rid }} -p:PublishAot=true
+
+      - name: Assemble package
+        run: python extension/build_package.py --no-build --rid ${{ matrix.rid }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdcefglue-${{ matrix.platform }}
+          path: addons/gdcefglue/${{ matrix.platform }}/
+
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: _artifacts
+
+      - name: Merge into addons/gdcefglue/
+        run: |
+          mkdir -p addons/gdcefglue
+          for dir in _artifacts/gdcefglue-*/; do
+            [ -d "$dir" ] && cp -r "$dir"/* addons/gdcefglue/
+          done
+          echo "=== Package structure ==="
+          find addons/gdcefglue -type f | sort
+
+      - name: Generate .gdextension
+        run: python extension/build_package.py --no-build --rid win-x64 || true
+
+      - name: Create archive
+        run: |
+          cd addons
+          zip -r ../gdcefglue-${{ github.event.inputs.version }}.zip gdcefglue/
+          echo "Archive: gdcefglue-${{ github.event.inputs.version }}.zip"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ github.event.inputs.version }}" \
+            --repo ${{ github.repository }} \
+            --title "GDCefGlue v${{ github.event.inputs.version }}" \
+            --notes "See [README](https://github.com/${{ github.repository }}) for usage." \
+            gdcefglue-${{ github.event.inputs.version }}.zip

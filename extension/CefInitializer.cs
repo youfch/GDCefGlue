@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using Godot;
 using Xilium.CefGlue;
@@ -10,38 +9,42 @@ using Xilium.CefGlue;
 namespace GDCefGlueExtension;
 
 public static class CefInitializer
+{
+    private static bool _initialized;
+    private static GodotBrowserProcessHandler _browserProcessHandler;
+    private static string _addonRoot;
+
+    public static string CacheDirectory { get; set; } = "user://cef_cache";
+
+    public static void Initialize()
     {
-        private static bool _initialized;
-        private static GodotBrowserProcessHandler _browserProcessHandler;
-        private static string _extensionDirectory;
+        if (_initialized) return;
+        _initialized = true;
 
-        /// <summary>
-        /// CEF 缓存目录。可在首次调用 Initialize() 前修改。
-        /// 默认: user://cef_cache
-        /// </summary>
-        public static string CacheDirectory { get; set; } = "user://cef_cache";
-
-        public static void Initialize()
+        try
         {
-            if (_initialized) return;
-            _initialized = true;
+            GD.Print("CefInitializer: Starting CEF initialization...");
 
-            try
-            {
-                GD.Print("CefInitializer: Starting CEF initialization...");
+            _addonRoot = ResolveAddonRoot();
+            var platform = DetectPlatform();
+            var platformDir = Path.Combine(_addonRoot, platform);
+            var cachePath = ProjectSettings.Singleton.GlobalizePath(CacheDirectory);
+            Directory.CreateDirectory(cachePath);
 
-                _extensionDirectory = GetExtensionDirectory();
-
-                var cachePath = ProjectSettings.Singleton.GlobalizePath(CacheDirectory);
-                Directory.CreateDirectory(cachePath);
-
-            var resourcesDirPath = FindResourcesDirPath();
-            var localesDirPath = Path.Combine(resourcesDirPath, "locales");
-
-            var cefLibraryPath = FindCefLibraryPath();
+            // CEF native library (libcef.dll / .so / .dylib)
+            var cefLibraryPath = FindCefLibrary(platformDir);
             if (cefLibraryPath == null)
+            {
+                GD.PrintErr("CefInitializer: libcef not found!");
+                return;
+            }
 
-            PreloadCefDependencies(_extensionDirectory);
+            // Preload CEF DLLs (Windows only)
+            PreloadCefDependencies(platformDir);
+
+            // Resources (resources.pak, locales/)
+            var resourcesDir = FindResources(platformDir);
+            var localesDir = Path.Combine(resourcesDir, "locales");
 
             var settings = new CefSettings
             {
@@ -54,8 +57,8 @@ public static class CefInitializer
                 RemoteDebuggingPort = 0,
                 LogSeverity = CefLogSeverity.Warning,
                 LogFile = Path.Combine(cachePath, "cef.log"),
-                ResourcesDirPath = resourcesDirPath,
-                LocalesDirPath = localesDirPath,
+                ResourcesDirPath = resourcesDir,
+                LocalesDirPath = localesDir,
                 Locale = "zh-CN"
             };
 
@@ -64,7 +67,7 @@ public static class CefInitializer
 
             CefRuntime.Load();
 
-            var subProcessPath = FindBrowserSubprocessPath();
+            var subProcessPath = FindBrowserSubprocess(platformDir);
             if (subProcessPath == null)
             {
                 GD.PrintErr("CefInitializer: Browser subprocess not found!");
@@ -73,7 +76,6 @@ public static class CefInitializer
             settings.BrowserSubprocessPath = subProcessPath;
 
             var exeFileName = Process.GetCurrentProcess().MainModule?.FileName ?? "Godot";
-
             _browserProcessHandler = new GodotBrowserProcessHandler();
 
             CefRuntime.Initialize(new CefMainArgs(new[] { exeFileName }), settings, new GodotCefApp(), IntPtr.Zero);
@@ -92,179 +94,107 @@ public static class CefInitializer
         }
     }
 
+    private static string DetectPlatform()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return "windows";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return "linux";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return "macos";
+        return "windows";
+    }
+
+    private static string ResolveAddonRoot()
+    {
+        // 1. res://addons/gdcefglue/ (editor/dev, GDExtension release package)
+        var projectPath = ProjectSettings.Singleton.GlobalizePath("res://");
+        var addonsPath = Path.Combine(projectPath, "addons", "gdcefglue");
+        if (Directory.Exists(addonsPath))
+            return addonsPath;
+
+        // 2. lib/ (test project)
+        var libPath = Path.Combine(projectPath, "lib");
+        if (Directory.Exists(libPath))
+            return libPath;
+
+        // 3. Fallback
+        return AppContext.BaseDirectory;
+    }
+
+    private static string FindCefLibrary(string platformDir)
+    {
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var fileName = isWindows ? "libcef.dll"
+            : RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "libcef.so"
+            : "libcef.dylib";
+
+        var paths = new List<string>
+        {
+            Path.Combine(platformDir, fileName),
+            Path.Combine(AppContext.BaseDirectory, fileName)
+        };
+
+        foreach (var path in paths)
+        {
+            if (File.Exists(path))
+                return path;
+        }
+
+        return null;
+    }
+
     private static void PreloadCefDependencies(string directory)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return;
 
-        string[] dllFiles = new[]
-        {
-            "libcef.dll",
-            "chrome_elf.dll",
-            "d3dcompiler_47.dll",
-            "libEGL.dll",
-            "libGLESv2.dll",
-            "vk_swiftshader.dll",
-            "vulkan-1.dll"
-        };
-
+        string[] dllFiles = { "libcef.dll", "chrome_elf.dll", "d3dcompiler_47.dll", "libEGL.dll", "libGLESv2.dll", "vk_swiftshader.dll", "vulkan-1.dll" };
         foreach (var dll in dllFiles)
         {
             var dllPath = Path.Combine(directory, dll);
             if (File.Exists(dllPath))
             {
-                try { NativeLibrary.Load(dllPath); }
-                catch { }
+                try { NativeLibrary.Load(dllPath); } catch { }
             }
         }
     }
 
-    private static string GetExtensionDirectory()
-    {
-        var projectPath = Godot.ProjectSettings.Singleton.GlobalizePath("res://");
-        if (!string.IsNullOrEmpty(projectPath) && Directory.Exists(projectPath))
-        {
-            // Check addons/gdcefglue (GDExtension release package)
-            var gdeAddonsPath = Path.Combine(projectPath, "addons", "gdcefglue");
-            if (Directory.Exists(gdeAddonsPath))
-            {
-                return gdeAddonsPath;
-            }
-
-            var libPath = Path.Combine(projectPath, "lib");
-            if (Directory.Exists(libPath))
-            {
-                var dllPath = Path.Combine(libPath, "GDCefGlueExtension.dll");
-                if (File.Exists(dllPath))
-                {
-                    return libPath;
-                }
-            }
-            
-            var addonsPath = Path.Combine(projectPath, "addons", "GCefGlue");
-            if (Directory.Exists(addonsPath))
-            {
-                return addonsPath;
-            }
-        }
-
-        var baseDirectory = AppContext.BaseDirectory;
-        return baseDirectory;
-    }
-
-    private static string FindCefLibraryPath()
+    private static string FindBrowserSubprocess(string platformDir)
     {
         var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        var isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-        var isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-        
-        var cefLibNames = new List<string>();
-        
-        if (isWindows)
-        {
-            cefLibNames.Add("libcef.dll");
-            cefLibNames.Add(Path.Combine("runtimes", "win-x64", "native", "libcef.dll"));
-        }
-        else if (isLinux)
-        {
-            cefLibNames.Add("libcef.so");
-            cefLibNames.Add("cef.so");
-            cefLibNames.Add(Path.Combine("runtimes", "linux-x64", "native", "libcef.so"));
-            cefLibNames.Add(Path.Combine("runtimes", "linux-x64", "native", "cef.so"));
-        }
-        else if (isMac)
-        {
-            cefLibNames.Add("libcef.dylib");
-            cefLibNames.Add("cef.dylib");
-            cefLibNames.Add(Path.Combine("runtimes", "osx-x64", "native", "libcef.dylib"));
-        }
+        var fileName = isWindows ? "Xilium.CefGlue.BrowserProcess.exe" : "Xilium.CefGlue.BrowserProcess";
 
-        var searchPaths = new List<string>();
-        
-        foreach (var cefLib in cefLibNames)
+        var paths = new List<string>
         {
-            searchPaths.Add(Path.Combine(_extensionDirectory, cefLib));
-            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, cefLib));
-        }
-
-        foreach (var path in searchPaths)
-        {
-            if (File.Exists(path))
-            {
-                return path;
-            }
-        }
-
-        return null;
-    }
-
-    private static string FindBrowserSubprocessPath()
-    {
-        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        
-        var browserProcessFileName = isWindows 
-            ? "Xilium.CefGlue.BrowserProcess.exe" 
-            : "Xilium.CefGlue.BrowserProcess";
-
-        var searchPaths = new List<string>
-        {
-            Path.Combine(_extensionDirectory, "CefGlueBrowserProcess", browserProcessFileName),
-            Path.Combine(_extensionDirectory, browserProcessFileName),
-            Path.Combine(AppContext.BaseDirectory, "CefGlueBrowserProcess", browserProcessFileName),
-            Path.Combine(AppContext.BaseDirectory, browserProcessFileName)
+            Path.Combine(platformDir, "CefGlueBrowserProcess", fileName),
+            Path.Combine(platformDir, fileName),
+            Path.Combine(AppContext.BaseDirectory, "CefGlueBrowserProcess", fileName),
+            Path.Combine(AppContext.BaseDirectory, fileName)
         };
 
-        foreach (var path in searchPaths)
+        foreach (var path in paths)
         {
             if (File.Exists(path))
-            {
                 return path;
-            }
         }
 
         return null;
     }
 
-    private static string FindResourcesDirPath()
+    private static string FindResources(string platformDir)
     {
-        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        var isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-        var isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-
-        var searchPaths = new List<string>
+        var paths = new List<string>
         {
-            _extensionDirectory,
+            platformDir,
             AppContext.BaseDirectory
         };
 
-        if (isWindows)
-        {
-            searchPaths.Add(Path.Combine(_extensionDirectory, "runtimes", "win-x64", "native"));
-            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native"));
-        }
-        else if (isLinux)
-        {
-            searchPaths.Add(Path.Combine(_extensionDirectory, "runtimes", "linux-x64", "native"));
-            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64", "native"));
-        }
-        else if (isMac)
-        {
-            searchPaths.Add(Path.Combine(_extensionDirectory, "runtimes", "osx-x64", "native"));
-            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "runtimes", "osx-x64", "native"));
-            searchPaths.Add(Path.Combine(_extensionDirectory, "Resources"));
-            searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources"));
-        }
-
-        foreach (var path in searchPaths)
+        foreach (var path in paths)
         {
             var pakFile = Path.Combine(path, "resources.pak");
             var localesDir = Path.Combine(path, "locales");
             if (File.Exists(pakFile) && Directory.Exists(localesDir))
-            {
                 return path;
-            }
         }
 
-        return _extensionDirectory;
+        return platformDir;
     }
 }
