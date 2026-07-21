@@ -24,11 +24,12 @@ EXTENSION_DIR = REPO_ROOT / "extension"
 OUTPUT_DIR = REPO_ROOT / "addons" / "gdcefglue"
 
 # Platform definitions
+# Platform definitions: file names are auto-detected (AOT output may vary)
 PLATFORMS = {
-    "win-x64":  {"dir": "windows", "lib": "GDCefGlueExtension.dll",       "bp": "Xilium.CefGlue.BrowserProcess.exe"},
-    "linux-x64": {"dir": "linux",   "lib": "libGDCefGlueExtension.so",     "bp": "Xilium.CefGlue.BrowserProcess"},
-    "osx-x64":  {"dir": "macos",   "lib": "libGDCefGlueExtension.dylib",  "bp": "Xilium.CefGlue.BrowserProcess"},
-    "osx-arm64": {"dir": "macos",  "lib": "libGDCefGlueExtension.dylib",  "bp": "Xilium.CefGlue.BrowserProcess"},
+    "win-x64":  {"dir": "windows", "bp": "Xilium.CefGlue.BrowserProcess.exe"},
+    "linux-x64": {"dir": "linux",   "bp": "Xilium.CefGlue.BrowserProcess"},
+    "osx-x64":  {"dir": "macos",   "bp": "Xilium.CefGlue.BrowserProcess"},
+    "osx-arm64": {"dir": "macos",  "bp": "Xilium.CefGlue.BrowserProcess"},
 }
 
 # CEF runtime files per platform
@@ -156,15 +157,23 @@ def copy_browser_process(rid, nuget_cache):
 def copy_gdextension_lib(rid):
     info = PLATFORMS[rid]
     publish = EXTENSION_DIR / "bin" / "Release" / "net10.0" / rid / "publish"
-    lib_src = publish / info["lib"]
-    if not lib_src.exists():
-        print(f"  [ERROR] {lib_src} not found. Run 'dotnet publish' first.")
+    if not publish.exists():
+        print(f"  [ERROR] Publish directory not found: {publish}")
         return False
 
+    # Try multiple naming patterns (AOT output varies by platform)
+    candidates = list(publish.glob("GDCefGlueExtension*")) + list(publish.glob("libGDCefGlueExtension*"))
+    if not candidates:
+        print(f"  [ERROR] GDCefGlueExtension native library not found in {publish}")
+        for f in publish.iterdir():
+            print(f"    {f.name}")
+        return False
+
+    lib_src = candidates[0]
     dst = OUTPUT_DIR / info["dir"]
     dst.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(lib_src, dst / info["lib"])
-    print(f"  {info['lib']}")
+    shutil.copy2(lib_src, dst / lib_src.name)
+    print(f"  {lib_src.name}")
     return True
 
 
