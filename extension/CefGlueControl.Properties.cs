@@ -37,7 +37,7 @@ public partial class CefGlueControl
         set => _gpuAcceleration = value;
     }
 
-    private bool _openPopupInCurrentBrowser = true;
+    private bool _openPopupInCurrentBrowser = false;
     public bool OpenPopupInCurrentBrowser
     {
         get => _openPopupInCurrentBrowser;

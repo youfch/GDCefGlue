@@ -3,7 +3,7 @@ using System;
 using GDCefGlue;
 using Xilium.CefGlue;
 
-public partial class MainUi : Control
+public partial class Browser : Control
 {
     private CefGlueControl _browser;
     private LineEdit _urlInput;

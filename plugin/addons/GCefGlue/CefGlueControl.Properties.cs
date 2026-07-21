@@ -76,7 +76,7 @@ namespace GDCefGlue
         /// If true, popup windows navigate in the current browser instead of opening new windows.
         /// </summary>
         [Export]
-        public bool OpenPopupInCurrentBrowser { get; set; } = true;
+        public bool OpenPopupInCurrentBrowser { get; set; } = false;
 
         /// <summary>
         /// If true, the mouse cursor changes to match web content (e.g. I-beam, hand).

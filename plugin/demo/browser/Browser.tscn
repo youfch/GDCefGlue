@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dvcw8m1iaeejo"]
 
-[ext_resource type="Script" uid="uid://byqhkcubr2vf" path="res://MainUi.cs" id="1_vfs0v"]
+[ext_resource type="Script" uid="uid://byqhkcubr2vf" path="res://demo/browser/Browser.cs" id="1_vfs0v"]
 [ext_resource type="Script" uid="uid://d25hmir240bvt" path="res://addons/GCefGlue/CefGlueControl.cs" id="2_guh61"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_guh61"]
