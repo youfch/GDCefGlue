@@ -7,88 +7,21 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <ExcludeFromProductBuild>true</ExcludeFromProductBuild>
-  </PropertyGroup>
-
   <ItemGroup>
     <Reference Include="Godot.Bindings">
       <HintPath>Dll\Godot.Bindings.dll</HintPath>
     </Reference>
   </ItemGroup>
 
-  <!-- CEF packages (change versions here, paths auto-resolve via GeneratePathProperty) -->
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
-    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" GeneratePathProperty="true" />
-  </ItemGroup>
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
-    <PackageReference Include="cef.redist.linux64" Version="149.0.4" GeneratePathProperty="true" />
-  </ItemGroup>
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <PackageReference Include="CefGlue.Common" Version="149.7827.156" GeneratePathProperty="true" />
-    <PackageReference Include="cef.redist.osx64" Version="149.0.4" GeneratePathProperty="true" />
+  <ItemGroup>
+    <PackageReference Include="cef.redist.linux64" Version="149.0.4" />
+    <PackageReference Include="cef.redist.linuxarm64" Version="149.0.4" />
+    <PackageReference Include="cef.redist.osx64" Version="149.0.4" />
+    <PackageReference Include="cef.redist.osxarm64" Version="149.0.4" />
+    <PackageReference Include="CefGlue.BrowserProcess.runtime" Version="149.7827.156" />
+    <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
+    <PackageReference Include="chromiumembeddedframework.runtime" Version="149.0.4" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
   </ItemGroup>
 
-  <!-- Platform-specific paths (computed once) -->
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <CefNativePath>$(Pkgchromiumembeddedframework_runtime_win_x64)\runtimes\win-x64\native\</CefNativePath>
-    <CefLocalesPath>$(Pkgchromiumembeddedframework_runtime_win_x64)\CEF\win-x64\locales\</CefLocalesPath>
-    <BrowserProcessPath>$(PkgCefGlue_Common)\bin\win-x64\</BrowserProcessPath>
-  </PropertyGroup>
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-    <CefNativePath>$(Pkgcef_redist_linux64)\CEF\</CefNativePath>
-    <BrowserProcessPath>$(PkgCefGlue_Common)\bin\linux-x64\</BrowserProcessPath>
-  </PropertyGroup>
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <CefNativePath>$(Pkgcef_redist_osx64)\CEF\</CefNativePath>
-    <BrowserProcessPath>$(PkgCefGlue_Common)\bin\osx-x64\</BrowserProcessPath>
-  </PropertyGroup>
-
-  <!-- Copy CEF files after Build -->
-  <Target Name="CopyCefFiles_Build" AfterTargets="Build">
-    <PropertyGroup>
-      <OutDir>$(TargetDir)</OutDir>
-    </PropertyGroup>
-    <CallTarget Targets="CopyCefFiles" />
-  </Target>
-
-  <!-- Copy CEF files after Publish -->
-  <Target Name="CopyCefFiles_Publish" AfterTargets="Publish">
-    <PropertyGroup>
-      <OutDir>$(PublishDir)</OutDir>
-    </PropertyGroup>
-    <CallTarget Targets="CopyCefFiles" />
-  </Target>
-
-  <!-- Shared copy logic for all platforms -->
-  <Target Name="CopyCefFiles">
-    <Message Text="=== CEF Copy → $(OutDir) ===" Importance="high" />
-
-    <MakeDir Directories="$(OutDir)CefGlueBrowserProcess" />
-    <MakeDir Directories="$(OutDir)locales" />
-
-    <ItemGroup>
-      <CefNativeFiles Include="$(CefNativePath)*.*" />
-      <CefLocaleFiles Include="$(CefLocalesPath)*.pak" Condition="$(CefLocalesPath) != ''" />
-      <BrowserProcessFiles Include="$(BrowserProcessPath)**\*.*" />
-    </ItemGroup>
-
-    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(OutDir)locales" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(OutDir)CefGlueBrowserProcess" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(BrowserProcessFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
-
-    <!-- Windows: also copy to runtimes\win-x64\native\ -->
-    <Copy SourceFiles="@(CefNativeFiles)" DestinationFolder="$(OutDir)runtimes\win-x64\native\" SkipUnchangedFiles="true" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <Copy SourceFiles="@(CefLocaleFiles)" DestinationFolder="$(OutDir)runtimes\win-x64\native\locales\" SkipUnchangedFiles="true" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-
-    <!-- Unix: set executable permissions -->
-    <Exec Command="chmod +x &quot;$(OutDir)libcef.so&quot;" Condition="$([MSBuild]::IsOSPlatform('Linux')) And Exists('$(OutDir)libcef.so')" />
-    <Exec Command="chmod +x &quot;$(OutDir)libcef.dylib&quot;" Condition="$([MSBuild]::IsOSPlatform('OSX')) And Exists('$(OutDir)libcef.dylib')" />
-    <Exec Command="chmod +x &quot;$(OutDir)CefGlueBrowserProcess\Xilium.CefGlue.BrowserProcess&quot;" Condition="!$([MSBuild]::IsOSPlatform('Windows')) And Exists('$(OutDir)CefGlueBrowserProcess\Xilium.CefGlue.BrowserProcess')" />
-
-    <Message Text="=== CEF Copy Complete ===" Importance="high" />
-  </Target>
 </Project>

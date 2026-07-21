@@ -36,9 +36,10 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 script = ExtResource("2_guh61")
-Mode = 1
 FrameRate = 120
+OpenPopupInCurrentBrowser = false
 SyncCursor = true
+"Embedded Mode" = null
 
 [node name="Toolbar" type="Panel" parent="." unique_id=1161862796]
 layout_mode = 1

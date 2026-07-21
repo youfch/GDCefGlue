@@ -7,8 +7,8 @@ namespace GDCefGlue
 {
     public partial class CefGlueControl
     {
-        public void GoBack() => _browser?.GetMainFrame()?.LoadUrl(_browser?.GetMainFrame()?.Url);
-        public void GoForward() => _browser?.GetMainFrame()?.LoadUrl(_browser?.GetMainFrame()?.Url);
+        public void GoBack() => _browser?.GoBack();
+        public void GoForward() => _browser?.GoForward();
         public void NavigateToUrl(string url) { if (!string.IsNullOrEmpty(url)) _browser?.GetMainFrame()?.LoadUrl(url); }
         public void Reload(bool ignoreCache = false) => _browser?.Reload();
 
