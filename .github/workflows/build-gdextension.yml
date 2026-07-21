@@ -52,6 +52,12 @@ jobs:
         if: ${{ matrix.platform == 'windows' }}
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Debug - show architecture (macOS)
+        if: ${{ matrix.platform == 'macos' }}
+        run: |
+          echo "uname -m: $(uname -m)"
+          echo "dotnet --info:" && dotnet --info | head -20
+
       # CefGlue packages from youfch/CefGlue GitHub Releases
       - name: Download CefGlue packages
         env:
@@ -89,12 +95,77 @@ jobs:
         run: dotnet restore extension/GDCefGlueExtension.csproj -r ${{ matrix.rid }}
 
       - name: Publish (NativeAOT)
-        run: >
-          dotnet publish extension/GDCefGlueExtension.csproj
-          -c Release -r ${{ matrix.rid }} -p:PublishAot=true
+        shell: pwsh
+        run: |
+          dotnet publish extension/GDCefGlueExtension.csproj `
+            -c Release -r ${{ matrix.rid }} -p:PublishAot=true
+
+      - name: Debug - list publish output
+        shell: pwsh
+        run: |
+          $PUB = "extension/bin/Release/net10.0/${{ matrix.rid }}/publish"
+          if (Test-Path $PUB) {
+            Get-ChildItem $PUB -Name | Write-Host
+          } else {
+            Write-Host "::error::Publish directory not found: $PUB"
+            Get-ChildItem "extension/bin/Release/net10.0/${{ matrix.rid }}" -Name 2>&1 | Write-Host
+            exit 1
+          }
 
       - name: Assemble package
-        run: python extension/build_package.py --no-build --rid ${{ matrix.rid }}
+        shell: pwsh
+        run: |
+          $PUB = "extension/bin/Release/net10.0/${{ matrix.rid }}/publish"
+          $OUT = "addons/gdcefglue/${{ matrix.platform }}"
+          $NULL = New-Item -ItemType Directory -Force -Path "$OUT/CefGlueBrowserProcess"
+          $NULL = New-Item -ItemType Directory -Force -Path "$OUT/locales"
+
+          # 1. GDExtension library
+          $found = $false
+          foreach ($pat in @("*.dll", "*.so", "*.dylib", "GDCefGlueExtension*")) {
+            Get-ChildItem "$PUB" -Filter $pat | ForEach-Object {
+              if ($_.Name -match "^GDCefGlueExtension|^libGDCefGlueExtension") {
+                Copy-Item $_.FullName "$OUT/$($_.Name)"
+                Write-Host "  GDExtension: $($_.Name)"
+                $found = $true
+              }
+            }
+          }
+          if (-not $found) {
+            Write-Host "::error::GDCefGlueExtension native library not found in $PUB"
+            Get-ChildItem $PUB -Name | Write-Host
+            exit 1
+          }
+
+          # 2. CEF runtime files
+          $CACHE = (dotnet nuget locals global-packages --list) -split ":" | Select-Object -Last 1
+          $CACHE = $CACHE.Trim()
+          $VER = "${{ github.event.inputs.cef_version }}"
+          if ("${{ matrix.platform }}" -eq "windows") {
+            $SRC = "$CACHE/chromiumembeddedframework.runtime.win-x64/$VER/runtimes/win-x64/native"
+          } elseif ("${{ matrix.platform }}" -eq "linux") {
+            $SRC = "$CACHE/cef.redist.linux64/$VER/CEF"
+          } else {
+            $SRC = "$CACHE/cef.redist.osx64/$VER/CEF"
+          }
+          if (Test-Path $SRC) {
+            Copy-Item "$SRC/*" "$OUT/" -Force -Exclude "*.so", "*.dylib"
+            Copy-Item "$SRC/locales/*.pak" "$OUT/locales/" -Force -ErrorAction SilentlyContinue
+            Write-Host "  CEF: copied from $SRC"
+          } else { Write-Host "::warning::CEF source not found: $SRC" }
+
+          # 3. BrowserProcess
+          $BP_PKG = "CefGlue.BrowserProcess.runtime.${{ matrix.rid }}"
+          $BP_DIR = "$CACHE/$BP_PKG/149.7827.156"
+          if (Test-Path $BP_DIR) {
+            $BP_FILE = if ("${{ matrix.platform }}" -eq "windows") { "Xilium.CefGlue.BrowserProcess.exe" } else { "Xilium.CefGlue.BrowserProcess" }
+            $BP_SRC = Get-ChildItem $BP_DIR -Recurse -Filter $BP_FILE | Select-Object -First 1
+            if ($BP_SRC) {
+              Copy-Item $BP_SRC.FullName "$OUT/CefGlueBrowserProcess/$BP_FILE"
+              if ("${{ matrix.platform }}" -ne "windows") { chmod +x "$OUT/CefGlueBrowserProcess/$BP_FILE" }
+              Write-Host "  BrowserProcess: $BP_FILE"
+            } else { Write-Host "::warning::$BP_FILE not found in $BP_DIR" }
+          } else { Write-Host "::warning::$BP_PKG not found in NuGet cache" }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
