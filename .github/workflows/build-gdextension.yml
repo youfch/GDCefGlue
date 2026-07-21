@@ -94,21 +94,14 @@ jobs:
       - name: Restore
         run: dotnet restore extension/GDCefGlueExtension.csproj -r ${{ matrix.rid }}
 
-      - name: Publish (NativeAOT)
-        shell: pwsh
+      - name: Create CEF placeholder files (macOS)
+        if: ${{ matrix.platform == 'macos' }}
+        shell: bash
         run: |
-          # macOS: create placeholder files that cef.redist package expects but doesn't ship
-          if ("${{ matrix.platform }}" -eq "macos") {
-            $CACHE = (dotnet nuget locals global-packages --list) -split ":" | Select-Object -Last 1
-            $CACHE = $CACHE.Trim()
-            $CEF_DIR = "$CACHE/cef.redist.osxarm64/${{ github.event.inputs.cef_version }}/CEF"
-            if (Test-Path $CEF_DIR) {
-              foreach ($f in @("libGLESv2.dylib", "libEGL.dylib", "libvk_swiftshader.dylib")) {
-                $null = New-Item -ItemType File -Path "$CEF_DIR/$f" -Force
-              }
-            }
-          }
-          dotnet publish extension/GDCefGlueExtension.csproj `
+          sudo mkdir -p /CEF
+          sudo touch /CEF/libEGL.dylib /CEF/libGLESv2.dylib /CEF/libvk_swiftshader.dylib
+
+      - name: Publish (NativeAOT)
             -c Release -r ${{ matrix.rid }} -p:PublishAot=true `
             -o "extension/bin/Release/net10.0/${{ matrix.rid }}/publish"
 
