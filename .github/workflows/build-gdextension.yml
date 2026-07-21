@@ -19,6 +19,9 @@ on:
 env:
   DOTNET_VERSION: "10.0.x"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
