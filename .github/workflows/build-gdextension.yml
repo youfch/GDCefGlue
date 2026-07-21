@@ -112,22 +112,6 @@ jobs:
             -c Release -r ${{ matrix.rid }} -p:PublishAot=true `
             -o "extension/bin/Release/net10.0/${{ matrix.rid }}/publish"
 
-      - name: Debug - list publish output
-        shell: pwsh
-        run: |
-          $BASE = "extension/bin/Release/net10.0/${{ matrix.rid }}"
-          $DIRS = @("$BASE/publish", "$BASE", "$BASE/native")
-          foreach ($d in $DIRS) {
-            if (Test-Path $d) {
-              Write-Host "=== $d ==="
-              Get-ChildItem $d -Name | Write-Host
-            }
-          }
-          if (-not (Test-Path $BASE)) {
-            Write-Host "::error::Build output not found at $BASE"
-            Get-ChildItem "extension/bin/Release/net10.0" -Name -ErrorAction SilentlyContinue | Write-Host
-          }
-
       - name: Assemble package
         shell: pwsh
         run: |
