@@ -102,6 +102,9 @@ jobs:
           sudo touch /CEF/libEGL.dylib /CEF/libGLESv2.dylib /CEF/libvk_swiftshader.dylib
 
       - name: Publish (NativeAOT)
+        shell: pwsh
+        run: |
+          dotnet publish extension/GDCefGlueExtension.csproj `
             -c Release -r ${{ matrix.rid }} -p:PublishAot=true `
             -o "extension/bin/Release/net10.0/${{ matrix.rid }}/publish"
 
