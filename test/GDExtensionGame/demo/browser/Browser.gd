@@ -43,13 +43,13 @@ func _ready() -> void:
 	_update_url_bar()
 
 func _connect_tab(cef: CefGlueControl) -> void:
-	cef.BrowserInitialized.connect(_on_browser_initialized)
-	cef.AddressChanged.connect(_on_address_changed)
-	cef.TitleChanged.connect(_on_title_changed)
-	cef.LoadStart.connect(_on_load_start)
-	cef.LoadEnd.connect(_on_load_end)
-	cef.LoadError.connect(_on_load_error)
-	cef.NewWindowRequested.connect(_on_new_window_requested)
+	cef.browser_initialized.connect(_on_browser_initialized)
+	cef.address_changed.connect(_on_address_changed)
+	cef.title_changed.connect(_on_title_changed)
+	cef.load_start.connect(_on_load_start)
+	cef.load_end.connect(_on_load_end)
+	cef.load_error.connect(_on_load_error)
+	cef.new_window_requested.connect(_on_new_window_requested)
 
 func get_current_browser() -> CefGlueControl:
 	var tab = _tab_container.get_current_tab_control()
@@ -100,10 +100,10 @@ func _on_load_start() -> void: _status_label.text = "Loading..."
 func _on_load_end() -> void: _status_label.text = "Done"
 func _on_load_error(error_text: String, _failed_url: String) -> void: _status_label.text = "Error: " + error_text
 
-func _on_back_pressed() -> void: get_current_browser().GoBack()
-func _on_forward_pressed() -> void: get_current_browser().GoForward()
-func _on_reload_pressed() -> void: get_current_browser().Reload()
-func _on_open_dev_pressed() -> void: get_current_browser().ShowDeveloperTools()
+func _on_back_pressed() -> void: get_current_browser().go_back()
+func _on_forward_pressed() -> void: get_current_browser().go_forward()
+func _on_reload_pressed() -> void: get_current_browser().reload()
+func _on_open_dev_pressed() -> void: get_current_browser().show_developer_tools()
 func _on_go_pressed() -> void: _navigate()
 func _on_url_submitted(_text: String) -> void: _navigate()
 
@@ -112,4 +112,4 @@ func _navigate() -> void:
 	if url.is_empty(): return
 	if not url.begins_with("http://") and not url.begins_with("https://") and not url.begins_with("about:"):
 		url = "https://" + url
-	get_current_browser().NavigateToUrl(url)
+	get_current_browser().navigate_to_url(url)

@@ -34,7 +34,7 @@ public partial class CefGlueControl
 
     internal void OnLoadStart(CefBrowser browser, CefFrame frame, CefTransitionType transitionType)
     { if (!_disposed) CallDeferred("_notify_load_start"); }
-    private void _notify_load_start() { LoadStart?.Invoke(this, new LoadStartEventArgs(null)); EmitSignal(new StringName(nameof(LoadStart))); }
+    private void _notify_load_start() { LoadStart?.Invoke(this, new LoadStartEventArgs(null)); EmitSignal(new StringName("load_start")); }
 
     internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
     {
@@ -53,10 +53,10 @@ public partial class CefGlueControl
         }
         CallDeferred("_notify_load_end");
     }
-    private void _notify_load_end() { LoadEnd?.Invoke(this, new LoadEndEventArgs(null, 0)); EmitSignal(new StringName(nameof(LoadEnd))); }
+    private void _notify_load_end() { LoadEnd?.Invoke(this, new LoadEndEventArgs(null, 0)); EmitSignal(new StringName("load_end")); }
 
     internal void OnLoadError(CefBrowser browser, CefFrame frame, CefErrorCode errorCode, string errorText, string failedUrl)
     { if (!_disposed) CallDeferred("_notify_load_error", errorText, failedUrl); }
     private void _notify_load_error(string errorText, string failedUrl)
-    { LoadError?.Invoke(this, new LoadErrorEventArgs(null, CefErrorCode.None, errorText, failedUrl)); EmitSignal(new StringName(nameof(LoadError)), errorText, failedUrl); }
+    { LoadError?.Invoke(this, new LoadErrorEventArgs(null, CefErrorCode.None, errorText, failedUrl)); EmitSignal(new StringName("load_error"), errorText, failedUrl); }
 }

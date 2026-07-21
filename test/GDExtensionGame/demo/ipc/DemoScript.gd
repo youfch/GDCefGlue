@@ -11,8 +11,8 @@ func _ready() -> void:
 
 	_browser.InitialUrl = "about:blank"
 	_browser.FrameRate = 60
-	_browser.BrowserInitialized.connect(_on_browser_ready)
-	_browser.LoadEnd.connect(_on_load_end)
+	_browser.browser_initialized.connect(_on_browser_ready)
+	_browser.load_end.connect(_on_load_end)
 	_browser.eval_completed.connect(_on_eval_completed)
 	_browser.bridge_request.connect(_on_bridge_request)
 
@@ -34,7 +34,7 @@ func _on_load_end() -> void:
 	_register_bridge()
 
 func _register_bridge() -> void:
-	_browser.RegisterJsHandler("dotnetBridge", Callable(self, "_on_js_call"))
+	_browser.register_js_handler("dotnetBridge", Callable(self, "_on_js_call"))
 	_log_add("已注册 dotnetBridge，JS 可通过 window.dotnetBridge.* 调用")
 	_inject_bridge()
 
@@ -50,7 +50,7 @@ func _inject_bridge() -> void:
 		}
 	};
 })();"""
-	_browser.ExecuteJavaScript(js)
+	_browser.execute_javascript(js)
 
 func _load_test_html() -> void:
 	var file = FileAccess.open("res://demo/ipc/test.html", FileAccess.READ)
@@ -89,7 +89,7 @@ func _on_js_call(method_name: String, args_json: String) -> Variant:
 			return "GDCefGlue GDE 1.0 + CefGlue 149"
 		"eval":
 			var arr = JSON.parse_string(args_json) as Array
-			if arr and arr.size() > 0: _browser.EvalJs(str(arr[0]))
+			if arr and arr.size() > 0: _browser.eval_js(str(arr[0]))
 			return "eval started"
 	return "unknown method: " + method_name
 
@@ -97,13 +97,13 @@ func _on_js_call(method_name: String, args_json: String) -> Variant:
 
 func _on_eval(code: String) -> void:
 	_log_add("→ 计算 " + code)
-	_browser.EvalJs(code)
+	_browser.eval_js(code)
 
 func _on_custom_eval() -> void:
 	var code = _custom_code.text.strip_edges()
 	if code.is_empty(): code = "1 + 2 + 3"; _custom_code.text = code
 	_log_add("→ 自定义计算 " + code)
-	_browser.EvalJs(code)
+	_browser.eval_js(code)
 
 func _on_eval_completed(result: String, error: String) -> void:
 	if error and not error.is_empty(): _log_add("✗ " + error)

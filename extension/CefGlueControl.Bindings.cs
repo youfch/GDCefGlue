@@ -32,35 +32,35 @@ public partial class CefGlueControl
 
         // SyncCursor / ForwardInputEvents 通过 _GetPropertyList 动态添加
 
-        context.BindMethod(new StringName(nameof(GoBack)), (CefGlueControl i) => i.GoBack());
-        context.BindMethod(new StringName(nameof(GoForward)), (CefGlueControl i) => i.GoForward());
-        context.BindMethod(new StringName(nameof(NavigateToUrl)), new ParameterInfo(new StringName("url"), VariantType.String),
+        context.BindMethod(new StringName("go_back"), (CefGlueControl i) => i.GoBack());
+        context.BindMethod(new StringName("go_forward"), (CefGlueControl i) => i.GoForward());
+        context.BindMethod(new StringName("navigate_to_url"), new ParameterInfo(new StringName("url"), VariantType.String),
             (CefGlueControl i, string url) => i.NavigateToUrl(url));
-        context.BindMethod(new StringName(nameof(Reload)), new ParameterInfo(new StringName("ignoreCache"), VariantType.Bool, VariantTypeMetadata.None, Variant.CreateFrom(false)),
+        context.BindMethod(new StringName("reload"), new ParameterInfo(new StringName("ignore_cache"), VariantType.Bool, VariantTypeMetadata.None, Variant.CreateFrom(false)),
             (CefGlueControl i, bool ignoreCache) => i.Reload(ignoreCache));
-        context.BindMethod(new StringName(nameof(ExecuteJavaScript)),
+        context.BindMethod(new StringName("execute_javascript"),
             new ParameterInfo(new StringName("code"), VariantType.String),
             new ParameterInfo(new StringName("url"), VariantType.String, VariantTypeMetadata.None, Variant.CreateFrom("about:blank")),
             new ParameterInfo(new StringName("line"), VariantType.Int, VariantTypeMetadata.Int32, Variant.CreateFrom(1)),
             (CefGlueControl i, string code, string url, int line) => i.ExecuteJavaScript(code, url, line));
-        context.BindMethod(new StringName(nameof(EvalJs)), new ParameterInfo(new StringName("code"), VariantType.String),
+        context.BindMethod(new StringName("eval_js"), new ParameterInfo(new StringName("code"), VariantType.String),
             (CefGlueControl i, string code) => i.EvalJs(code));
-        context.BindMethod(new StringName(nameof(RegisterJsHandler)),
+        context.BindMethod(new StringName("register_js_handler"),
             new ParameterInfo(new StringName("name"), VariantType.String),
             new ParameterInfo(new StringName("handler"), VariantType.Callable),
             new ParameterInfo(new StringName("methods"), VariantType.String, VariantTypeMetadata.None, Variant.CreateFrom("[\"hello\",\"echo\",\"add\",\"getVersion\",\"eval\"]")),
             (CefGlueControl i, string name, Callable handler, string methods) => i.RegisterJsHandler(name, handler, methods));
-        context.BindMethod(new StringName(nameof(UnregisterJsHandler)), new ParameterInfo(new StringName("name"), VariantType.String),
+        context.BindMethod(new StringName("unregister_js_handler"), new ParameterInfo(new StringName("name"), VariantType.String),
             (CefGlueControl i, string name) => i.UnregisterJsHandler(name));
-        context.BindMethod(new StringName(nameof(SendToJs)), new ParameterInfo(new StringName("json"), VariantType.String),
+        context.BindMethod(new StringName("send_to_js"), new ParameterInfo(new StringName("json"), VariantType.String),
             (CefGlueControl i, string json) => i.SendToJs(json));
-        context.BindMethod(new StringName(nameof(SendResponse)),
-            new ParameterInfo(new StringName("cbId"), VariantType.String),
+        context.BindMethod(new StringName("send_response"),
+            new ParameterInfo(new StringName("cb_id"), VariantType.String),
             new ParameterInfo(new StringName("json"), VariantType.String),
             (CefGlueControl i, string cbId, string json) => i.SendResponse(cbId, json));
-        context.BindMethod(new StringName(nameof(ShowDeveloperTools)), (CefGlueControl i) => i.ShowDeveloperTools());
-        context.BindMethod(new StringName(nameof(CloseDeveloperTools)), (CefGlueControl i) => i.CloseDeveloperTools());
-        context.BindMethod(new StringName(nameof(OnEvalDone)),
+        context.BindMethod(new StringName("show_developer_tools"), (CefGlueControl i) => i.ShowDeveloperTools());
+        context.BindMethod(new StringName("close_developer_tools"), (CefGlueControl i) => i.CloseDeveloperTools());
+        context.BindMethod(new StringName("on_eval_done"),
             new ParameterInfo(new StringName("result"), VariantType.String),
             new ParameterInfo(new StringName("error"), VariantType.String),
             (CefGlueControl i, string result, string error) => i.OnEvalDone(result, error));
@@ -76,14 +76,14 @@ public partial class CefGlueControl
         context.BindMethod(new StringName("_notify_load_error"), new ParameterInfo(new StringName("errorText"), VariantType.String), new ParameterInfo(new StringName("failedUrl"), VariantType.String),
             (CefGlueControl i, string errorText, string failedUrl) => i._notify_load_error(errorText, failedUrl));
 
-        context.BindSignal(new SignalInfo(new StringName(nameof(BrowserInitialized))));
-        context.BindSignal(new SignalInfo(new StringName(nameof(AddressChanged))));
-        context.BindSignal(new SignalInfo(new StringName(nameof(TitleChanged))));
-        context.BindSignal(new SignalInfo(new StringName(nameof(LoadStart))));
-        context.BindSignal(new SignalInfo(new StringName(nameof(LoadEnd))));
-        context.BindSignal(new SignalInfo(new StringName(nameof(LoadError))));
+        context.BindSignal(new SignalInfo(new StringName("browser_initialized")));
+        context.BindSignal(new SignalInfo(new StringName("address_changed")));
+        context.BindSignal(new SignalInfo(new StringName("title_changed")));
+        context.BindSignal(new SignalInfo(new StringName("load_start")));
+        context.BindSignal(new SignalInfo(new StringName("load_end")));
+        context.BindSignal(new SignalInfo(new StringName("load_error")));
         context.BindSignal(new SignalInfo(new StringName("eval_completed")));
         context.BindSignal(new SignalInfo(new StringName("bridge_request")));
-        context.BindSignal(new SignalInfo(new StringName(nameof(NewWindowRequested))));
+        context.BindSignal(new SignalInfo(new StringName("new_window_requested")));
     }
 }

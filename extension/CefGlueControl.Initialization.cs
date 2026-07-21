@@ -84,7 +84,7 @@ public partial class CefGlueControl
     {
         RegisterEventForwarder();
         BrowserInitialized?.Invoke();
-        EmitSignal(new StringName(nameof(BrowserInitialized)));
+        EmitSignal(new StringName("browser_initialized"));
         GD.Print("CefGlueControl: Browser initialized");
     }
 }

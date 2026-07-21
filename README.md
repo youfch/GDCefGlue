@@ -133,7 +133,7 @@ addons/GCefGlue/                    ← Plugin source code
 | FrameRate | int | 60 | Browser Settings | Browser frame rate, 1-360 |
 | Transparent | bool | false | Browser Settings | Enable transparent background (OSR only) |
 | GpuAcceleration | bool | true | Feature Toggles | Enable GPU hardware acceleration |
-| OpenPopupInCurrentBrowser | bool | true | Feature Toggles | Open popups in current browser |
+| OpenPopupInCurrentBrowser | bool | false | Feature Toggles | Open popups in current browser |
 | SyncCursor | bool | false | Feature Toggles | Sync cursor with web content (OSR only) |
 | ForwardInputEvents | bool | false | Embedded Mode | Forward browser events to Godot (EmbeddedWindow only) |
 
@@ -261,14 +261,38 @@ The __hostBridge / __hostEvents naming is engine-agnostic — the same HTML page
 
 | Signal | Parameters | Description |
 |--------|-----------|-------------|
-| BrowserInitialized | — | Browser initialization complete |
-| AddressChanged | url: string | Current page URL changed |
-| TitleChanged | 	itle: string | Page title changed |
-| LoadStart | — | Page starts loading |
-| LoadEnd | — | Page finishes loading |
-| LoadError | errorText, failedUrl | Page failed to load |
-| eval_completed | esult, error | EvalJs result (GDExtension) |
-| ridge_request | 	ype, payload, cbId | Bridge request (GDExtension) |
+| `BrowserInitialized` | — | Browser initialization complete |
+| `AddressChanged` | `url: string` | Current page URL changed |
+| `TitleChanged` | `title: string` | Page title changed |
+| `LoadStart` | — | Page starts loading |
+| `LoadEnd` | — | Page finishes loading |
+| `LoadError` | `errorText, failedUrl` | Page failed to load |
+| `eval_completed` | `result, error` | EvalJs result (GDExtension) |
+| `bridge_request` | `type, payload, cbId` | Bridge request (GDExtension) |
+| `NewWindowRequested` | `url, isNewWindow` | New window/tab requested (GDExtension) |
+
+> **Note:** Plugin (C#) uses standard C# events with **PascalCase** naming (e.g. `LoadStart`, `LoadEnd`).  
+> GDExtension (GDScript) registers Godot signals with **snake_case** naming (e.g. `load_start`, `load_end`, `eval_completed`, `bridge_request`).  
+
+## Demo
+
+### C# Plugin (Godot .NET project)
+
+Open `plugin/` in Godot 4.6+:
+
+| Demo | Path | Description |
+|------|------|-------------|
+| Multi-tab browser | `plugin/demo/browser/Browser.tscn` | Full browser UI with tabs, navigation, DevTools |
+| IPC bridge | `plugin/demo/ipc/IpcDemo.tscn` | JS ↔ C# bridge communication demo |
+
+### GDExtension (Native AOT)
+
+Open `test/GDExtensionGame/` in Godot 4.6+:
+
+| Demo | Path | Description |
+|------|------|-------------|
+| Multi-tab browser | `test/GDExtensionGame/demo/browser/Browser.tscn` | GDScript version of browser demo |
+| IPC bridge | `test/GDExtensionGame/demo/ipc/IpcDemo.tscn` | JS ↔ GDScript bridge demo |
 
 ## Troubleshooting
 

@@ -129,7 +129,7 @@ addons/GCefGlue/                    ← 插件源码
 | FrameRate | int | 60 | Browser Settings | 浏览器帧率，范围 1-360 |
 | Transparent | bool | false | Browser Settings | 启用透明背景（仅 OSR 模式） |
 | GpuAcceleration | bool | true | Feature Toggles | 启用 GPU 硬件加速 |
-| OpenPopupInCurrentBrowser | bool | true | Feature Toggles | 弹窗在当前浏览器中导航 |
+| OpenPopupInCurrentBrowser | bool | false | Feature Toggles | 弹窗在当前浏览器中导航 |
 | SyncCursor | bool | false | Feature Toggles | 鼠标光标跟随网页内容（仅 OSR 模式） |
 | ForwardInputEvents | bool | false | Embedded Mode | 嵌入模式事件穿透（仅 EmbeddedWindow 模式） |
 
@@ -239,14 +239,38 @@ __hostBridge / __hostEvents 命名与引擎无关 — 同一份 HTML 页面在 G
 
 | 信号 | 参数 | 描述 |
 |------|------|------|
-| BrowserInitialized | — | 浏览器初始化完成 |
-| AddressChanged | url: string | 当前页面 URL 变化 |
-| TitleChanged | 	itle: string | 页面标题变化 |
-| LoadStart | — | 页面开始加载 |
-| LoadEnd | — | 页面加载完成 |
-| LoadError | errorText: string, failedUrl: string | 页面加载失败 |
-| eval_completed | esult, error | EvalJs 结果（GDExtension） |
-| ridge_request | 	ype, payload, cbId | 桥接请求（GDExtension） |
+| `BrowserInitialized` | — | 浏览器初始化完成 |
+| `AddressChanged` | `url: string` | 当前页面 URL 变化 |
+| `TitleChanged` | `title: string` | 页面标题变化 |
+| `LoadStart` | — | 页面开始加载 |
+| `LoadEnd` | — | 页面加载完成 |
+| `LoadError` | `errorText: string, failedUrl: string` | 页面加载失败 |
+| `eval_completed` | `result, error` | EvalJs 结果（GDExtension） |
+| `bridge_request` | `type, payload, cbId` | 桥接请求（GDExtension） |
+| `NewWindowRequested` | `url, isNewWindow` | 新窗口/新标签请求（GDExtension） |
+
+> **说明：** 插件（C#）使用标准 C# 事件，命名为 **PascalCase**（如 `LoadStart`、`LoadEnd`）。  
+> GDExtension（GDScript）注册 Godot 信号，命名为 **snake_case**（如 `load_start`、`load_end`、`eval_completed`、`bridge_request`）。  
+
+## Demo 演示
+
+### C# 插件（Godot .NET 项目）
+
+用 Godot 4.6+ 打开 `plugin/` 目录：
+
+| 演示 | 场景路径 | 说明 |
+|------|---------|------|
+| 多标签浏览器 | `plugin/demo/browser/Browser.tscn` | 完整浏览器 UI，支持多标签页、导航、DevTools |
+| IPC 桥接 | `plugin/demo/ipc/IpcDemo.tscn` | JS ↔ C# 桥接通信演示 |
+
+### GDExtension（原生 AOT 编译）
+
+用 Godot 4.6+ 打开 `test/GDExtensionGame/` 目录：
+
+| 演示 | 场景路径 | 说明 |
+|------|---------|------|
+| 多标签浏览器 | `test/GDExtensionGame/demo/browser/Browser.tscn` | GDScript 版的浏览器演示 |
+| IPC 桥接 | `test/GDExtensionGame/demo/ipc/IpcDemo.tscn` | JS ↔ GDScript 桥接演示 |
 
 ## 故障排除
 
