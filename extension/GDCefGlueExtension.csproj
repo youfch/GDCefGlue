@@ -14,10 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="cef.redist.linux64" Version="149.0.4" />
-    <PackageReference Include="cef.redist.linuxarm64" Version="149.0.4" />
-    <PackageReference Include="cef.redist.osx64" Version="149.0.4" />
-    <PackageReference Include="cef.redist.osxarm64" Version="149.0.4" />
+    <PackageReference Include="cef.redist.linux64" Version="149.0.4" GeneratePathProperty="true" />
+    <PackageReference Include="cef.redist.linuxarm64" Version="149.0.4" GeneratePathProperty="true" />
+    <PackageReference Include="cef.redist.osx64" Version="149.0.4" GeneratePathProperty="true" />
+    <PackageReference Include="cef.redist.osxarm64" Version="149.0.4" GeneratePathProperty="true" />
     <PackageReference Include="CefGlue.BrowserProcess.runtime" Version="149.7827.156" />
     <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
     <PackageReference Include="CefGlue.Common.ARM64" Version="149.7827.156" />

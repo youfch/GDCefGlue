@@ -94,13 +94,6 @@ jobs:
       - name: Restore
         run: dotnet restore extension/GDCefGlueExtension.csproj -r ${{ matrix.rid }}
 
-      - name: Create CEF placeholder files (macOS)
-        if: ${{ matrix.platform == 'macos' }}
-        shell: bash
-        run: |
-          sudo mkdir -p /CEF
-          sudo touch /CEF/libEGL.dylib /CEF/libGLESv2.dylib /CEF/libvk_swiftshader.dylib
-
       - name: Publish (NativeAOT)
         shell: pwsh
         run: |
