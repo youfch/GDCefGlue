@@ -12,9 +12,9 @@ on:
         required: true
         default: "v149.7827.156"
       cef_version:
-        description: "CEF runtime version for cef.redist (e.g. 149.0.6)"
+        description: "CEF runtime version for cef.redist (e.g. 149.0.4)"
         required: true
-        default: "149.0.6"
+        default: "149.0.4"
 
 env:
   DOTNET_VERSION: "10.0.x"
@@ -81,7 +81,11 @@ jobs:
           foreach ($pkg in $PKGS) {
             $URL = "https://github.com/$REPO/releases/download/v${VER}/cef.redist.${pkg}.${VER}.nupkg"
             Write-Host "Downloading: $URL"
-            curl -L -o "_nuget-feed/cef.redist.${pkg}.${VER}.nupkg" "$URL"
+            $null = curl -L -f -o "_nuget-feed/cef.redist.${pkg}.${VER}.nupkg" "$URL"
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "::error::Failed to download $URL - check cef_version input"
+              exit 1
+            }
           }
 
       - name: Restore
