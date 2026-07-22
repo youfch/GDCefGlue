@@ -62,6 +62,16 @@ namespace GDCefGlue
 
         protected override void OnScrollOffsetChanged(CefBrowser browser, double x, double y) { }
 
-        protected override void OnImeCompositionRangeChanged(CefBrowser browser, CefRange selectedRange, CefRectangle[] characterBounds) { }
+        protected override void OnImeCompositionRangeChanged(CefBrowser browser, CefRange selectedRange, CefRectangle[] characterBounds)
+        {
+            if (characterBounds != null && characterBounds.Length > 0)
+            {
+                // 使用第一个字符的边界更新 IME 候选窗位置
+                // CEF 的 characterBounds 是相对于 GetViewRect 返回的 view 坐标
+                // 转换为全局屏幕坐标后供 Godot DisplayServer 定位 IME 候选窗
+                var bounds = characterBounds[0];
+                _control.UpdateImePosition(bounds.X, bounds.Y, bounds.Width, bounds.Height);
+            }
+        }
     }
 }

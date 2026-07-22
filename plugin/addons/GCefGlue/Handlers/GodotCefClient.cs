@@ -16,6 +16,7 @@ namespace GDCefGlue
         private readonly GodotRequestHandler _requestHandler;
         private readonly GodotPermissionHandler _permissionHandler;
         private readonly GodotContextMenuHandler _contextMenuHandler;
+        private readonly GodotFocusHandler _focusHandler;
 
         public GodotCefClient(CefGlueControl control)
         {
@@ -27,6 +28,7 @@ namespace GDCefGlue
             _requestHandler = new GodotRequestHandler(control);
             _permissionHandler = new GodotPermissionHandler(control);
             _contextMenuHandler = new GodotContextMenuHandler(control);
+            _focusHandler = new GodotFocusHandler(control);
         }
 
         protected override CefRenderHandler GetRenderHandler()
@@ -41,6 +43,11 @@ namespace GDCefGlue
         protected override CefLoadHandler GetLoadHandler() => _loadHandler;
         protected override CefRequestHandler GetRequestHandler() => _requestHandler;
         protected override CefPermissionHandler GetPermissionHandler() => _permissionHandler;
+
+        /// <summary>
+        /// Returns the focus handler for bridging CEF focus changes to Godot.
+        /// </summary>
+        protected override CefFocusHandler GetFocusHandler() => _focusHandler;
 
         /// <summary>
         /// Returns the context menu handler.
