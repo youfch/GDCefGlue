@@ -59,6 +59,8 @@ RenderMode 枚举:
 | RequestHandler | `GodotRequestHandler.cs` | 自定义 godot:// 协议桥接 |
 | PermissionHandler | `GodotPermissionHandler.cs` | 媒体流权限（EnableMediaStream） |
 | ContextMenuHandler | `GodotContextMenuHandler.cs` | OSR 右键菜单 + Godot PopupMenu |
+| FocusHandler | `GodotFocusHandler.cs` | CEF 焦点变化同步（IME 驱动） |
+| FindHandler | `GodotFindHandler.cs` | 页面内查找结果回调 |
 
 ### 已实现的 CefGlueControl 文件
 
