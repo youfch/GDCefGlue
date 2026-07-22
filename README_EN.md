@@ -278,7 +278,7 @@ Open `test/GDExtensionGame/` in Godot 4.6+:
 
 1. **Right-click Context Menu**: Not supported
 2. **Network Notification**: WSALookupServiceBegin failed with: 10108 is a normal warning
-3. **Embedded window focus**: Clicking Godot input after CEF may not release keyboard focus. Auto-handled via platform-specific APIs.
+3. **Embedded window focus**: ✅ Fixed. Added `WS_EX_NOACTIVATE` to prevent CEF child window from stealing focus, and bidirectional `OnTakeFocus`/`SetFocus` synchronization via `CefFocusHandler`.
 4. **JS Bridge S prefix**: CefGlue's serialization prepends 'S' marker to strings. Automatically stripped.
 
 ## License

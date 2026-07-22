@@ -290,7 +290,7 @@ __hostBridge / __hostEvents 命名与引擎无关 — 同一份 HTML 页面在 G
 
 1. **右键菜单**：暂不支持
 2. **网络通知**：WSALookupServiceBegin failed with: 10108 是正常警告
-3. **嵌入窗口焦点**：点击 Godot 输入框后 CEF 可能未释放键盘焦点，已通过 Win32 SetFocus / X11 XSetInputFocus / macOS makeFirstResponder 自动处理
+3. **嵌入窗口焦点**：✅ 已修复。添加了 `WS_EX_NOACTIVATE` 防止 CEF 子窗口抢焦点，并通过 `CefFocusHandler` 实现了 `OnTakeFocus`/`SetFocus` 双向同步。
 4. **JS Bridge S 前缀**：CefGlue 序列化协议会给字符串加 marker 前缀（'S'），已自动剥离
 
 ## 许可证
