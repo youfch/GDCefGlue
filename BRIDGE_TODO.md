@@ -89,8 +89,8 @@ C# 端注册对象 → BrowserProcess 创建 V8 绑定 → JS 直接调方法 �
 | **下载处理** | 实现 CefDownloadHandler，拦截 OnBeforeDownload / OnDownloadUpdated，提供下载进度信号 | ⭐⭐⭐ |
 | **页面查找** | CefBrowserHost.Find() / StopFinding()，页面内查找功能 | ⭐⭐ |
 | **缩放控制** | CefBrowserHost.SetZoomLevel()，页面缩放 | ⭐⭐ |
-| **Cookie 管理** | CefCookieManager，获取/设置/删除 Cookie | ⭐⭐ |
-| **右键菜单** | 实现 CefContextMenuHandler，提供基本右键菜单（复制/粘贴/在新标签打开） | ⭐⭐ |
+| **右键菜单** | 实现 CefContextMenuHandler，提供基本右键菜单（复制/粘贴/在新标签打开） | ✅ 已完成 |
+| **Cookie 管理** | CefCookieManager，获取/设置/删除 Cookie | ⚠️ 已实现，暂不测试 |
 | **全屏处理** | 响应 CEF 全屏事件，自动切换 Godot 窗口全屏状态 | ⭐ |
 | **打印支持** | CEF 的打印功能 (CefBrowserHost.Print()) | ⭐ |
 | **JS 控制台日志** | CefDisplayHandler.OnConsoleMessage 将 JS console.log 转发到 Godot 输出 | ⭐ |

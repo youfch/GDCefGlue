@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using Xilium.CefGlue;
 using Xilium.CefGlue.Common.Events;
@@ -283,5 +284,23 @@ namespace GDCefGlue
 
         internal bool HasBeforeContextMenuSubscribers => BeforeContextMenu != null;
         internal bool HasContextMenuCommandSubscribers => ContextMenuCommand != null;
+
+        // ── Cookie 事件（GDScript 兼容 / CallDeferred 到主线程） ──
+
+        /// <summary>
+        /// Cookie 遍历完成后触发（Godot 主线程）。参数为 Cookie 快照列表。
+        /// 由 GetCookies() / GetCookiesForUrl() 触发。
+        /// </summary>
+        public event Action<List<CookieInfo>> CookiesVisited;
+
+        /// <summary>
+        /// SetCookie 完成后触发（Godot 主线程）。参数为是否成功。
+        /// </summary>
+        public event Action<bool> SetCookieCompleted;
+
+        /// <summary>
+        /// DeleteCookies 完成后触发（Godot 主线程）。参数为删除数量。
+        /// </summary>
+        public event Action<int> DeleteCookiesCompleted;
     }
 }
