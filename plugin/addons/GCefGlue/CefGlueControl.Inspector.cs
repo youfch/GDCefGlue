@@ -9,14 +9,14 @@ namespace GDCefGlue
     {
         /// <summary>
         /// 根据 Mode 控制 Inspector 属性显隐：
-        /// - EmbeddedWindow: 显示 ForwardInputEvents，隐藏 SyncCursor
-        /// - OSR: 显示 SyncCursor，隐藏 ForwardInputEvents
+        /// - EmbeddedWindow: 显示 ForwardInputEvents，隐藏 SyncCursor、ContextMenuEnabled
+        /// - OSR: 显示 SyncCursor、ContextMenuEnabled，隐藏 ForwardInputEvents
         /// </summary>
         public override void _ValidateProperty(Godot.Collections.Dictionary property)
         {
             var propName = property["name"].AsStringName();
 
-            if (propName == nameof(SyncCursor))
+            if (propName == nameof(SyncCursor) || propName == nameof(ContextMenuEnabled))
             {
                 if (_mode == RenderMode.EmbeddedWindow)
                     property["usage"] = (int)PropertyUsageFlags.NoEditor;

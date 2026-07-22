@@ -15,6 +15,7 @@ namespace GDCefGlue
         private readonly GodotLoadHandler _loadHandler;
         private readonly GodotRequestHandler _requestHandler;
         private readonly GodotPermissionHandler _permissionHandler;
+        private readonly GodotContextMenuHandler _contextMenuHandler;
 
         public GodotCefClient(CefGlueControl control)
         {
@@ -25,6 +26,7 @@ namespace GDCefGlue
             _loadHandler = new GodotLoadHandler(control);
             _requestHandler = new GodotRequestHandler(control);
             _permissionHandler = new GodotPermissionHandler(control);
+            _contextMenuHandler = new GodotContextMenuHandler(control);
         }
 
         protected override CefRenderHandler GetRenderHandler()
@@ -39,6 +41,30 @@ namespace GDCefGlue
         protected override CefLoadHandler GetLoadHandler() => _loadHandler;
         protected override CefRequestHandler GetRequestHandler() => _requestHandler;
         protected override CefPermissionHandler GetPermissionHandler() => _permissionHandler;
+
+        /// <summary>
+        /// Returns the context menu handler.
+        /// <para>In OSR mode, always returns our handler — CEF's default
+        /// menu runner requires a window handle which OSR doesn't have
+        /// (see cef/native/menu_runner_views_aura.cc). Returning null would
+        /// make CEF try the default impl and log errors. Our handler decides
+        /// in <see cref="CefGlueControl.OnRunContextMenu"/> whether to show
+        /// a PopupMenu (when <see cref="CefGlueControl.ContextMenuEnabled"/>)
+        /// or silently cancel (when disabled, preserving prior "no menu" behavior).</para>
+        /// <para>In EmbeddedWindow mode, returns null so CEF's native window
+        /// menu is used (HWND is available).</para>
+        /// </summary>
+        protected override CefContextMenuHandler GetContextMenuHandler()
+        {
+            // 嵌入窗口模式：CEF 在原生子窗口上自行处理右键菜单
+            if (CefGlueControl.ActiveRenderMode == RenderMode.EmbeddedWindow)
+                return null;
+
+            // OSR 模式：始终返回 handler（即便 ContextMenuEnabled=false），
+            // 避免触发 CEF 默认菜单 runner 的 "Window handle is required" 错误。
+            // handler 内部根据 ContextMenuEnabled 决定显示或静默取消。
+            return _contextMenuHandler;
+        }
 
         /// <summary>
         /// Receives IPC messages from the CEF renderer process (CefGlue.BrowserProcess).

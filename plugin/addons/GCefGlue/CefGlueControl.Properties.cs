@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using Xilium.CefGlue;
 using Xilium.CefGlue.Common.Events;
 
 namespace GDCefGlue
@@ -91,6 +92,17 @@ namespace GDCefGlue
         /// </summary>
         [Export]
         public bool EnableMediaStream { get; set; } = false;
+
+        /// <summary>
+        /// Enables right-click context menu in OSR mode. When true, a Godot
+        /// <c>PopupMenu</c> is shown on right-click; subscribe to
+        /// <see cref="BeforeContextMenu"/> to customize the menu and
+        /// <see cref="ContextMenuCommand"/> to handle selections. When false
+        /// (default), right-clicks are forwarded to the web page and no menu
+        /// is shown. Only effective when <see cref="Mode"/> = <see cref="RenderMode.OSR"/>.
+        /// </summary>
+        [Export]
+        public bool ContextMenuEnabled { get; set; } = false;
 
         // ══════════════════════════════════════════════════════════════
         //  Embedded Mode (only applies when Mode=EmbeddedWindow)
@@ -239,5 +251,37 @@ namespace GDCefGlue
 
         internal void RaiseNewWindowRequested(string url, bool isNewWindow) => NewWindowRequested?.Invoke(url, isNewWindow);
         internal bool HasNewWindowSubscribers => NewWindowRequested != null;
+
+        // ── 右键菜单事件（OSR 模式） ──
+
+        /// <summary>
+        /// 右键菜单即将显示时触发。可在事件处理中修改 <paramref name="model"/>
+        /// （清空、添加、移除项）来定制菜单内容。不订阅则显示 CEF 默认菜单。
+        /// 在 Godot 主线程触发（已从 CEF UI 线程 Marshal 过来）。
+        /// </summary>
+        /// <remarks>
+        /// 参数: (model, params) — model 为 <see cref="Xilium.CefGlue.CefMenuModel"/> 快照，
+        /// params 为 <see cref="ContextMenuParams"/>（CEF 原生 CefContextMenuParams 的安全副本）。
+        /// </remarks>
+        public event Action<ContextMenuModel, ContextMenuParams> BeforeContextMenu;
+
+        /// <summary>
+        /// 右键菜单命令被选中时触发。参数: (commandId, parameters, eventFlags)。
+        /// 返回 true 表示已处理；返回 false 让 CEF 应用默认行为（对内置 ID 有效）。
+        /// 在 Godot 主线程触发。
+        /// </summary>
+        public event Func<int, ContextMenuParams, CefEventFlags, bool> ContextMenuCommand;
+
+        internal void RaiseBeforeContextMenu(ContextMenuModel model, ContextMenuParams parameters)
+            => BeforeContextMenu?.Invoke(model, parameters);
+
+        internal bool RaiseContextMenuCommand(int commandId, ContextMenuParams parameters, CefEventFlags eventFlags)
+        {
+            var handler = ContextMenuCommand;
+            return handler != null && handler(commandId, parameters, eventFlags);
+        }
+
+        internal bool HasBeforeContextMenuSubscribers => BeforeContextMenu != null;
+        internal bool HasContextMenuCommandSubscribers => ContextMenuCommand != null;
     }
 }
