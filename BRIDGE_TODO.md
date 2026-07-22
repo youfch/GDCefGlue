@@ -1,4 +1,4 @@
-# GDCefGlue JS↔C# Bridge & Render Mode TODO
+# GDCefGlue TODO
 
 ## API 状态速览
 
@@ -12,7 +12,9 @@
 | BridgeRequest 事件 | 🔴 淘汰 | 仅旧版 iframe 使用 |
 | GodotRequestHandler (OnBeforeBrowse) | 🔴 淘汰 | 仅旧版 iframe 使用 |
 
-## Render Mode (已实现)
+## 已实现功能
+
+### 渲染模式
 
 `
 RenderMode 枚举:
@@ -38,11 +40,42 @@ RenderMode 枚举:
 ▸ Feature Toggles
   ├── GpuAcceleration
   ├── OpenPopupInCurrentBrowser
-  └── SyncCursor
+  ├── EnableMediaStream
+  ├── SyncCursor          ← 仅 OSR 显示
+  └── ContextMenuEnabled  ← 仅 OSR 显示
 
 ▸ Embedded Mode        ← 仅 Mode=EmbeddedWindow 时显示
   └── ForwardInputEvents
 `
+
+### 已实现的 Handler
+
+| Handler | 文件 | 说明 |
+|---------|------|------|
+| RenderHandler | `GodotRenderHandler.cs` | OSR 离屏渲染；窗口模式返回 null |
+| LifeSpanHandler | `GodotLifeSpanHandler.cs` | 弹窗拦截、NewWindowRequested 事件 |
+| DisplayHandler | `GodotDisplayHandler.cs` | 地址/标题/光标变化 |
+| LoadHandler | `GodotLoadHandler.cs` | 加载状态回调 |
+| RequestHandler | `GodotRequestHandler.cs` | 自定义 godot:// 协议桥接 |
+| PermissionHandler | `GodotPermissionHandler.cs` | 媒体流权限（EnableMediaStream） |
+| ContextMenuHandler | `GodotContextMenuHandler.cs` | OSR 右键菜单 + Godot PopupMenu |
+
+### 已实现的 CefGlueControl 文件
+
+| Partial 文件 | 职责 |
+|--------------|------|
+| `CefGlueControl.cs` | 核心字段、枚举、构造函数 |
+| `CefGlueControl.Properties.cs` | Export 属性、静态属性、只读属性、事件声明 |
+| `CefGlueControl.Initialization.cs` | CEF 初始化、_Ready、_ExitTree、浏览器创建 |
+| `CefGlueControl.Rendering.cs` | OSR 渲染（OnPaint → _Process → _Draw）、光标 |
+| `CefGlueControl.Input.cs` | Godot → CEF 输入转发（仅 OSR 模式） |
+| `CefGlueControl.Bridge.cs` | JS ↔ C# 桥接、IPC、EvaluateJavaScript |
+| `CefGlueControl.Navigation.cs` | 导航方法、CEF 事件回调（三层线程安全模式） |
+| `CefGlueControl.Inspector.cs` | _ValidateProperty 属性可见性控制 |
+| `CefGlueControl.Events.cs` | ForwardInputEvents 事件转发（JS → Godot） |
+| `CefGlueControl.Embedded.cs` | EmbeddedWindow 模式管理 |
+| `CefGlueControl.Cookies.cs` | Cookie 管理（Task-based + event-based API） |
+| `CefGlueControl.ContextMenu.cs` | OSR 右键菜单 PopupMenu 构建 + 回调 |
 
 ## 当前 Bridge 实现
 
@@ -63,7 +96,7 @@ C# 端注册对象 → BrowserProcess 创建 V8 绑定 → JS 直接调方法 �
 - CefGlue BrowserProcess 的 V8 绑定重建有初始化噪音（JsUncaughtException），不影响功能
 - CefRuntime.RegisterExtension 注册 V8 扩展失败（NuGet 版不支持从 browser 进程注入）
 - 无法使用 CefMessageRouter（需修改 BrowserProcess，不满足 addon 分发）
-- 无法使用 SchemeHandler + fetch（ile:// → ipc:// 跨域 CORS 死胡同）
+- 无法使用 SchemeHandler + fetch（file:// → ipc:// 跨域 CORS 死胡同）
 
 ## CEF 原生 6 种 JS↔Native 机制
 
@@ -76,24 +109,17 @@ C# 端注册对象 → BrowserProcess 创建 V8 绑定 → JS 直接调方法 �
 | 5 | SendProcessMessage + OnProcessMessageReceived | 跨进程双向 | ~128KB；shared memory 无限 | UI 线程 |
 | 6 | CefResourceRequestHandler / CefSchemeHandlerFactory | 双向（HTTP） | 无限（流式） | TID_IO |
 
-## TODO
+## 计划功能
 
-### Bridge 优化
-
-- [ ] 键盘事件（keydown/keyup）C# 端 HandleForwardedEvent 补充 InputEventKey 处理
-
-### 计划功能
-
-| 功能 | 说明 | 优先级 |
-|------|------|--------|
-| **下载处理** | 实现 CefDownloadHandler，拦截 OnBeforeDownload / OnDownloadUpdated，提供下载进度信号 | ⭐⭐⭐ |
-| **页面查找** | CefBrowserHost.Find() / StopFinding()，页面内查找功能 | ⭐⭐ |
-| **缩放控制** | CefBrowserHost.SetZoomLevel()，页面缩放 | ⭐⭐ |
-| **右键菜单** | 实现 CefContextMenuHandler，提供基本右键菜单（复制/粘贴/在新标签打开） | ✅ 已完成 |
-| **Cookie 管理** | CefCookieManager，获取/设置/删除 Cookie | ⚠️ 已实现，暂不测试 |
-| **全屏处理** | 响应 CEF 全屏事件，自动切换 Godot 窗口全屏状态 | ⭐ |
-| **打印支持** | CEF 的打印功能 (CefBrowserHost.Print()) | ⭐ |
-| **JS 控制台日志** | CefDisplayHandler.OnConsoleMessage 将 JS console.log 转发到 Godot 输出 | ⭐ |
+| 功能 | 说明 | 优先级 | 参考实现 |
+|------|------|--------|---------|
+| **下载处理** | CefDownloadHandler 实现，拦截 OnBeforeDownload / OnDownloadUpdated，提供下载进度信号。Godot FileDialog 选择保存路径，进度条 UI | ⭐⭐⭐ | CefGlue.Common + CefRunContextMenuCallback 模式（同右键菜单） |
+| **页面查找** | CefBrowserHost.Find() / StopFinding()，页面内查找功能 | ⭐⭐ | CefBrowserHost API |
+| **缩放控制** | CefBrowserHost.SetZoomLevel()，页面缩放 | ⭐⭐ | CefBrowserHost API |
+| **全屏处理** | 响应 CEF 全屏事件，自动切换 Godot 窗口全屏状态 | ⭐ | CefDisplayHandler.OnFullscreenModeChange |
+| **打印支持** | CEF 的打印功能 (CefBrowserHost.Print()) | ⭐ | CefBrowserHost API |
+| **JS 控制台日志** | CefDisplayHandler.OnConsoleMessage 将 JS console.log 转发到 Godot 输出 | ⭐ | GodotDisplayHandler 扩展 |
+| **键盘事件（嵌入模式）** | HandleForwardedEvent 补充 InputEventKey 处理（keydown/keyup） | ⭐⭐ | CefGlueControl.Events.cs 现有框架 |
 
 ## 参考实现
 

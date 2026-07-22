@@ -21,6 +21,25 @@ namespace GDCefGlue
 
         public void CloseDeveloperTools() => _browserHost?.CloseDevTools();
 
+        // ── 页面内查找 ──
+
+        /// <summary>
+        /// 开始或继续页面内搜索。
+        /// </summary>
+        /// <param name="searchText">搜索文本（空字符串隐式停止搜索）</param>
+        /// <param name="forward">true=向前搜索，false=向后</param>
+        /// <param name="matchCase">true=区分大小写</param>
+        /// <param name="findNext">false=新查询（文本/matchCase 变化时自动重启），true=查找下一个</param>
+        public void Find(string searchText, bool forward = true, bool matchCase = false, bool findNext = false)
+            => _browserHost?.Find(searchText, forward, matchCase, findNext);
+
+        /// <summary>
+        /// 停止当前搜索。
+        /// </summary>
+        /// <param name="clearSelection">true=清除高亮，false=保持当前选中</param>
+        public void StopFinding(bool clearSelection = true)
+            => _browserHost?.StopFinding(clearSelection);
+
         // ── CEF 事件回调 ──
         internal void OnAddressChange(CefBrowser browser, CefFrame frame, string url)
         { if (!_disposed && frame.IsMain) CallDeferred(nameof(NotifyAddressChanged), url); }
@@ -53,5 +72,23 @@ namespace GDCefGlue
         { if (!_disposed) CallDeferred(nameof(NotifyLoadError), errorText, failedUrl); }
         private void NotifyLoadError(string errorText, string failedUrl)
             => LoadError?.Invoke(this, new LoadErrorEventArgs(null, CefErrorCode.None, errorText, failedUrl));
+
+        // ── 页面内查找回调 ──
+
+        /// <summary>
+        /// CEF UI 线程入口 — 从 GodotFindHandler.OnFindResult 调用。
+        /// Marshal 到 Godot 主线程后触发 FindResult 事件。
+        /// </summary>
+        internal void OnFindResult(CefBrowser browser, int identifier, int count,
+            CefRectangle selectionRect, int activeMatchOrdinal, bool finalUpdate)
+        {
+            if (_disposed) return;
+            // int/bool 是 Variant 兼容类型，可直接通过 CallDeferred 传递
+            // selectionRect 暂不传递（UI 只需 count/ordinal 显示 "N / M"）
+            CallDeferred(nameof(NotifyFindResult), identifier, count, activeMatchOrdinal, finalUpdate);
+        }
+
+        private void NotifyFindResult(int identifier, int count, int activeMatchOrdinal, bool finalUpdate)
+            => RaiseFindResult(identifier, count, activeMatchOrdinal, finalUpdate);
     }
 }

@@ -302,5 +302,20 @@ namespace GDCefGlue
         /// DeleteCookies 完成后触发（Godot 主线程）。参数为删除数量。
         /// </summary>
         public event Action<int> DeleteCookiesCompleted;
+
+        // ── 页面内查找事件 ──
+
+        /// <summary>
+        /// 页面内搜索结果回调（Godot 主线程）。
+        /// 参数: (identifier, count, activeMatchOrdinal, finalUpdate)
+        /// <para><c>identifier</c> — 搜索会话 ID，每次新搜索递增，用于丢弃过期回调。</para>
+        /// <para><c>count</c> — 已找到的匹配总数；仅在 finalUpdate=true 时为最终值。</para>
+        /// <para><c>activeMatchOrdinal</c> — 当前高亮匹配的 1-based 序号（0 表示无匹配）。</para>
+        /// <para><c>finalUpdate</c> — true 表示搜索完成，count 为最终值。</para>
+        /// </summary>
+        public event Action<int, int, int, bool> FindResult;
+
+        internal void RaiseFindResult(int identifier, int count, int activeMatchOrdinal, bool finalUpdate)
+            => FindResult?.Invoke(identifier, count, activeMatchOrdinal, finalUpdate);
     }
 }
