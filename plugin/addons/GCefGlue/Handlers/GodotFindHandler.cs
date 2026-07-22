@@ -29,6 +29,7 @@ namespace GDCefGlue
             int activeMatchOrdinal,
             bool finalUpdate)
         {
+            if (_control.IsDisposed) return;
             _control.OnFindResult(browser, identifier, count, selectionRect, activeMatchOrdinal, finalUpdate);
         }
     }

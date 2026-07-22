@@ -58,8 +58,10 @@ namespace GDCefGlue
             if (_disposed) return;
             if (frame.IsMain)
             {
-                // 所有模式下注入输入焦点监听 JS（驱动 IME 激活/关闭）
-                InjectFocusWatcherIfNeeded();
+                // OSR 模式注入输入焦点监听 JS（驱动 IME 激活/关闭）
+                // EmbeddedWindow 模式 CEF 有真实 HWND，IME 由 OS 直接管理，不需要 Godot 介入
+                if (_renderMode == RenderMode.OSR)
+                    InjectFocusWatcherIfNeeded();
                 // 嵌入窗口模式下注入事件转发 JS
                 if (_renderMode == RenderMode.EmbeddedWindow)
                     InjectEventForwardingScriptIfNeeded();

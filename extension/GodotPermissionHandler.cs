@@ -16,6 +16,11 @@ internal sealed class GodotPermissionHandler : CefPermissionHandler
         CefBrowser browser, CefFrame frame, string requestingOrigin,
         CefMediaAccessPermissionTypes requestedPermissions, CefMediaAccessCallback callback)
     {
+        if (_control.IsDisposed)
+        {
+            callback.Continue(CefMediaAccessPermissionTypes.None);
+            return true;
+        }
 
         if (!_control.EnableMediaStream)
         {

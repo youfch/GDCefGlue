@@ -82,6 +82,7 @@ namespace GDCefGlue
         /// </summary>
         protected override bool OnProcessMessageReceived(CefBrowser browser, CefFrame frame, CefProcessId sourceProcess, CefProcessMessage message)
         {
+            if (_control.IsDisposed) { message.Dispose(); return false; }
             using (message)
             {
                 _control.HandleProcessMessage(message);

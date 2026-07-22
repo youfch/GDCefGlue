@@ -21,6 +21,7 @@ namespace GDCefGlue
         /// </summary>
         protected override void OnAfterCreated(CefBrowser browser)
         {
+            if (_control.IsDisposed) return;
             _control.OnBrowserCreated(browser);
         }
 

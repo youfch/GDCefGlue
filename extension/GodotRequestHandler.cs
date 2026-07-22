@@ -20,6 +20,7 @@ internal sealed class GodotRequestHandler : CefRequestHandler
         CefBrowser browser, CefFrame frame, CefRequest request,
         bool userGesture, bool isRedirect)
     {
+        if (_control.IsDisposed) return false;
         var url = request?.Url;
         if (url != null && url.StartsWith("godot://bridge", System.StringComparison.Ordinal))
         {

@@ -37,6 +37,7 @@ namespace GDCefGlue
             CefContextMenuParams state,
             CefMenuModel model)
         {
+            if (_control.IsDisposed) return;
             // CefContextMenuParams/CefMenuModel are wrapped in `using` by the
             // CefGlue trampoline after this call returns, so we must snapshot
             // all the info we need now and pass only plain data forward.
@@ -57,6 +58,7 @@ namespace GDCefGlue
             CefMenuModel model,
             CefRunContextMenuCallback callback)
         {
+            if (_control.IsDisposed) return false;
             return _control.OnRunContextMenu(browser, frame, parameters, model, callback);
         }
 
@@ -73,6 +75,7 @@ namespace GDCefGlue
             int commandId,
             CefEventFlags eventFlags)
         {
+            if (_control.IsDisposed) return false;
             return _control.OnContextMenuCommand(browser, frame, state, commandId, eventFlags);
         }
 
@@ -83,6 +86,7 @@ namespace GDCefGlue
             CefBrowser browser,
             CefFrame frame)
         {
+            if (_control.IsDisposed) return;
             _control.OnContextMenuDismissed(browser, frame);
         }
     }

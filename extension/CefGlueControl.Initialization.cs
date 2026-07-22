@@ -24,6 +24,7 @@ public partial class CefGlueControl
 
     protected override void _ExitTree()
     {
+        if (Godot.Engine.Singleton.IsEditorHint()) { return; }
         _disposed = true;
         if (_browserHost != null) { _browserHost.CloseBrowser(true); _browserHost = null; _browser = null; }
         _client = null;

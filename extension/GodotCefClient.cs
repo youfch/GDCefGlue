@@ -29,7 +29,13 @@ internal class GodotCefClient : CefClient
         _findHandler = new GodotFindHandler(control);
     }
 
-    protected override CefRenderHandler GetRenderHandler() => _renderHandler;
+    protected override CefRenderHandler GetRenderHandler()
+    {
+        // 嵌入窗口模式：CEF 直接渲染到子 HWND，不需要离屏渲染处理器
+        if (CefGlueControl.ActiveRenderMode == RenderMode.EmbeddedWindow)
+            return null;
+        return _renderHandler;
+    }
     protected override CefLifeSpanHandler GetLifeSpanHandler() => _lifeSpanHandler;
     protected override CefDisplayHandler GetDisplayHandler() => _displayHandler;
     protected override CefLoadHandler GetLoadHandler() => _loadHandler;
@@ -50,6 +56,7 @@ internal class GodotCefClient : CefClient
 
     protected override bool OnProcessMessageReceived(CefBrowser browser, CefFrame frame, CefProcessId sourceProcess, CefProcessMessage message)
     {
+        if (_control.IsDisposed) { message.Dispose(); return false; }
         using (message)
         {
             _control.HandleProcessMessage(message);

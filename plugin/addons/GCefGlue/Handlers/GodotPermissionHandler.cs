@@ -29,6 +29,11 @@ namespace GDCefGlue
             CefMediaAccessPermissionTypes requestedPermissions,
             CefMediaAccessCallback callback)
         {
+            if (_control.IsDisposed)
+            {
+                callback.Continue(CefMediaAccessPermissionTypes.None);
+                return true;
+            }
 
             if (!_control.EnableMediaStream)
             {

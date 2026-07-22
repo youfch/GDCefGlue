@@ -20,6 +20,7 @@ namespace GDCefGlue
         /// </summary>
         protected override void OnAddressChange(CefBrowser browser, CefFrame frame, string url)
         {
+            if (_control.IsDisposed) return;
             _control.OnAddressChange(browser, frame, url);
         }
 
@@ -28,6 +29,7 @@ namespace GDCefGlue
         /// </summary>
         protected override void OnTitleChange(CefBrowser browser, string title)
         {
+            if (_control.IsDisposed) return;
             _control.OnTitleChange(browser, title);
         }
 

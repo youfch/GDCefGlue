@@ -14,11 +14,13 @@ internal class GodotLifeSpanHandler : CefLifeSpanHandler
 
     protected override void OnAfterCreated(CefBrowser browser)
     {
+        if (_control.IsDisposed) return;
         _control.OnBrowserCreated(browser);
     }
 
     protected override bool OnBeforePopup(CefBrowser browser, CefFrame frame, int popupId, string targetUrl, string targetFrameName, CefWindowOpenDisposition targetDisposition, bool userGesture, CefPopupFeatures popupFeatures, CefWindowInfo windowInfo, ref CefClient client, CefBrowserSettings settings, ref CefDictionaryValue extraInfo, ref bool noJavascriptAccess)
     {
+        if (_control.IsDisposed) return true;
         if (_control.OpenPopupInCurrentBrowser)
         {
             switch (targetDisposition)

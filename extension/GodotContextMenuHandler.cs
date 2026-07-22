@@ -27,6 +27,7 @@ internal sealed class GodotContextMenuHandler : CefContextMenuHandler
         CefContextMenuParams state,
         CefMenuModel model)
     {
+        if (_control.IsDisposed) return;
         _control.OnBeforeContextMenu(browser, frame, state, model);
     }
 
@@ -37,6 +38,7 @@ internal sealed class GodotContextMenuHandler : CefContextMenuHandler
         CefMenuModel model,
         CefRunContextMenuCallback callback)
     {
+        if (_control.IsDisposed) return false;
         return _control.OnRunContextMenu(browser, frame, parameters, model, callback);
     }
 
@@ -47,6 +49,7 @@ internal sealed class GodotContextMenuHandler : CefContextMenuHandler
         int commandId,
         CefEventFlags eventFlags)
     {
+        if (_control.IsDisposed) return false;
         return _control.OnContextMenuCommand(browser, frame, state, commandId, eventFlags);
     }
 
@@ -54,6 +57,7 @@ internal sealed class GodotContextMenuHandler : CefContextMenuHandler
         CefBrowser browser,
         CefFrame frame)
     {
+        if (_control.IsDisposed) return;
         _control.OnContextMenuDismissed(browser, frame);
     }
 }

@@ -66,6 +66,7 @@ public partial class CefGlueControl : Control
     private bool _imeActive;
     private bool _imeWanted;
     private bool _disposed;
+    internal bool IsDisposed => _disposed;
 
     public CefGlueControl()
     {

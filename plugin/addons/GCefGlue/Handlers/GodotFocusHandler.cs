@@ -39,6 +39,7 @@ namespace GDCefGlue
         /// </summary>
         protected override void OnTakeFocus(CefBrowser browser, bool next)
         {
+            if (_control.IsDisposed) return;
             _control.OnCefTakeFocus();
         }
     }

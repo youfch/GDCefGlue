@@ -39,6 +39,7 @@ internal class GodotRenderHandler : CefRenderHandler
 
     protected override void OnPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, IntPtr buffer, int width, int height)
     {
+        if (_control.IsDisposed) { browser.Dispose(); return; }
         try { _control.OnPaint(buffer, width, height, dirtyRects); }
         finally { browser.Dispose(); }
     }
@@ -49,10 +50,11 @@ internal class GodotRenderHandler : CefRenderHandler
 
     protected override void OnImeCompositionRangeChanged(CefBrowser browser, CefRange selectedRange, CefRectangle[] characterBounds)
     {
+        if (_control.IsDisposed) return;
         if (characterBounds != null && characterBounds.Length > 0)
         {
             var bounds = characterBounds[0];
-            _control.OnCefImeCompositionChanged(true, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+            _control.UpdateImePosition(bounds.X, bounds.Y, bounds.Width, bounds.Height);
         }
     }
 }
