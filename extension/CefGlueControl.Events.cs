@@ -75,7 +75,7 @@ public partial class CefGlueControl
         if (_renderMode != RenderMode.EmbeddedWindow || _browser == null || !ForwardInputEvents)
             return;
         RegisterEventForwarder();
-        var frame = _browser.GetMainFrame();
+        using var frame = _browser.GetMainFrame();
         if (frame != null)
             frame.ExecuteJavaScript(EventForwardingScript, "godot://event_forward", 0);
     }

@@ -25,6 +25,9 @@ public partial class CefGlueControl
         if (_browserHost != null) { _browserHost.CloseBrowser(true); _browserHost = null; _browser = null; }
         _client = null;
         if (_pixelBuffer != null && _pixelBufferSize > 0) { ArrayPool<byte>.Shared.Return(_pixelBuffer); _pixelBuffer = null; _pixelBufferSize = 0; }
+        // 释放 GPU 纹理和 Image — Godot C# 绑定不会自动释放 RID
+        if (_texture != null) { RenderingServer.Singleton.FreeRid(_texture.GetRid()); _texture.Dispose(); _texture = null; }
+        if (_image != null) { _image.Dispose(); _image = null; }
         base._ExitTree();
     }
 

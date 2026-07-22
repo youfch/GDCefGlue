@@ -73,8 +73,17 @@ public partial class CefGlueControl
 
     public string Address
     {
-        get => _browser?.GetMainFrame()?.Url ?? InitialUrl;
-        set { if (_browser?.GetMainFrame() != null) _browser.GetMainFrame().LoadUrl(value); else InitialUrl = value; }
+        get
+        {
+            using var frame = _browser?.GetMainFrame();
+            return frame?.Url ?? InitialUrl;
+        }
+        set
+        {
+            using var frame = _browser?.GetMainFrame();
+            if (frame != null) frame.LoadUrl(value);
+            else InitialUrl = value;
+        }
     }
     public bool IsBrowserInitialized => _browser != null;
     public bool IsLoading => _browser?.IsLoading ?? false;
@@ -91,4 +100,9 @@ public partial class CefGlueControl
     public event Action<string, bool> NewWindowRequested;
     internal void RaiseNewWindowRequested(string url, bool isNewWindow) => NewWindowRequested?.Invoke(url, isNewWindow);
     internal bool HasNewWindowSubscribers => NewWindowRequested != null;
+
+    // ── 页面内查找事件 ──
+    public event Action<int, int, int, bool> FindResult;
+    internal void RaiseFindResult(int identifier, int count, int activeMatchOrdinal, bool finalUpdate)
+        => FindResult?.Invoke(identifier, count, activeMatchOrdinal, finalUpdate);
 }

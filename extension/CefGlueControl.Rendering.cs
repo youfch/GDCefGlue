@@ -47,8 +47,7 @@ Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
         {
             int w = (int)Size.X, h = (int)Size.Y;
             if (w != _controlWidth || h != _controlHeight) { _controlWidth = w; _controlHeight = h; _pendingWidth = w; _pendingHeight = h; _resizeStableCount = 0; QueueRedraw(); }
-            else if (_pendingWidth > 0 && _pendingHeight > 0 && ++_resizeStableCount >= ResizeStableThreshold) { _browserHost.WasResized(); _browserHost.Invalidate(CefPaintElementType.View); _pendingWidth = 0; _pendingHeight = 0; }
-            else if (_width != _controlWidth || _height != _controlHeight) _browserHost.Invalidate(CefPaintElementType.View);
+            else if (_pendingWidth > 0 && _pendingHeight > 0 && ++_resizeStableCount >= ResizeStableThreshold) { _browserHost.WasResized(); _pendingWidth = 0; _pendingHeight = 0; }
         }
         if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
         {
@@ -58,8 +57,19 @@ Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
                 lock (_bufferLock)
                 {
                     var pba = new PackedByteArray(_pixelBuffer.AsSpan(0, expected));
-                    _image.SetData(_width, _height, false, Image.Format.Rgba8, pba);
-                    _texture = ImageTexture.CreateFromImage(_image);
+                    if (_texture.GetSize().X != _width || _texture.GetSize().Y != _height)
+                    {
+                        // 尺寸变化时释放旧纹理 GPU RID 再创建新纹理
+                        RenderingServer.Singleton.FreeRid(_texture.GetRid());
+                        _texture.Dispose();
+                        _image.SetData(_width, _height, false, Image.Format.Rgba8, pba);
+                        _texture = ImageTexture.CreateFromImage(_image);
+                    }
+                    else
+                    {
+                        _image.SetData(_width, _height, false, Image.Format.Rgba8, pba);
+                        _texture.Update(_image);
+                    }
                 }
                 QueueRedraw();
             }

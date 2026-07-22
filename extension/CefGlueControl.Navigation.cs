@@ -11,10 +11,16 @@ public partial class CefGlueControl
 {
     public void GoBack() => _browser?.GoBack();
     public void GoForward() => _browser?.GoForward();
-    public void NavigateToUrl(string url) { if (!string.IsNullOrEmpty(url)) _browser?.GetMainFrame()?.LoadUrl(url); }
+    public void NavigateToUrl(string url) { if (!string.IsNullOrEmpty(url)) { using var frame = _browser?.GetMainFrame(); frame?.LoadUrl(url); } }
     public void Reload(bool ignoreCache = false) => _browser?.Reload();
     public void ShowDeveloperTools() { var w = CefWindowInfo.Create(); w.RuntimeStyle = CefRuntimeStyle.Chrome; _browserHost?.ShowDevTools(w, _client, new CefBrowserSettings(), new CefPoint()); }
     public void CloseDeveloperTools() => _browserHost?.CloseDevTools();
+
+    // ── 页面内查找 ──
+    public void Find(string searchText, bool forward = true, bool matchCase = false, bool findNext = false)
+        => _browserHost?.Find(searchText, forward, matchCase, findNext);
+    public void StopFinding(bool clearSelection = true)
+        => _browserHost?.StopFinding(clearSelection);
 
     public void EvalJs(string code) => _ = EvalJsAsync(code);
     private async Task EvalJsAsync(string code)
@@ -59,4 +65,16 @@ public partial class CefGlueControl
     { if (!_disposed) CallDeferred("_notify_load_error", errorText, failedUrl); }
     private void _notify_load_error(string errorText, string failedUrl)
     { LoadError?.Invoke(this, new LoadErrorEventArgs(null, CefErrorCode.None, errorText, failedUrl)); EmitSignal(new StringName("load_error"), errorText, failedUrl); }
+
+    // ── 页面内查找回调 ──
+
+    internal void OnFindResult(CefBrowser browser, int identifier, int count,
+        CefRectangle selectionRect, int activeMatchOrdinal, bool finalUpdate)
+    {
+        if (_disposed) return;
+        CallDeferred("_notify_find_result", identifier, count, activeMatchOrdinal, finalUpdate);
+    }
+
+    private void _notify_find_result(int identifier, int count, int activeMatchOrdinal, bool finalUpdate)
+        => RaiseFindResult(identifier, count, activeMatchOrdinal, finalUpdate);
 }

@@ -12,14 +12,14 @@ namespace GDCefGlueExtension;
 
 public partial class CefGlueControl
 {
-    public void ExecuteJavaScript(string code, string url = null, int line = 1) => _browser?.GetMainFrame()?.ExecuteJavaScript(code, url ?? "about:blank", line);
+    public void ExecuteJavaScript(string code, string url = null, int line = 1) { using var f = _browser?.GetMainFrame(); f?.ExecuteJavaScript(code, url ?? "about:blank", line); }
 
     /// <summary>
     /// 非泛型版 EvaluateJavaScript，AOT 安全。返回原始 JSON 字符串。
     /// </summary>
     public Task<string> EvaluateJavaScriptRaw(string code, string url = null, int line = 1, TimeSpan? timeout = null)
     {
-        var frame = _browser?.GetMainFrame(); if (frame == null) return Task.FromResult<string>(null);
+        using var frame = _browser?.GetMainFrame(); if (frame == null) return Task.FromResult<string>(null);
         var id = Interlocked.Increment(ref _lastEvalTaskId); var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pendingEvals.TryAdd(id, tcs);
         var msg = CefProcessMessage.Create("JsEvaluationRequest");
@@ -51,15 +51,16 @@ public partial class CefGlueControl
 
     public void RegisterJsHandler(string name, Callable callable, string methodsJson = "[\"hello\",\"echo\",\"add\",\"getVersion\",\"eval\"]")
     {
-        if (_browser?.GetMainFrame() == null) return;
+        using var frame = _browser?.GetMainFrame();
+        if (frame == null) return;
         _jsHandlers[name] = callable;
         _jsHandlerMethods[name] = methodsJson;
         var msg = CefProcessMessage.Create("NativeObjectRegistrationRequest");
         using (var a = msg.Arguments) { a.SetString(0, name); a.SetString(1, methodsJson); }
-        _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+        frame.SendProcessMessage(CefProcessId.Renderer, msg);
     }
 
-    public void UnregisterJsHandler(string name) { _jsHandlers.Remove(name); _jsHandlerMethods.Remove(name); if (_browser?.GetMainFrame() == null) return; var m = CefProcessMessage.Create("NativeObjectUnregistrationRequest"); using (var a = m.Arguments) a.SetString(0, name); _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, m); }
+    public void UnregisterJsHandler(string name) { _jsHandlers.Remove(name); _jsHandlerMethods.Remove(name); using var f = _browser?.GetMainFrame(); if (f == null) return; var m = CefProcessMessage.Create("NativeObjectUnregistrationRequest"); using (var a = m.Arguments) a.SetString(0, name); f.SendProcessMessage(CefProcessId.Renderer, m); }
 
     internal void HandleProcessMessage(CefProcessMessage message)
     {
@@ -220,7 +221,7 @@ public partial class CefGlueControl
 
     private void SendNativeObjectCallResult(int cid, object r, string err)
     {
-        var f = _browser?.GetMainFrame(); if (f == null) return;
+        using var f = _browser?.GetMainFrame(); if (f == null) return;
         var m = CefProcessMessage.Create("NativeObjectCallResult");
         using (var a = m.Arguments)
         {
@@ -255,13 +256,15 @@ public partial class CefGlueControl
     public void SendToJs(string json)
     {
         var e = json.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
-        _browser?.GetMainFrame()?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onMessage('{e}');", "godot://response", 1);
+        using var frame = _browser?.GetMainFrame();
+        frame?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onMessage('{e}');", "godot://response", 1);
     }
 
     public void SendResponse(string cbId, string json)
     {
         var e = json.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
-        _browser?.GetMainFrame()?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onResponse('{cbId}',\"{e}\");", "godot://response", 1);
+        using var frame = _browser?.GetMainFrame();
+        frame?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onResponse('{cbId}',\"{e}\");", "godot://response", 1);
     }
 
     internal void OnBridgeRequest(string url)
@@ -295,7 +298,8 @@ public partial class CefGlueControl
 
     public void RegisterJavascriptObject(object target, string name)
     {
-        if (_browser == null || _browser.GetMainFrame() == null)
+        using var frame = _browser?.GetMainFrame();
+        if (frame == null)
         { GD.PrintErr("[CefGlueControl] Cannot register object: browser not initialized"); return; }
         var reg = new RegisteredObject(target);
         _registeredObjects[name] = reg;
@@ -307,17 +311,18 @@ public partial class CefGlueControl
             var methodNamesJson = "[" + string.Join(",", Array.ConvertAll(reg.MethodNames, n => "\"" + n + "\"")) + "]";
             args.SetString(1, methodNamesJson);
         }
-        _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+        frame.SendProcessMessage(CefProcessId.Renderer, msg);
     }
 
     public void UnregisterJavascriptObject(string name)
     {
         _registeredObjects.TryRemove(name, out _);
-        if (_browser?.GetMainFrame() != null)
+        using var frame = _browser?.GetMainFrame();
+        if (frame != null)
         {
             var msg = CefProcessMessage.Create("NativeObjectUnregistrationRequest");
             using (var args = msg.Arguments) args.SetString(0, name);
-            _browser.GetMainFrame().SendProcessMessage(CefProcessId.Renderer, msg);
+            frame.SendProcessMessage(CefProcessId.Renderer, msg);
         }
     }
 
