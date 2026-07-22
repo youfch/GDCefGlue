@@ -16,90 +16,92 @@ script = ExtResource("1_vfs0v")
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 40.0
+offset_bottom = 44.0
 grow_horizontal = 2
 
-[node name="BackButton" type="Button" parent="Toolbar" unique_id=1096007130]
+[node name="ToolbarHBox" type="HBoxContainer" parent="Toolbar" unique_id=1000000020]
 layout_mode = 1
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 40.0
-offset_bottom = 36.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BackButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=1096007130]
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 text = "◀"
 
-[node name="ForwardButton" type="Button" parent="Toolbar" unique_id=1773684049]
-layout_mode = 1
-offset_left = 44.0
-offset_top = 4.0
-offset_right = 80.0
-offset_bottom = 36.0
+[node name="ForwardButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=1773684049]
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 text = "▶"
 
-[node name="ReloadButton" type="Button" parent="Toolbar" unique_id=56314966]
-layout_mode = 1
-offset_left = 84.0
-offset_top = 4.0
-offset_right = 120.0
-offset_bottom = 36.0
+[node name="ReloadButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=56314966]
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 text = "↻"
 
-[node name="AddTabButton" type="Button" parent="Toolbar" unique_id=1000000001]
-layout_mode = 1
-offset_left = 124.0
-offset_top = 4.0
-offset_right = 150.0
-offset_bottom = 36.0
+[node name="Separator1" type="HSeparator" parent="Toolbar/ToolbarHBox" unique_id=1000000021]
+custom_minimum_size = Vector2(4, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="AddTabButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=1000000001]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 text = "+"
 
-[node name="CloseTabButton" type="Button" parent="Toolbar" unique_id=1000000003]
-layout_mode = 1
-offset_left = 154.0
-offset_top = 4.0
-offset_right = 180.0
-offset_bottom = 36.0
+[node name="AddOsrTabButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=1000000005]
+custom_minimum_size = Vector2(36, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "OSR"
+
+[node name="CloseTabButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=1000000003]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 text = "×"
 
-[node name="GcButton" type="Button" parent="Toolbar" unique_id=1000000004]
-layout_mode = 1
-offset_left = 184.0
-offset_top = 4.0
-offset_right = 220.0
-offset_bottom = 36.0
+[node name="Separator2" type="HSeparator" parent="Toolbar/ToolbarHBox" unique_id=1000000022]
+custom_minimum_size = Vector2(4, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="GcButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=1000000004]
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 text = "GC"
 
-[node name="UrlInput" type="LineEdit" parent="Toolbar" unique_id=584345537]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.19878472
-anchor_top = 0.1
-anchor_right = 0.8715
-anchor_bottom = 0.9
-grow_vertical = 2
-placeholder_text = "Enter URL..."
-metadata/_edit_use_anchors_ = true
+[node name="Separator3" type="HSeparator" parent="Toolbar/ToolbarHBox" unique_id=1000000023]
+custom_minimum_size = Vector2(4, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 
-[node name="GoButton" type="Button" parent="Toolbar" unique_id=1911961512]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -137.0
-offset_top = 4.0
-offset_right = -87.0
-offset_bottom = 36.0
-grow_horizontal = 0
+[node name="UrlInput" type="LineEdit" parent="Toolbar/ToolbarHBox" unique_id=584345537]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+placeholder_text = "Enter URL..."
+caret_blink = true
+
+[node name="GoButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=1911961512]
+custom_minimum_size = Vector2(36, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 text = "Go"
 
-[node name="OpenDevButton" type="Button" parent="Toolbar" unique_id=1256215964]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -82.0
-offset_top = 4.0
-offset_right = -11.0
-offset_bottom = 36.0
-grow_horizontal = 0
+[node name="OpenDevButton" type="Button" parent="Toolbar/ToolbarHBox" unique_id=1256215964]
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 text = "DevTool"
 
 [node name="TabContainer" type="TabContainer" parent="." unique_id=1000000002]
@@ -107,8 +109,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 40.0
-offset_bottom = -23.0
+offset_top = 44.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
 current_tab = 0
@@ -122,6 +124,67 @@ FrameRate = 120
 SyncCursor = true
 ContextMenuEnabled = true
 metadata/_tab_index = 0
+
+[node name="SearchBar" type="Panel" parent="." unique_id=1000000006]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="SearchHBox" type="HBoxContainer" parent="SearchBar" unique_id=1000000024]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SearchLabel" type="Label" parent="SearchBar/SearchHBox" unique_id=1000000007]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Find:"
+vertical_alignment = 1
+
+[node name="SearchInput" type="LineEdit" parent="SearchBar/SearchHBox" unique_id=1000000008]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+placeholder_text = "Search in page..."
+caret_blink = true
+
+[node name="SearchPrev" type="Button" parent="SearchBar/SearchHBox" unique_id=1000000009]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "▲"
+
+[node name="SearchNext" type="Button" parent="SearchBar/SearchHBox" unique_id=1000000010]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "▼"
+
+[node name="SearchMatchCount" type="Label" parent="SearchBar/SearchHBox" unique_id=1000000011]
+custom_minimum_size = Vector2(44, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "0/0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SearchClose" type="Button" parent="SearchBar/SearchHBox" unique_id=1000000012]
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "×"
 
 [node name="StatusBar" type="Panel" parent="." unique_id=1622732083]
 layout_mode = 1
@@ -138,11 +201,11 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 4.0
-offset_right = -8.0
-offset_bottom = -4.0
+offset_left = 10.0
+offset_top = 2.0
+offset_right = -10.0
+offset_bottom = -2.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "Multi-tab demo: each tab = independent CEF process (~150MB)"
+text = "Ctrl+F to search | OSR button for transparent mode"
 vertical_alignment = 1

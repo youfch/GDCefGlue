@@ -32,7 +32,8 @@ internal class GodotCefClient : CefClient
     protected override CefRenderHandler GetRenderHandler()
     {
         // 嵌入窗口模式：CEF 直接渲染到子 HWND，不需要离屏渲染处理器
-        if (CefGlueControl.ActiveRenderMode == RenderMode.EmbeddedWindow)
+        // 使用实例的 _renderMode 而非静态 ActiveRenderMode，避免多实例混合模式时崩溃
+        if (_control._renderMode == RenderMode.EmbeddedWindow)
             return null;
         return _renderHandler;
     }
@@ -46,7 +47,8 @@ internal class GodotCefClient : CefClient
     protected override CefContextMenuHandler GetContextMenuHandler()
     {
         // 嵌入窗口模式：CEF 在原生子窗口上自行处理右键菜单
-        if (CefGlueControl.ActiveRenderMode == RenderMode.EmbeddedWindow)
+        // 使用实例的 _renderMode 而非静态 ActiveRenderMode，避免多实例混合模式时崩溃
+        if (_control._renderMode == RenderMode.EmbeddedWindow)
             return null;
 
         return _contextMenuHandler;
