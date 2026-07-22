@@ -36,17 +36,17 @@ AddChild(browser);
 ### GDScript（GDExtension 模式）
 
 `gdscript
-var browser: CefGlueControl = 
+var browser = CefGlueControl.new()
 browser.InitialUrl = "https://godotengine.org"
 browser.FrameRate = 120
 browser.Mode = 0  # 0=OSR, 1=EmbeddedWindow
 
-# 连接信号
-browser.BrowserInitialized.connect(_on_ready)
-browser.AddressChanged.connect(_on_address_changed)
-browser.LoadStart.connect(_on_loading)
-browser.LoadEnd.connect(_on_done)
-browser.LoadError.connect(_on_error)
+# 连接信号（GDExtension 使用 snake_case 命名）
+browser.browser_initialized.connect(_on_ready)
+browser.address_changed.connect(_on_address_changed)
+browser.load_start.connect(_on_loading)
+browser.load_end.connect(_on_done)
+browser.load_error.connect(_on_error)
 `
 
 ## 环境要求
