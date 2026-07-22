@@ -108,10 +108,10 @@ current_tab = 0
 layout_mode = 2
 script = ExtResource("2_guh61")
 InitialUrl = "https://www.bing.com"
+Mode = 1
 FrameRate = 120
 SyncCursor = true
 ContextMenuEnabled = true
-"Embedded Mode" = null
 metadata/_tab_index = 0
 
 [node name="StatusBar" type="Panel" parent="." unique_id=1622732083]
