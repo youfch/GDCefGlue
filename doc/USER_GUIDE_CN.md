@@ -16,7 +16,6 @@ GDCefGlue 将完整的 Chromium 浏览器（CEF）嵌入 Godot 4.x 的 `Control`
 2. **下载最新发布包** 从 [GitHub Releases](https://github.com/youfch/GDCefGlue/releases)。
 3. **解压** `addons/GCefGlue/` 到项目的 `addons/` 目录。
 4. **添加 NuGet 包** — 见下方 [NuGet 配置](#nuget-配置)。
-5. **启用插件**：项目 → 项目设置 → 插件 → 启用 `GCefGlue`。
 
 ### 方式 B：GDExtension（NativeAOT，GDScript）
 
