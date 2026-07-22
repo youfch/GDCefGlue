@@ -11,13 +11,15 @@ A CEF (Chromium Embedded Framework) browser control for Godot 4.x using CefGlue.
 - **Dynamic property visibility**: OSR mode hides embedded-mode properties, EmbeddedWindow hides OSR-specific properties
 - **Cross-platform embedded window**: Windows (Win32), Linux (X11), macOS (Cocoa)
 - **Keyboard event forwarding**: Forward browser keyboard events to Godot in EmbeddedWindow mode
-- GPU hardware acceleration
-- IME support for Chinese/Japanese/Korean input
-- Popup handling
-- Complete keyboard and mouse support
+- **GPU hardware acceleration**
+- **IME support for Chinese/Japanese/Korean input**: JS focus watcher auto-detects input focus, drives IME activation/deactivation
+- **Right-click context menu**: Godot PopupMenu in OSR mode, fully customizable
+- **Popup handling**
+- **Complete keyboard and mouse support**
+- **In-page search**: `Find()` / `StopFinding()` methods + `FindResult` event
 - **JS ↔ C# bridge** via RegisterJavascriptObject (CEF IPC, no iframe needed)
 - **GDScript bridge** via RegisterJsHandler (Callable-based, for GDExtension)
-- **Engine-agnostic JS API**: window.__hostBridge / window.__hostEvents — write once, works across Godot, Unreal, or any CEF host
+- **Engine-agnostic JS API**: window.__hostBridge / window.__hostEvents / window.__hostFocus — write once, works across Godot, Unreal, or any CEF host
 
 ## Quick Start
 
@@ -54,6 +56,36 @@ browser.LoadError.connect(_on_error)
 - **Godot Engine**: 4.6.0 or later (with .NET/Mono support)
 - **.NET SDK**: 8.0 or later
 - **Windows/Linux/macOS**: x64 architecture (ARM64 also supported)
+
+## Build
+
+### Plugin (C#, Godot.NET.Sdk)
+
+```bash
+# Build (compile check)
+dotnet build plugin/GDCefGlue.csproj
+
+# Publish
+dotnet publish plugin/GDCefGlue.csproj -c Release
+```
+
+CEF files are copied automatically during build.
+
+### Extension (GDExtension, NativeAOT)
+
+```bash
+# Build (compile check only, NOT for GDExtension)
+dotnet build extension/GDCefGlueExtension.csproj
+
+# AOT publish (required for GDExtension)
+dotnet publish extension/GDCefGlueExtension.csproj -c Release -r win-x64
+```
+
+**AOT output:**
+- Native DLL: `extension/bin/Release/net10.0/win-x64/native/GDCefGlueExtension.dll`
+- Publish folder: `extension/bin/Release/net10.0/win-x64/publish/`
+
+> **Note:** Extension must use `dotnet publish -r <RID>` for AOT compilation. `dotnet build` only produces managed assemblies, not loadable by GDExtension. Supported RIDs: `win-x64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`.
 
 ## NuGet Packages
 
@@ -108,6 +140,8 @@ addons/GCefGlue/                    ← Plugin source code
 ├── CefGlueControl.Inspector.cs     Inspector property visibility (_ValidateProperty)
 ├── CefGlueControl.Events.cs        ForwardInputEvents event forwarding
 ├── CefGlueControl.Embedded.cs      Embedded window mode
+├── CefGlueControl.ContextMenu.cs   OSR context menu (PopupMenu)
+├── CefGlueControl.Cookies.cs       Cookie management
 ├── CefInitializer.cs               CEF initialization
 ├── Handlers/                       CEF handlers
 │   ├── GodotCefApp.cs
@@ -117,6 +151,10 @@ addons/GCefGlue/                    ← Plugin source code
 │   ├── GodotLoadHandler.cs
 │   ├── GodotRenderHandler.cs
 │   ├── GodotRequestHandler.cs
+│   ├── GodotContextMenuHandler.cs
+│   ├── GodotFocusHandler.cs
+│   ├── GodotFindHandler.cs
+│   ├── GodotPermissionHandler.cs
 │   └── GodotBrowserProcessHandler.cs
 └── Platform/                       Cross-platform native API
     ├── NativeWindowMethods.cs      Platform abstraction layer
@@ -132,17 +170,20 @@ addons/GCefGlue/                    ← Plugin source code
 | Mode | RenderMode | OSR | Browser Settings | Render mode: OSR / EmbeddedWindow |
 | FrameRate | int | 60 | Browser Settings | Browser frame rate, 1-360 |
 | Transparent | bool | false | Browser Settings | Enable transparent background (OSR only) |
+| CacheDirectory | string | "user://cef_cache" | Browser Settings | CEF cache directory |
 | GpuAcceleration | bool | true | Feature Toggles | Enable GPU hardware acceleration |
 | OpenPopupInCurrentBrowser | bool | false | Feature Toggles | Open popups in current browser |
+| EnableMediaStream | bool | false | Feature Toggles | Enable media stream (microphone/camera) |
 | SyncCursor | bool | false | Feature Toggles | Sync cursor with web content (OSR only) |
+| ContextMenuEnabled | bool | true | Feature Toggles | Enable right-click context menu (OSR only) |
 | ForwardInputEvents | bool | false | Embedded Mode | Forward browser events to Godot (EmbeddedWindow only) |
 
 ### Dynamic Property Visibility
 
 | Mode | Visible | Hidden |
 |------|---------|--------|
-| OSR | SyncCursor, Transparent | ForwardInputEvents, "Embedded Mode" group |
-| EmbeddedWindow | ForwardInputEvents, "Embedded Mode" group | SyncCursor |
+| OSR | SyncCursor, Transparent, ContextMenuEnabled | ForwardInputEvents, "Embedded Mode" group |
+| EmbeddedWindow | ForwardInputEvents, "Embedded Mode" group | SyncCursor, ContextMenuEnabled |
 
 ### RenderMode Enum
 
@@ -165,6 +206,7 @@ JS events → window.__hostEvents.forward(payload) → CEF IPC → C# → viewpo
 |----------|------|-------------|
 | UseGpuAcceleration | bool | Global GPU acceleration, must be set before CEF initialization |
 | UseTransparent | bool | Global transparency setting, must be set before CEF initialization |
+| ActiveRenderMode | RenderMode | Global rendering mode, must be set before CEF initialization |
 
 ### Read-only Properties
 
@@ -177,17 +219,44 @@ JS events → window.__hostEvents.forward(payload) → CEF IPC → C# → viewpo
 
 ## CefGlueControl Methods
 
-| Method | Description |
-|--------|-------------|
-| GoBack() | Navigate back |
-| GoForward() | Navigate forward |
-| NavigateToUrl(string url) | Navigate to URL |
-| Reload(bool ignoreCache = false) | Reload page |
-| ExecuteJavaScript(string code, ...) | Execute JavaScript |
-| EvaluateJavaScript<T>(string code, ...) | Execute JS and return result (C# only) |
-| EvalJs(string code) | Async JS eval, result via eval_completed signal (GDScript) |
-| ShowDeveloperTools() | Open DevTools |
-| CloseDeveloperTools() | Close DevTools |
+### C# (Plugin)
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| GoBack() | void | Navigate back |
+| GoForward() | void | Navigate forward |
+| NavigateToUrl(string url) | void | Navigate to URL |
+| Reload(bool ignoreCache = false) | void | Reload page |
+| ExecuteJavaScript(string code, ...) | void | Execute JavaScript |
+| EvaluateJavaScript<T>(string code, ...) | Task<T> | Execute JS and return result (async) |
+| EvalJs(string code) | void | Async JS eval, result via eval_completed signal |
+| ShowDeveloperTools() | void | Open DevTools |
+| CloseDeveloperTools() | void | Close DevTools |
+| Find(string text, bool forward, bool matchCase, bool findNext) | void | In-page search |
+| StopFinding(bool clearSelection) | void | Stop search |
+| RegisterJavascriptObject(object target, string name) | void | Register C# object callable from JS |
+| UnregisterJavascriptObject(string name) | void | Unregister object |
+| SendToJs(string json) | void | Push message to JS |
+| SendResponse(string cbId, string json) | void | Reply to bridge request |
+
+### GDScript (GDExtension)
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| go_back() | void | Navigate back |
+| go_forward() | void | Navigate forward |
+| navigate_to_url(url: String) | void | Navigate to URL |
+| reload(ignore_cache: bool = false) | void | Reload page |
+| execute_javascript(code: String, url: String = "about:blank", line: int = 1) | void | Execute JavaScript |
+| eval_js(code: String) | void | Async JS eval, result via eval_completed signal |
+| show_developer_tools() | void | Open DevTools |
+| close_developer_tools() | void | Close DevTools |
+| find(search_text: String, forward: bool = true, match_case: bool = false, find_next: bool = false) | void | In-page search |
+| stop_finding(clear_selection: bool = true) | void | Stop search |
+| register_js_handler(name: String, handler: Callable, methods: String = "[\"hello\",\"echo\",\"add\",\"getVersion\",\"eval\"]") | void | Register GDScript handler callable from JS |
+| unregister_js_handler(name: String) | void | Unregister handler |
+| send_to_js(json: String) | void | Push message to JS |
+| send_response(cb_id: String, json: String) | void | Reply to bridge request |
 
 ## JS ↔ C# Bridge
 
@@ -241,8 +310,9 @@ func _on_js_call(method_name: String, args_json: String) -> Variant:
 | window.__hostBridge | ._onMessage(msg) | Receive push messages from host (C#/GDScript) |
 | window.__hostBridge | ._onResponse(cbId, json) | Receive response from host |
 | window.__hostEvents | .forward(payload) | Forward input events to host (EmbeddedWindow mode) |
+| window.__hostFocus | .onInputFocusChanged(bool) | Notify host of input focus changes (IME drive) |
 
-The __hostBridge / __hostEvents naming is engine-agnostic — the same HTML page works with Godot, Unreal, or any CEF host without modification.
+The __hostBridge / __hostEvents / __hostFocus naming is engine-agnostic — the same HTML page works with Godot, Unreal, or any CEF host without modification.
 
 ### API Overview
 
@@ -257,22 +327,57 @@ The __hostBridge / __hostEvents naming is engine-agnostic — the same HTML page
 | BridgeRequest event | Both | JS → C# | Bridge request entry |
 | ridge_request signal | GDExtension | JS → GDScript | Bridge request signal |
 
-## CefGlueControl Signals
+### IME Focus Watcher
+
+A `__hostFocus` V8 object + JS focus watcher script is auto-injected on page load. It detects `focusin`/`focusout` events on editable elements (`<input>`, `<textarea>`, `contentEditable`) and drives IME activation/deactivation:
+
+```javascript
+// Auto-called by injected script on focus change
+window.__hostFocus.onInputFocusChanged(true);   // Input focused → activate IME
+window.__hostFocus.onInputFocusChanged(false);  // Input blurred → deactivate IME
+```
+
+No manual IME management needed. Works in both OSR and EmbeddedWindow modes.
+
+## Events / Signals
+
+### C# Events (Plugin)
+
+C# events use **PascalCase** naming, subscribe via `+=`:
+
+| Event | Parameters | Description |
+|-------|-----------|-------------|
+| `BrowserInitialized` | `Action` | Browser initialization complete |
+| `AddressChanged` | `AddressChangedEventHandler` | Current page URL changed |
+| `TitleChanged` | `TitleChangedEventHandler` | Page title changed |
+| `LoadStart` | `LoadStartEventHandler` | Page starts loading |
+| `LoadEnd` | `LoadEndEventHandler` | Page finishes loading |
+| `LoadError` | `LoadErrorEventHandler` | Page failed to load |
+| `BridgeRequest` | `Action<string, string, string>` | JS → C# bridge request (type, payload, cbId) |
+| `NewWindowRequested` | `Action<string, bool>` | New window/tab requested |
+| `FindResult` | `Action<int, int, int, bool>` | In-page search result (identifier, count, activeMatchOrdinal, finalUpdate) |
+| `BeforeContextMenu` | `Action<ContextMenuModel, ContextMenuParams>` | Context menu about to show (customizable) |
+| `ContextMenuCommand` | `Func<int, ContextMenuParams, CefEventFlags, bool>` | Context menu command selected |
+| `CookiesVisited` | `Action<List<CookieInfo>>` | Cookie enumeration complete |
+| `SetCookieCompleted` | `Action<bool>` | SetCookie complete |
+| `DeleteCookiesCompleted` | `Action<int>` | DeleteCookies complete |
+
+### GDScript Signals (GDExtension)
+
+GDScript signals use **snake_case** naming, subscribe via `.connect()`:
 
 | Signal | Parameters | Description |
 |--------|-----------|-------------|
-| `BrowserInitialized` | — | Browser initialization complete |
-| `AddressChanged` | `url: string` | Current page URL changed |
-| `TitleChanged` | `title: string` | Page title changed |
-| `LoadStart` | — | Page starts loading |
-| `LoadEnd` | — | Page finishes loading |
-| `LoadError` | `errorText, failedUrl` | Page failed to load |
-| `eval_completed` | `result, error` | EvalJs result (GDExtension) |
-| `bridge_request` | `type, payload, cbId` | Bridge request (GDExtension) |
-| `NewWindowRequested` | `url, isNewWindow` | New window/tab requested (GDExtension) |
-
-> **Note:** Plugin (C#) uses standard C# events with **PascalCase** naming (e.g. `LoadStart`, `LoadEnd`).  
-> GDExtension (GDScript) registers Godot signals with **snake_case** naming (e.g. `load_start`, `load_end`, `eval_completed`, `bridge_request`).  
+| `browser_initialized` | — | Browser initialization complete |
+| `address_changed` | `url: String` | Current page URL changed |
+| `title_changed` | `title: String` | Page title changed |
+| `load_start` | — | Page starts loading |
+| `load_end` | — | Page finishes loading |
+| `load_error` | `errorText: String, failedUrl: String` | Page failed to load |
+| `eval_completed` | `result: String, error: String` | EvalJs result |
+| `bridge_request` | `type: String, payload: String, cbId: String` | JS → GDScript bridge request |
+| `new_window_requested` | `url: String, isNewWindow: bool` | New window/tab requested |
+| `find_result` | `identifier: int, count: int, activeMatchOrdinal: int, finalUpdate: bool` | In-page search result |  
 
 ## Demo
 
@@ -310,10 +415,8 @@ Open `test/GDExtensionGame/` in Godot 4.6+:
 
 ## Known Issues
 
-1. **Right-click Context Menu**: Not supported
-2. **Network Notification**: WSALookupServiceBegin failed with: 10108 is a normal warning
-3. **Embedded window focus**: ✅ Fixed. Added `WS_EX_NOACTIVATE` to prevent CEF child window from stealing focus, and bidirectional `OnTakeFocus`/`SetFocus` synchronization via `CefFocusHandler`.
-4. **JS Bridge S prefix**: CefGlue's serialization protocol prepends 'S' marker to strings. Automatically stripped.
+1. **Network Notification**: `WSALookupServiceBegin failed with: 10108` is a normal warning, does not affect functionality.
+2. **JS Bridge S prefix**: CefGlue's serialization protocol prepends 'S' marker to strings. Automatically stripped.
 
 ## License
 
