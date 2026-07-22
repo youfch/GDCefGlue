@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using Godot;
 using Xilium.CefGlue;
+using Xilium.CefGlue.Platform.Windows;
 
 namespace GDCefGlue
 {
@@ -39,6 +40,8 @@ namespace GDCefGlue
                 return;
 
             _disposed = true;
+
+            DeactivateIme();
 
             if (_browserHost != null)
             {
@@ -96,6 +99,8 @@ namespace GDCefGlue
                     return;
                 }
 
+                // 防止 CEF 子窗口被点击时抢走 Godot 主窗口的键盘焦点
+                windowInfo.StyleEx |= WindowStyleEx.WS_EX_NOACTIVATE;
                 windowInfo.SetAsChild(_godotHwnd, new CefRectangle(0, 0, width, height));
             }
             else

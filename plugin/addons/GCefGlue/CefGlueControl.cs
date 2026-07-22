@@ -64,7 +64,6 @@ namespace GDCefGlue
         internal float _cachedContentScale = 1.0f;
 
         // ── 输入状态 ──
-        private bool _isFocused;
         private bool _browserCreated;
         private bool _isDirty;
         private CefMouseButtonType _pressedButton = (CefMouseButtonType)(-1);
