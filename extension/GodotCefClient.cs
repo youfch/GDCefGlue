@@ -11,6 +11,7 @@ internal class GodotCefClient : CefClient
     private readonly GodotLoadHandler _loadHandler;
     private readonly GodotRequestHandler _requestHandler;
     private readonly GodotPermissionHandler _permissionHandler;
+    private readonly GodotFindHandler _findHandler;
 
     public GodotCefClient(CefGlueControl control)
     {
@@ -21,6 +22,7 @@ internal class GodotCefClient : CefClient
         _loadHandler = new GodotLoadHandler(control);
         _requestHandler = new GodotRequestHandler(control);
         _permissionHandler = new GodotPermissionHandler(control);
+        _findHandler = new GodotFindHandler(control);
     }
 
     protected override CefRenderHandler GetRenderHandler() => _renderHandler;
@@ -29,6 +31,7 @@ internal class GodotCefClient : CefClient
     protected override CefLoadHandler GetLoadHandler() => _loadHandler;
     protected override CefRequestHandler GetRequestHandler() => _requestHandler;
     protected override CefPermissionHandler GetPermissionHandler() => _permissionHandler;
+    protected override CefFindHandler GetFindHandler() => _findHandler;
 
     protected override bool OnProcessMessageReceived(CefBrowser browser, CefFrame frame, CefProcessId sourceProcess, CefProcessMessage message)
     {

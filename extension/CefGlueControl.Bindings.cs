@@ -60,6 +60,15 @@ public partial class CefGlueControl
             (CefGlueControl i, string cbId, string json) => i.SendResponse(cbId, json));
         context.BindMethod(new StringName("show_developer_tools"), (CefGlueControl i) => i.ShowDeveloperTools());
         context.BindMethod(new StringName("close_developer_tools"), (CefGlueControl i) => i.CloseDeveloperTools());
+        context.BindMethod(new StringName("find"),
+            new ParameterInfo(new StringName("search_text"), VariantType.String),
+            new ParameterInfo(new StringName("forward"), VariantType.Bool, VariantTypeMetadata.None, Variant.CreateFrom(true)),
+            new ParameterInfo(new StringName("match_case"), VariantType.Bool, VariantTypeMetadata.None, Variant.CreateFrom(false)),
+            new ParameterInfo(new StringName("find_next"), VariantType.Bool, VariantTypeMetadata.None, Variant.CreateFrom(false)),
+            (CefGlueControl i, string searchText, bool forward, bool matchCase, bool findNext) => i.Find(searchText, forward, matchCase, findNext));
+        context.BindMethod(new StringName("stop_finding"),
+            new ParameterInfo(new StringName("clear_selection"), VariantType.Bool, VariantTypeMetadata.None, Variant.CreateFrom(true)),
+            (CefGlueControl i, bool clearSelection) => i.StopFinding(clearSelection));
         context.BindMethod(new StringName("on_eval_done"),
             new ParameterInfo(new StringName("result"), VariantType.String),
             new ParameterInfo(new StringName("error"), VariantType.String),
@@ -75,6 +84,12 @@ public partial class CefGlueControl
         context.BindMethod(new StringName("_notify_load_end"), (CefGlueControl i) => i._notify_load_end());
         context.BindMethod(new StringName("_notify_load_error"), new ParameterInfo(new StringName("errorText"), VariantType.String), new ParameterInfo(new StringName("failedUrl"), VariantType.String),
             (CefGlueControl i, string errorText, string failedUrl) => i._notify_load_error(errorText, failedUrl));
+        context.BindMethod(new StringName("_notify_find_result"),
+            new ParameterInfo(new StringName("identifier"), VariantType.Int),
+            new ParameterInfo(new StringName("count"), VariantType.Int),
+            new ParameterInfo(new StringName("activeMatchOrdinal"), VariantType.Int),
+            new ParameterInfo(new StringName("finalUpdate"), VariantType.Bool),
+            (CefGlueControl i, int identifier, int count, int activeMatchOrdinal, bool finalUpdate) => i._notify_find_result(identifier, count, activeMatchOrdinal, finalUpdate));
 
         context.BindSignal(new SignalInfo(new StringName("browser_initialized")));
         context.BindSignal(new SignalInfo(new StringName("address_changed")));
@@ -85,5 +100,6 @@ public partial class CefGlueControl
         context.BindSignal(new SignalInfo(new StringName("eval_completed")));
         context.BindSignal(new SignalInfo(new StringName("bridge_request")));
         context.BindSignal(new SignalInfo(new StringName("new_window_requested")));
+        context.BindSignal(new SignalInfo(new StringName("find_result")));
     }
 }
