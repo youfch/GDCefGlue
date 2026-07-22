@@ -122,6 +122,19 @@ AOT 产物：`extension/bin/Release/net10.0/win-x64/native/GDCefGlueExtension.dl
 
 ---
 
+## 截图
+
+> 截图待补充，欢迎贡献！
+
+| 浏览器演示 | IPC 桥接 | 右键菜单 |
+|:---:|:---:|:---:|
+| ![浏览器](img/screenshot-browser.png?raw=true) | ![桥接](img/screenshot-bridge.png?raw=true) | ![右键菜单](img/screenshot-context-menu.png?raw=true) |
+| Godot 中的多标签浏览器 | JS ↔ C# 桥接演示 | OSR 右键上下文菜单 |
+
+性能对比测试（vs 其他 Godot 浏览器方案）— 待补充。
+
+---
+
 ## 文档
 
 | 文档 | 说明 |

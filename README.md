@@ -122,6 +122,19 @@ AOT output: `extension/bin/Release/net10.0/win-x64/native/GDCefGlueExtension.dll
 
 ---
 
+## Screenshots
+
+> Screenshots coming soon. Contributions welcome!
+
+| Browser Demo | IPC Bridge | Context Menu |
+|:---:|:---:|:---:|
+| ![Browser](img/screenshot-browser.png?raw=true) | ![Bridge](img/screenshot-bridge.png?raw=true) | ![Menu](img/screenshot-context-menu.png?raw=true) |
+| Multi-tab browser in Godot | JS ↔ C# bridge demo | Right-click context menu |
+
+Performance benchmark vs other Godot browser solutions — coming soon.
+
+---
+
 ## Documentation
 
 | Guide | Description |
