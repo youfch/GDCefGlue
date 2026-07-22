@@ -100,7 +100,6 @@ public partial class Browser : Control
 
             // 内置 ID (Back/Forward/Reload/Copy/Paste/...) 由 CEF 自动处理
             default:
-                GD.Print($"[Browser] ContextMenuCommand: id={commandId} (built-in, CEF handles)");
                 return false;
         }
     }

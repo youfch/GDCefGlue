@@ -311,7 +311,6 @@ namespace GDCefGlue
             try
             {
                 RaiseBeforeContextMenu(modelWrapper, paramsSnapshot);
-                GD.Print($"[CM] OnBeforeContextMenu: model.Count={modelWrapper.Count}, thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
             }
             catch (Exception ex)
             {
@@ -357,10 +356,8 @@ namespace GDCefGlue
             _pendingContextMenuY = parameters.Y;
             _pendingContextMenuCallback = callback;
 
-            GD.Print($"[CM] OnRunContextMenu: items={_pendingContextMenuItems?.Count ?? 0}, x={_pendingContextMenuX}, y={_pendingContextMenuY}, thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
-
             // Marshal 到 Godot 主线程构建并显示 PopupMenu
-            // 不通过 Variant 传递自定义 DTO（非 Variant 克试类型），改用字段存储
+            // 不通过 Variant 传递自定义 DTO（非 Variant 兼容类型），改用字段存储
             CallDeferred(nameof(NotifyRunContextMenu));
 
             return true; // 我们处理菜单显示，阻止 CEF 默认菜单
@@ -383,8 +380,6 @@ namespace GDCefGlue
             CefEventFlags eventFlags)
         {
             if (_disposed) return false;
-
-            GD.Print($"[CM] OnContextMenuCommand: id={commandId}, thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
             // 快照 params（state 在本次调用返回后会被 CEF 释放）
             // 存入字段，由 Godot 主线程在 NotifyContextMenuCommand 中读取
@@ -447,8 +442,6 @@ namespace GDCefGlue
                 return;
             }
 
-            GD.Print($"[CM] NotifyRunContextMenu: items={items?.Count ?? 0}, thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
-
             // 清理旧 PopupMenu（理论上不应该存在，但防御性处理）
             CloseContextMenuPopup();
 
@@ -457,8 +450,6 @@ namespace GDCefGlue
             _contextMenuPopup.HideOnItemSelection = true;
 
             BuildPopupMenuItems(_contextMenuPopup, items);
-
-            GD.Print($"[CM] PopupMenu built with {_contextMenuPopup.ItemCount} items");
 
             // 连接信号
             _contextMenuPopup.IdPressed += OnContextMenuPopupIdPressed;
@@ -473,8 +464,6 @@ namespace GDCefGlue
             var screenPos = new Vector2I(
                 (int)(globalPos.X + x),
                 (int)(globalPos.Y + y));
-
-            GD.Print($"[CM] Popup at screen ({screenPos.X}, {screenPos.Y}) [global={globalPos}, cef=({x},{y})]");
 
             // 显示菜单
             _contextMenuPopup.Position = screenPos;
@@ -568,7 +557,6 @@ namespace GDCefGlue
         /// <summary>PopupMenu.IdPressed signal handler. Called on Godot main thread.</summary>
         private void OnContextMenuPopupIdPressed(long id)
         {
-            GD.Print($"[CM] IdPressed: id={id}, thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
             var callback = _pendingContextMenuCallback;
             _pendingContextMenuCallback = null;
 
@@ -581,7 +569,6 @@ namespace GDCefGlue
             try
             {
                 callback.Continue((int)id, CefEventFlags.None);
-                GD.Print($"[CM] callback.Continue({id}) returned OK");
             }
             catch (Exception ex)
             {
@@ -597,7 +584,6 @@ namespace GDCefGlue
         /// </summary>
         private void OnContextMenuPopupHide()
         {
-            GD.Print($"[CM] PopupHide, thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
             // 延迟到帧末 — 如果 IdPressed 也会触发（用户点击了菜单项），
             // 它会在 deferred 调用之前同步消费 callback；deferred 中看到 null 直接跳过。
             // 如果用户未点击菜单项（Esc/点外部关闭），deferred 中 callback 仍在 → Cancel。
@@ -613,18 +599,12 @@ namespace GDCefGlue
             _pendingContextMenuCallback = null;
 
             if (callback == null)
-            {
-                // IdPressed 已消费 callback — 菜单项被选中，无需 Cancel
-                GD.Print("[CM] DeferredPopupHide: callback already consumed by IdPressed");
-                return;
-            }
+                return; // IdPressed 已消费 callback — 菜单项被选中，无需 Cancel
 
             // 用户未选中任何菜单项就关闭了弹窗（Esc / 点击外部）→ 通知 CEF 取消
-            GD.Print("[CM] DeferredPopupHide: dismissing menu (no selection) → callback.Cancel()");
             try
             {
                 callback.Cancel();
-                GD.Print("[CM] callback.Cancel returned OK");
             }
             catch (Exception ex)
             {
