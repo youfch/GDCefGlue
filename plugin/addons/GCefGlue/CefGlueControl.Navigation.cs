@@ -9,7 +9,7 @@ namespace GDCefGlue
     {
         public void GoBack() => _browser?.GoBack();
         public void GoForward() => _browser?.GoForward();
-        public void NavigateToUrl(string url) { if (!string.IsNullOrEmpty(url)) _browser?.GetMainFrame()?.LoadUrl(url); }
+        public void NavigateToUrl(string url) { if (!string.IsNullOrEmpty(url)) { using var frame = _browser?.GetMainFrame(); frame?.LoadUrl(url); } }
         public void Reload(bool ignoreCache = false) => _browser?.Reload();
 
         public void ShowDeveloperTools()

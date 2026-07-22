@@ -175,12 +175,17 @@ namespace GDCefGlue
         /// </summary>
         public string Address
         {
-            get => _browser?.GetMainFrame()?.Url ?? InitialUrl;
+            get
+            {
+                using var frame = _browser?.GetMainFrame();
+                return frame?.Url ?? InitialUrl;
+            }
             set
             {
-                if (_browser != null && _browser.GetMainFrame() != null)
+                using var frame = _browser?.GetMainFrame();
+                if (frame != null)
                 {
-                    _browser.GetMainFrame().LoadUrl(value);
+                    frame.LoadUrl(value);
                 }
                 else
                 {

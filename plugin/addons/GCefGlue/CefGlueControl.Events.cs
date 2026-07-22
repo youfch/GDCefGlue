@@ -74,7 +74,7 @@ namespace GDCefGlue
             if (_renderMode != RenderMode.EmbeddedWindow || _browser == null || !ForwardInputEvents)
                 return;
             RegisterEventForwarder();
-            var frame = _browser.GetMainFrame();
+            using var frame = _browser.GetMainFrame();
             if (frame != null)
                 frame.ExecuteJavaScript(EventForwardingScript, "godot://event_forward", 0);
         }
@@ -95,7 +95,7 @@ namespace GDCefGlue
                 _focusWatcherRegistered = true;
             }
             // JS 脚本每次页面加载都重新注入（新页面的 window 上下文中 __hostFocusInjected 不存在）
-            var frame = _browser.GetMainFrame();
+            using var frame = _browser.GetMainFrame();
             if (frame != null)
                 frame.ExecuteJavaScript(FocusWatcherScript, "godot://focus_watcher", 0);
         }
