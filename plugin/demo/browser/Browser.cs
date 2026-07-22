@@ -20,6 +20,7 @@ public partial class Browser : Control
     private Button _addTabButton;
     private Button _closeTabButton;
     private Button _openDevButton;
+    private Button _gcButton;
     private Label _statusLabel;
     private int _tabCounter = 2;
 
@@ -43,6 +44,7 @@ public partial class Browser : Control
         _addTabButton = GetNode<Button>("Toolbar/AddTabButton");
         _closeTabButton = GetNode<Button>("Toolbar/CloseTabButton");
         _openDevButton = GetNode<Button>("Toolbar/OpenDevButton");
+        _gcButton = GetNode<Button>("Toolbar/GcButton");
         _statusLabel = GetNode<Label>("StatusBar/StatusLabel");
 
         _goButton.Pressed += OnGoPressed;
@@ -52,6 +54,7 @@ public partial class Browser : Control
         _addTabButton.Pressed += OnAddTabPressed;
         _closeTabButton.Pressed += OnCloseTabPressed;
         _openDevButton.Pressed += OnOpenDevPressed;
+        _gcButton.Pressed += OnGcPressed;
         _urlInput.TextSubmitted += OnUrlSubmitted;
 
         _tabContainer.TabChanged += OnTabChanged;
@@ -236,6 +239,17 @@ public partial class Browser : Control
     private void OnForwardPressed() => CurrentBrowser?.GoForward();
     private void OnReloadPressed() => CurrentBrowser?.Reload();
     private void OnOpenDevPressed() => CurrentBrowser?.ShowDeveloperTools();
+
+    private void OnGcPressed()
+    {
+        var before = GC.GetTotalMemory(forceFullCollection: false);
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+        var after = GC.GetTotalMemory(forceFullCollection: false);
+        var freed = before - after;
+        _statusLabel.Text = $"GC: {(freed / 1024.0 / 1024.0):F1} MB freed (now {after / 1024.0 / 1024.0:F1} MB)";
+    }
 
     private void OnGoPressed() => NavigateToUrl();
     private void OnUrlSubmitted(string text) => NavigateToUrl();

@@ -59,15 +59,24 @@ offset_right = 180.0
 offset_bottom = 36.0
 text = "×"
 
+[node name="GcButton" type="Button" parent="Toolbar" unique_id=1000000004]
+layout_mode = 1
+offset_left = 184.0
+offset_top = 4.0
+offset_right = 220.0
+offset_bottom = 36.0
+text = "GC"
+
 [node name="UrlInput" type="LineEdit" parent="Toolbar" unique_id=584345537]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.18
+anchor_left = 0.19878472
 anchor_top = 0.1
 anchor_right = 0.8715
 anchor_bottom = 0.9
 grow_vertical = 2
 placeholder_text = "Enter URL..."
+metadata/_edit_use_anchors_ = true
 
 [node name="GoButton" type="Button" parent="Toolbar" unique_id=1911961512]
 layout_mode = 1
