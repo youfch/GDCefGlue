@@ -37,8 +37,14 @@ namespace GDCefGlue
         internal void OnLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode)
         {
             if (_disposed) return;
-            if (_renderMode == RenderMode.EmbeddedWindow && frame.IsMain)
-                InjectEventForwardingScriptIfNeeded();
+            if (frame.IsMain)
+            {
+                // 所有模式下注入输入焦点监听 JS（驱动 IME 激活/关闭）
+                InjectFocusWatcherIfNeeded();
+                // 嵌入窗口模式下注入事件转发 JS
+                if (_renderMode == RenderMode.EmbeddedWindow)
+                    InjectEventForwardingScriptIfNeeded();
+            }
             CallDeferred(nameof(NotifyLoadEnd));
         }
         private void NotifyLoadEnd() => LoadEnd?.Invoke(this, new LoadEndEventArgs(null, 0));

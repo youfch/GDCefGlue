@@ -9,16 +9,59 @@ namespace GDCefGlue
     // ══════════════════════════════════════════════════════════════
     public partial class CefGlueControl
     {
+        // ── IME 状态跟踪 ──
+        private bool _imeActive;
+
         private void ActivateIme()
         {
             var window = GetWindow();
-            if (window != null && HasFocus()) window.SetImeActive(true);
+            if (window != null && HasFocus() && !_imeActive)
+            {
+                window.SetImeActive(true);
+                _imeActive = true;
+            }
         }
 
         private void DeactivateIme()
         {
             var window = GetWindow();
-            if (window != null) window.SetImeActive(false);
+            if (window != null && _imeActive)
+            {
+                window.SetImeActive(false);
+                _imeActive = false;
+            }
+        }
+
+        /// <summary>
+        /// 由 GodotRenderHandler.OnImeCompositionRangeChanged 调用，更新 IME 候选窗位置。
+        /// IME 激活/关闭由 JS focusin/focusout 事件驱动，见 OnInputFocusChanged。
+        /// </summary>
+        internal void OnCefImeCompositionChanged(bool hasComposition, int x, int y, int width, int height)
+        {
+            if (hasComposition)
+            {
+                UpdateImePosition(x, y, width, height);
+            }
+        }
+
+        /// <summary>
+        /// 由 GodotFocusWatcher（JS focusin/focusout 回调）调用。
+        /// 注意：此回调从 CEF IPC 线程进入，需要用 CallDeferred 调度到 Godot 主线程执行 IME 操作。
+        /// </summary>
+        internal void OnInputFocusChanged(bool focused)
+        {
+            if (focused) CallDeferred(nameof(ActivateIme));
+            else CallDeferred(nameof(DeactivateIme));
+        }
+
+        /// <summary>
+        /// JS → C# 桥接对象：页面通过 window.__hostFocus.onInputFocusChanged(bool) 通知 C# 输入焦点变化。
+        /// </summary>
+        private sealed class GodotFocusWatcher
+        {
+            private readonly CefGlueControl _control;
+            public GodotFocusWatcher(CefGlueControl control) => _control = control;
+            public void OnInputFocusChanged(bool focused) => _control.OnInputFocusChanged(focused);
         }
 
         public override void _GuiInput(InputEvent @event)
@@ -85,11 +128,12 @@ namespace GDCefGlue
                 _lastClickTime = currentTime;
                 _pressedButton = button; _isMousePressed = true;
                 _browserHost.SendMouseClickEvent(mouseEvent, button, false, _clickCount);
-                // 仅左键按下时抓取 Godot 焦点、通知 CEF 获焦并激活 IME。
-                // 右键/中键不触发聚焦，避免焦点被无谓抢夺。
+                // 左键抓取 Godot 焦点并通知 CEF 获焦。
+                // IME 激活/关闭由 JS focusin/focusout 事件驱动（OnInputFocusChanged），
+                // 页面告知 C# 当前是否有可编辑元素聚焦时才激活 IME。
                 if (button == CefMouseButtonType.Left)
                 {
-                    GrabFocus(); _browserHost?.SetFocus(true); ActivateIme();
+                    GrabFocus(); _browserHost?.SetFocus(true);
                 }
             }
             else
