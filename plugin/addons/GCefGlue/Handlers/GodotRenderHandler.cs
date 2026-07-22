@@ -55,7 +55,8 @@ namespace GDCefGlue
         /// </summary>
         protected override void OnPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, IntPtr buffer, int width, int height)
         {
-            _control.OnPaint(buffer, width, height, dirtyRects);
+            try { _control.OnPaint(buffer, width, height, dirtyRects); }
+            finally { browser.Dispose(); }
         }
 
         protected override void OnAcceleratedPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, CefAcceleratedPaintInfo info) { }
