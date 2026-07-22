@@ -76,7 +76,39 @@ public partial class Browser : Control
         cef.LoadEnd += OnLoadEnd;
         cef.LoadError += OnLoadError;
         cef.NewWindowRequested += OnNewWindowRequested;
+        // 右键菜单：不订阅 BeforeContextMenu → 显示 CEF 默认菜单（后退/复制/粘贴等）
+        // 仅订阅 ContextMenuCommand 处理自定义命令（DevTools）
+        cef.ContextMenuCommand += OnContextMenuCommand;
     }
+
+    private bool OnContextMenuCommand(int commandId, CefGlueControl.ContextMenuParams parameters, CefEventFlags eventFlags)
+    {
+        switch (commandId)
+        {
+            case CmdOpenDevTools:
+                CurrentBrowser?.ShowDeveloperTools();
+                return true;
+
+            case CmdCopyLinkUrl:
+                DisplayServer.ClipboardSet(parameters.LinkUrl);
+                return true;
+
+            case CmdOpenLinkNewTab:
+                if (!string.IsNullOrEmpty(parameters.LinkUrl))
+                    CallDeferred(nameof(AddTabWithUrl), parameters.LinkUrl);
+                return true;
+
+            // 内置 ID (Back/Forward/Reload/Copy/Paste/...) 由 CEF 自动处理
+            default:
+                GD.Print($"[Browser] ContextMenuCommand: id={commandId} (built-in, CEF handles)");
+                return false;
+        }
+    }
+
+    // 自定义命令 ID — 必须在 CefMenuId.UserFirst..UserLast 范围内
+    private const int CmdCopyLinkUrl = (int)CefMenuId.UserFirst + 1;
+    private const int CmdOpenLinkNewTab = (int)CefMenuId.UserFirst + 2;
+    private const int CmdOpenDevTools = (int)CefMenuId.UserFirst + 3;
 
     private void OnNewWindowRequested(string url, bool isNewWindow)
     {
