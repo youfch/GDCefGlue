@@ -26,6 +26,9 @@ public partial class Browser : Control
     private Label _statusLabel;
     private int _tabCounter = 2;
 
+    // ── OSR mode toggle ──
+    private bool _osrMode; // false=EmbeddedWindow, true=OSR
+
     // ── Find-in-page ──
     private Panel _searchBar;
     private LineEdit _searchInput;
@@ -33,7 +36,6 @@ public partial class Browser : Control
     private Button _searchNext;
     private Button _searchClose;
     private Label _searchMatchCount;
-    private int _searchIdentifier; // 当前搜索会话 ID，用于丢弃过期回调
     private bool _searchVisible;
 
     private CefGlueControl CurrentBrowser
@@ -75,7 +77,7 @@ public partial class Browser : Control
         _forwardButton.Pressed += OnForwardPressed;
         _reloadButton.Pressed += OnReloadPressed;
         _addTabButton.Pressed += OnAddTabPressed;
-        _addOsrTabButton.Pressed += OnAddOsrTabPressed;
+        _addOsrTabButton.Pressed += OnOsrTogglePressed;
         _closeTabButton.Pressed += OnCloseTabPressed;
         _openDevButton.Pressed += OnOpenDevPressed;
         _gcButton.Pressed += OnGcPressed;
@@ -178,38 +180,24 @@ public partial class Browser : Control
     private void AddTabWithUrl(string url)
     {
         _tabCounter++;
+        var isOsr = _osrMode;
         var tab = new CefGlueControl
         {
             Name = $"Tab{_tabCounter}",
             FrameRate = 120,
             InitialUrl = url,
-            Mode = RenderMode.EmbeddedWindow,
+            Mode = isOsr ? RenderMode.OSR : RenderMode.EmbeddedWindow,
+            Transparent = isOsr,
+            ContextMenuEnabled = isOsr,
             OpenPopupInCurrentBrowser = false,
             SyncCursor = true,
         };
         ConnectTab(tab);
         _tabContainer.AddChild(tab);
         _tabContainer.CurrentTab = _tabContainer.GetTabCount() - 1;
-    }
-
-    private void AddOsrTabWithUrl(string url)
-    {
-        _tabCounter++;
-        var tab = new CefGlueControl
-        {
-            Name = $"Tab{_tabCounter}",
-            FrameRate = 120,
-            InitialUrl = url,
-            Mode = RenderMode.OSR,
-            Transparent = true,
-            ContextMenuEnabled = true,
-            OpenPopupInCurrentBrowser = false,
-            SyncCursor = true,
-        };
-        ConnectTab(tab);
-        _tabContainer.AddChild(tab);
-        _tabContainer.CurrentTab = _tabContainer.GetTabCount() - 1;
-        _statusLabel.Text = $"Tab {_tabCounter}: OSR mode (transparent)";
+        _statusLabel.Text = isOsr
+            ? $"Tab {_tabCounter}: OSR mode (transparent)"
+            : $"Tab {_tabCounter}: EmbeddedWindow mode";
     }
 
     private void OnTabChanged(long tabIndex)
@@ -241,25 +229,30 @@ public partial class Browser : Control
 
     private void OnAddTabPressed()
     {
-        _tabCounter++;
-        var tab = new CefGlueControl
-        {
-            Name = $"Tab{_tabCounter}",
-            FrameRate = 120,
-            InitialUrl = "https://www.bing.com",
-            Mode = RenderMode.EmbeddedWindow,
-            OpenPopupInCurrentBrowser = false,
-            SyncCursor = true,
-        };
-        ConnectTab(tab);
-        _tabContainer.AddChild(tab);
-        _tabContainer.CurrentTab = _tabContainer.GetTabCount() - 1;
-        _statusLabel.Text = $"Tab {_tabCounter}: new tab";
+        AddTabWithUrl("https://www.bing.com");
     }
 
-    private void OnAddOsrTabPressed()
+    private void OnOsrTogglePressed()
     {
-        AddOsrTabWithUrl("https://www.bing.com");
+        _osrMode = !_osrMode;
+        UpdateOsrButtonState();
+        _statusLabel.Text = _osrMode ? "OSR mode ON — new tabs will use OSR" : "OSR mode OFF — new tabs will use EmbeddedWindow";
+    }
+
+    private void UpdateOsrButtonState()
+    {
+        if (_osrMode)
+        {
+            _addOsrTabButton.Text = "OSR";
+            _addOsrTabButton.AddThemeColorOverride("font_color", new Color(0.25f, 0.50f, 1.0f));
+            _addOsrTabButton.AddThemeColorOverride("font_hover_color", new Color(0.35f, 0.58f, 1.0f));
+        }
+        else
+        {
+            _addOsrTabButton.Text = "OSR";
+            _addOsrTabButton.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.65f));
+            _addOsrTabButton.AddThemeColorOverride("font_hover_color", new Color(0.8f, 0.8f, 0.9f));
+        }
     }
 
     private void OnCloseTabPressed()
@@ -313,7 +306,6 @@ public partial class Browser : Control
             return;
         }
         // 新搜索会话
-        _searchIdentifier++;
         CurrentBrowser?.Find(text, forward: true, matchCase: false, findNext: false);
     }
 
@@ -345,8 +337,7 @@ public partial class Browser : Control
 
     private void OnFindResult(int identifier, int count, int activeMatchOrdinal, bool finalUpdate)
     {
-        // 丢弃过期回调（来自之前的搜索会话）
-        if (identifier != _searchIdentifier) return;
+        // CEF 可能多次回调（intermediate + final），只在 finalUpdate=true 时更新 UI
         if (!finalUpdate) return;
 
         if (count > 0)
