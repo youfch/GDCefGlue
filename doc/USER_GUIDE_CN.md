@@ -25,7 +25,16 @@ GDCefGlue 将完整的 Chromium 浏览器（CEF）嵌入 Godot 4.x 的 `Control`
 
 ### NuGet 配置（仅 Plugin）
 
-在项目根目录创建 `nuget.config`：
+CefGlue 的 NuGet 包发布在 GitHub Releases 上（不在 NuGet.org），需要手动下载并配置本地源。
+
+**下载地址：**
+- [CefGlue NuGet 包](https://github.com/youfch/CefGlue/releases/tag/v149.7827.156) — 下载全部 `.nupkg` 文件
+- [chromiumembeddedframework.runtime](https://github.com/youfch/cef.redist.win/releases) — CEF 运行时包
+
+**配置步骤：**
+
+1. 下载全部 `.nupkg` 文件，放入 `./nuget-feed/` 目录
+2. 在项目根目录创建 `nuget.config`：
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -62,6 +71,8 @@ browser.Mode = RenderMode.OSR;   // OSR（支持透明）或 EmbeddedWindow
 AddChild(browser);
 ```
 
+> 完整 C# 示例见 `plugin/demo/` 目录。
+
 **GDScript：**
 ```gdscript
 var browser = CefGlueControl.new()
@@ -69,6 +80,8 @@ browser.InitialUrl = "https://godotengine.org"
 browser.Mode = 0  # 0=OSR, 1=EmbeddedWindow
 add_child(browser)
 ```
+
+> 完整 GDScript 示例见 `test/GDExtensionGame/demo/` 目录。
 
 ### Inspector 设置
 

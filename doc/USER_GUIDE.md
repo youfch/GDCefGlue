@@ -25,7 +25,16 @@ GDCefGlue embeds a full Chromium browser (CEF) into Godot 4.x as a `Control` nod
 
 ### NuGet Setup (Plugin only)
 
-Create a `nuget.config` in your project root:
+CefGlue NuGet packages are published on GitHub Releases (not on NuGet.org). Download and set up a local feed.
+
+**Download:**
+- [CefGlue NuGet packages](https://github.com/youfch/CefGlue/releases/tag/v149.7827.156) — download all `.nupkg` files
+- [chromiumembeddedframework.runtime](https://github.com/youfch/cef.redist.win/releases) — CEF runtime packages
+
+**Setup:**
+
+1. Download all `.nupkg` files, place them in `./nuget-feed/`
+2. Create a `nuget.config` in your project root:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -62,6 +71,8 @@ browser.Mode = RenderMode.OSR;   // OSR (transparent) or EmbeddedWindow
 AddChild(browser);
 ```
 
+> Full C# demo: `plugin/demo/` directory.
+
 **GDScript:**
 ```gdscript
 var browser = CefGlueControl.new()
@@ -69,6 +80,8 @@ browser.InitialUrl = "https://godotengine.org"
 browser.Mode = 0  # 0=OSR, 1=EmbeddedWindow
 add_child(browser)
 ```
+
+> Full GDScript demo: `test/GDExtensionGame/demo/` directory.
 
 ### Inspector Setup
 
