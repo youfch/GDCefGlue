@@ -60,6 +60,19 @@ namespace GDCefGlue
             _renderBuffer = null;
             _renderBufferSize = 0;
 
+            // 释放 GPU 纹理和 Image — Godot C# 绑定不会自动释放 RID (godotengine/godot#29006)
+            if (_texture != null)
+            {
+                RenderingServer.FreeRid(_texture.GetRid());
+                _texture.Dispose();
+                _texture = null;
+            }
+            if (_image != null)
+            {
+                _image.Dispose();
+                _image = null;
+            }
+
             base._ExitTree();
         }
 

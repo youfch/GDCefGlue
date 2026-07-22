@@ -80,28 +80,27 @@ namespace GDCefGlue
             // OSR: skip texture update when hidden (browser/audio/JS still runs in background)
             if (!Visible) return;
 
-            if (_browserHost != null && Size.X > 0 && Size.Y > 0)
-            {
-                int newWidth = (int)Size.X, newHeight = (int)Size.Y;
-                if (newWidth != _controlWidth || newHeight != _controlHeight)
+                if (_browserHost != null && Size.X > 0 && Size.Y > 0)
                 {
-                    _controlWidth = newWidth; _controlHeight = newHeight;
-                    _pendingWidth = newWidth; _pendingHeight = newHeight;
-                    _resizeStableCount = 0; QueueRedraw();
-                }
-                else if (_pendingWidth > 0 && _pendingHeight > 0)
-                {
-                    _resizeStableCount++;
-                    if (_resizeStableCount >= ResizeStableThreshold)
+                    int newWidth = (int)Size.X, newHeight = (int)Size.Y;
+                    if (newWidth != _controlWidth || newHeight != _controlHeight)
                     {
-                        _browserHost.WasResized();
-                        _browserHost.Invalidate(CefPaintElementType.View);
-                        _pendingWidth = 0; _pendingHeight = 0;
+                        _controlWidth = newWidth; _controlHeight = newHeight;
+                        _pendingWidth = newWidth; _pendingHeight = newHeight;
+                        _resizeStableCount = 0; QueueRedraw();
+                    }
+                    else if (_pendingWidth > 0 && _pendingHeight > 0)
+                    {
+                        _resizeStableCount++;
+                        if (_resizeStableCount >= ResizeStableThreshold)
+                        {
+                            // WasResized 内部会在 resize 完成后自动触发 OnPaint,
+                            // 不需要额外的 Invalidate, 否则同一帧画两次
+                            _browserHost.WasResized();
+                            _pendingWidth = 0; _pendingHeight = 0;
+                        }
                     }
                 }
-                else if (_width != _controlWidth || _height != _controlHeight)
-                    _browserHost.Invalidate(CefPaintElementType.View);
-            }
 
             if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
             {
@@ -114,7 +113,17 @@ namespace GDCefGlue
                     try { _spinLock.Enter(ref lockTaken); Buffer.BlockCopy(_pixelBuffer, 0, _renderBuffer, 0, expectedSize); }
                     finally { if (lockTaken) _spinLock.Exit(); }
                     if (_texture.GetSize().X != _width || _texture.GetSize().Y != _height)
-                    { _image.SetData(_width, _height, false, Image.Format.Rgba8, _renderBuffer); _texture = ImageTexture.CreateFromImage(_image); }
+                    {
+                        // 尺寸变化时必须创建新纹理, 但先释放旧纹理的 GPU RID
+                        // Godot C# 绑定不会自动释放 RID (godotengine/godot#29006)
+                        if (_texture != null)
+                        {
+                            RenderingServer.FreeRid(_texture.GetRid());
+                            _texture.Dispose();
+                        }
+                        _image.SetData(_width, _height, false, Image.Format.Rgba8, _renderBuffer);
+                        _texture = ImageTexture.CreateFromImage(_image);
+                    }
                     else { _image.SetData(_width, _height, false, Image.Format.Rgba8, _renderBuffer); _texture.Update(_image); }
                     QueueRedraw();
                 }
