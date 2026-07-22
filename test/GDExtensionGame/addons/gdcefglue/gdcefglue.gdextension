@@ -3,39 +3,39 @@ entry_symbol = "gdcefglue_library_init"
 compatibility_minimum = 4.6
 
 [libraries]
-windows.x86_64.debug = "res://addons/gdcefglue/windows/GDCefGlueExtension.dll"
-windows.x86_64.release = "res://addons/gdcefglue/windows/GDCefGlueExtension.dll"
-linux.x86_64.debug = "res://addons/gdcefglue/linux/libGDCefGlueExtension.so"
-linux.x86_64.release = "res://addons/gdcefglue/linux/libGDCefGlueExtension.so"
-macos.debug = "res://addons/gdcefglue/macos/libGDCefGlueExtension.dylib"
-macos.release = "res://addons/gdcefglue/macos/libGDCefGlueExtension.dylib"
+windows.x86_64.debug = "res://addons/gdcefglue/windows-x64/GDCefGlueExtension.dll"
+windows.x86_64.release = "res://addons/gdcefglue/windows-x64/GDCefGlueExtension.dll"
+linux.x86_64.debug = "res://addons/gdcefglue/linux-x64/libGDCefGlueExtension.so"
+linux.x86_64.release = "res://addons/gdcefglue/linux-x64/libGDCefGlueExtension.so"
+macos.debug = "res://addons/gdcefglue/macos-arm64/libGDCefGlueExtension.dylib"
+macos.release = "res://addons/gdcefglue/macos-arm64/libGDCefGlueExtension.dylib"
 
 [dependencies]
 windows.x86_64 = {
-  "res://addons/gdcefglue/windows/libcef.dll": "",
-  "res://addons/gdcefglue/windows/resources.pak": "",
-  "res://addons/gdcefglue/windows/chrome_100_percent.pak": "",
-  "res://addons/gdcefglue/windows/chrome_200_percent.pak": "",
-  "res://addons/gdcefglue/windows/icudtl.dat": "",
-  "res://addons/gdcefglue/windows/v8_context_snapshot.bin": "",
-  "res://addons/gdcefglue/windows/vk_swiftshader.dll": "",
-  "res://addons/gdcefglue/windows/vk_swiftshader_icd.json": "",
-  "res://addons/gdcefglue/windows/vulkan-1.dll": "",
-  "res://addons/gdcefglue/windows/chrome_elf.dll": "",
-  "res://addons/gdcefglue/windows/d3dcompiler_47.dll": "",
-  "res://addons/gdcefglue/windows/libEGL.dll": "",
-  "res://addons/gdcefglue/windows/libGLESv2.dll": ""
+  "res://addons/gdcefglue/windows-x64/libcef.dll": "",
+  "res://addons/gdcefglue/windows-x64/resources.pak": "",
+  "res://addons/gdcefglue/windows-x64/chrome_100_percent.pak": "",
+  "res://addons/gdcefglue/windows-x64/chrome_200_percent.pak": "",
+  "res://addons/gdcefglue/windows-x64/icudtl.dat": "",
+  "res://addons/gdcefglue/windows-x64/v8_context_snapshot.bin": "",
+  "res://addons/gdcefglue/windows-x64/vk_swiftshader.dll": "",
+  "res://addons/gdcefglue/windows-x64/vk_swiftshader_icd.json": "",
+  "res://addons/gdcefglue/windows-x64/vulkan-1.dll": "",
+  "res://addons/gdcefglue/windows-x64/chrome_elf.dll": "",
+  "res://addons/gdcefglue/windows-x64/d3dcompiler_47.dll": "",
+  "res://addons/gdcefglue/windows-x64/libEGL.dll": "",
+  "res://addons/gdcefglue/windows-x64/libGLESv2.dll": ""
 }
 linux.x86_64 = {
-  "res://addons/gdcefglue/linux/libcef.so": "",
-  "res://addons/gdcefglue/linux/resources.pak": "",
-  "res://addons/gdcefglue/linux/chrome_100_percent.pak": "",
-  "res://addons/gdcefglue/linux/chrome_200_percent.pak": "",
-  "res://addons/gdcefglue/linux/icudtl.dat": "",
-  "res://addons/gdcefglue/linux/v8_context_snapshot.bin": "",
-  "res://addons/gdcefglue/linux/libEGL.so": "",
-  "res://addons/gdcefglue/linux/libGLESv2.so": "",
-  "res://addons/gdcefglue/linux/libvk_swiftshader.so": "",
-  "res://addons/gdcefglue/linux/libvulkan.so.1": "",
-  "res://addons/gdcefglue/linux/vk_swiftshader_icd.json": ""
+  "res://addons/gdcefglue/linux-x64/libcef.so": "",
+  "res://addons/gdcefglue/linux-x64/resources.pak": "",
+  "res://addons/gdcefglue/linux-x64/chrome_100_percent.pak": "",
+  "res://addons/gdcefglue/linux-x64/chrome_200_percent.pak": "",
+  "res://addons/gdcefglue/linux-x64/icudtl.dat": "",
+  "res://addons/gdcefglue/linux-x64/v8_context_snapshot.bin": "",
+  "res://addons/gdcefglue/linux-x64/libEGL.so": "",
+  "res://addons/gdcefglue/linux-x64/libGLESv2.so": "",
+  "res://addons/gdcefglue/linux-x64/libvk_swiftshader.so": "",
+  "res://addons/gdcefglue/linux-x64/libvulkan.so.1": "",
+  "res://addons/gdcefglue/linux-x64/vk_swiftshader_icd.json": ""
 }

@@ -30,13 +30,13 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
-            platform: windows
+            platform: windows-x64
           - os: ubuntu-latest
             rid: linux-x64
-            platform: linux
+            platform: linux-x64
           - os: macos-latest
             rid: osx-arm64
-            platform: macos
+            platform: macos-arm64
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -48,15 +48,15 @@ jobs:
 
       # Install NativeAOT prerequisites
       - name: Install AOT prerequisites (Linux)
-        if: ${{ matrix.platform == 'linux' }}
+        if: ${{ matrix.platform == 'linux-x64' }}
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
       - name: Setup MSVC (Windows AOT)
-        if: ${{ matrix.platform == 'windows' }}
+        if: ${{ matrix.platform == 'windows-x64' }}
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Debug - show architecture (macOS)
-        if: ${{ matrix.platform == 'macos' }}
+        if: ${{ matrix.platform == 'macos-arm64' }}
         run: |
           echo "uname -m: $(uname -m)"
           echo "dotnet --info:" && dotnet --info | head -20
@@ -114,14 +114,16 @@ jobs:
 
           # Copy everything from publish output (GDExtension lib + CEF files already copied by MSBuild targets)
           Copy-Item "$PUB/*" "$OUT/" -Force -Recurse -Exclude "*.pdb", "*.xml", "*.dbg"
-          Get-ChildItem "$PUB" -Name | ForEach-Object { Write-Host "  $_" }
+          # Remove runtimes/ — only locales/ is needed from CEF redist
+          if (Test-Path "$OUT/runtimes") { Remove-Item -Recurse -Force "$OUT/runtimes"; Write-Host "  removed runtimes/" }
+          Get-ChildItem "$OUT" -Name | ForEach-Object { Write-Host "  $_" }
 
           # BrowserProcess needs to be in a subdirectory
-          $BP_FILE = if ("${{ matrix.platform }}" -eq "windows") { "Xilium.CefGlue.BrowserProcess.exe" } else { "Xilium.CefGlue.BrowserProcess" }
+          $BP_FILE = if ("${{ matrix.platform }}" -eq "windows-x64") { "Xilium.CefGlue.BrowserProcess.exe" } else { "Xilium.CefGlue.BrowserProcess" }
           $BP_SRC = "$PUB/$BP_FILE"
           if (Test-Path $BP_SRC) {
             Move-Item $BP_SRC "$OUT/CefGlueBrowserProcess/$BP_FILE" -Force
-            if ("${{ matrix.platform }}" -ne "windows") { chmod +x "$OUT/CefGlueBrowserProcess/$BP_FILE" }
+            if ("${{ matrix.platform }}" -ne "windows-x64") { chmod +x "$OUT/CefGlueBrowserProcess/$BP_FILE" }
             Write-Host "  moved BrowserProcess to CefGlueBrowserProcess/"
           }
 
@@ -141,13 +143,16 @@ jobs:
         id: version
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "tag=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-            echo "archive=gdcefglue-${{ github.event.inputs.version }}.zip" >> $GITHUB_OUTPUT
+            VER="${{ github.event.inputs.version }}"
+            echo "tag=v${VER}" >> $GITHUB_OUTPUT
+            echo "gdextension_archive=gdcefglue-gdextension-v${VER}.zip" >> $GITHUB_OUTPUT
+            echo "plugin_archive=gdcefglue-plugin-v${VER}.zip" >> $GITHUB_OUTPUT
           else
             DATE=$(date +'%Y.%m.%d')
             VER="v${DATE}.${{ github.run_number }}"
             echo "tag=$VER" >> $GITHUB_OUTPUT
-            echo "archive=gdcefglue-${VER}.zip" >> $GITHUB_OUTPUT
+            echo "gdextension_archive=gdcefglue-gdextension-${VER}.zip" >> $GITHUB_OUTPUT
+            echo "plugin_archive=gdcefglue-plugin-${VER}.zip" >> $GITHUB_OUTPUT
           fi
 
       - name: Download all artifacts
@@ -176,19 +181,24 @@ entry_symbol = "gdcefglue_library_init"
 compatibility_minimum = 4.6
 
 [libraries]
-windows.x86_64.debug = "res://addons/gdcefglue/windows/GDCefGlueExtension.dll"
-windows.x86_64.release = "res://addons/gdcefglue/windows/GDCefGlueExtension.dll"
-linux.x86_64.debug = "res://addons/gdcefglue/linux/GDCefGlueExtension.so"
-linux.x86_64.release = "res://addons/gdcefglue/linux/GDCefGlueExtension.so"
-macos.debug = "res://addons/gdcefglue/macos/GDCefGlueExtension.dylib"
-macos.release = "res://addons/gdcefglue/macos/GDCefGlueExtension.dylib"
+windows.x86_64.debug = "res://addons/gdcefglue/windows-x64/GDCefGlueExtension.dll"
+windows.x86_64.release = "res://addons/gdcefglue/windows-x64/GDCefGlueExtension.dll"
+linux.x86_64.debug = "res://addons/gdcefglue/linux-x64/GDCefGlueExtension.so"
+linux.x86_64.release = "res://addons/gdcefglue/linux-x64/GDCefGlueExtension.so"
+macos.debug = "res://addons/gdcefglue/macos-arm64/GDCefGlueExtension.dylib"
+macos.release = "res://addons/gdcefglue/macos-arm64/GDCefGlueExtension.dylib"
 GEXT
 
-      - name: Create archive
+      - name: Create GDExtension archive
         run: |
-          cd addons
-          zip -r ../${{ steps.version.outputs.archive }} gdcefglue/
-          echo "Archive: ${{ steps.version.outputs.archive }}"
+          zip -r ${{ steps.version.outputs.gdextension_archive }} addons/gdcefglue/
+          echo "GDExtension archive: ${{ steps.version.outputs.gdextension_archive }}"
+
+      - name: Create Plugin archive
+        run: |
+          cd plugin
+          zip -r ../${{ steps.version.outputs.plugin_archive }} addons/GCefGlue/
+          echo "Plugin archive: ${{ steps.version.outputs.plugin_archive }}"
 
       - name: Create GitHub Release
         env:
@@ -198,4 +208,5 @@ GEXT
             --repo ${{ github.repository }} \
             --title "GDCefGlue ${{ steps.version.outputs.tag }}" \
             --notes "See [README](https://github.com/${{ github.repository }}) for usage." \
-            ${{ steps.version.outputs.archive }}
+            ${{ steps.version.outputs.gdextension_archive }} \
+            ${{ steps.version.outputs.plugin_archive }}

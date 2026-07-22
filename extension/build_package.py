@@ -26,10 +26,10 @@ OUTPUT_DIR = REPO_ROOT / "addons" / "gdcefglue"
 # Platform definitions
 # Platform definitions: file names are auto-detected (AOT output may vary)
 PLATFORMS = {
-    "win-x64":  {"dir": "windows", "bp": "Xilium.CefGlue.BrowserProcess.exe"},
-    "linux-x64": {"dir": "linux",   "bp": "Xilium.CefGlue.BrowserProcess"},
-    "osx-x64":  {"dir": "macos",   "bp": "Xilium.CefGlue.BrowserProcess"},
-    "osx-arm64": {"dir": "macos",  "bp": "Xilium.CefGlue.BrowserProcess"},
+    "win-x64":  {"dir": "windows-x64", "bp": "Xilium.CefGlue.BrowserProcess.exe"},
+    "linux-x64": {"dir": "linux-x64",   "bp": "Xilium.CefGlue.BrowserProcess"},
+    "osx-x64":  {"dir": "macos-x64",   "bp": "Xilium.CefGlue.BrowserProcess"},
+    "osx-arm64": {"dir": "macos-arm64",  "bp": "Xilium.CefGlue.BrowserProcess"},
 }
 
 # CEF runtime files per platform
