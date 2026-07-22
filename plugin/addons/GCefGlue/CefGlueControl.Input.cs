@@ -11,11 +11,13 @@ namespace GDCefGlue
     {
         // ── IME 状态跟踪 ──
         private bool _imeActive;
+        private bool _imeWanted; // JS 报告页面有输入框聚焦，但 Godot 焦点可能还没到
 
         private void ActivateIme()
         {
+            _imeWanted = true;
             var window = GetWindow();
-            if (window != null && HasFocus() && !_imeActive)
+            if (window != null && !_imeActive)
             {
                 window.SetImeActive(true);
                 _imeActive = true;
@@ -24,6 +26,7 @@ namespace GDCefGlue
 
         private void DeactivateIme()
         {
+            _imeWanted = false;
             var window = GetWindow();
             if (window != null && _imeActive)
             {
@@ -211,6 +214,9 @@ public override void _Notification(int what)
                 case NotificationMouseExit: _isMousePressed = false; _pressedButton = (CefMouseButtonType)(-1); break;
                 case NotificationFocusEnter:
                     _browserHost?.SetFocus(true);
+                    // CefGlueControl 重新获得 Godot 焦点时，如果 JS 之前报告有输入框聚焦，
+                    // 重新激活 IME（解决首次运行/刷新后 IME 无法切换的问题）
+                    if (_imeWanted) ActivateIme();
                     break;
                 case NotificationFocusExit:
                     if (_renderMode == RenderMode.EmbeddedWindow)

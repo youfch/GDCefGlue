@@ -83,13 +83,18 @@ namespace GDCefGlue
         /// 注册 __hostFocus V8 对象 + 注入输入焦点监听 JS。
         /// 页面通过 focusin/focusout 事件告知 C# 当前是否有可编辑元素聚焦，
         /// 驱动 IME 激活/关闭。OSR 和 EmbeddedWindow 模式均适用。
+        /// V8 对象注册只在 browser 创建后做一次；JS 脚本每次页面加载（含刷新）都重新注入。
         /// </summary>
         internal void InjectFocusWatcherIfNeeded()
         {
             if (_browser == null || !_browserCreated) return;
-            if (_focusWatcherRegistered) return;
-            RegisterJavascriptObject(new GodotFocusWatcher(this), "__hostFocus");
-            _focusWatcherRegistered = true;
+            // V8 对象注册只做一次（browser 级别，跨页面持久）
+            if (!_focusWatcherRegistered)
+            {
+                RegisterJavascriptObject(new GodotFocusWatcher(this), "__hostFocus");
+                _focusWatcherRegistered = true;
+            }
+            // JS 脚本每次页面加载都重新注入（新页面的 window 上下文中 __hostFocusInjected 不存在）
             var frame = _browser.GetMainFrame();
             if (frame != null)
                 frame.ExecuteJavaScript(FocusWatcherScript, "godot://focus_watcher", 0);
