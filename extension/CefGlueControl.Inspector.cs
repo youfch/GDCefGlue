@@ -20,6 +20,15 @@ public partial class CefGlueControl
             });
         }
 
+        // ContextMenuEnabled: 仅 OSR 模式
+        if (_mode != RenderMode.EmbeddedWindow)
+        {
+            properties.Add(new PropertyInfo(new StringName(nameof(ContextMenuEnabled)), VariantType.Bool)
+            {
+                Usage = PropertyUsageFlags.Default,
+            });
+        }
+
         // Embedded Mode 分组 + ForwardInputEvents: 仅 EmbeddedWindow 模式
         if (_mode == RenderMode.EmbeddedWindow)
         {
@@ -43,6 +52,11 @@ public partial class CefGlueControl
             SyncCursor = value.AsBool();
             return true;
         }
+        if (property == new StringName(nameof(ContextMenuEnabled)))
+        {
+            ContextMenuEnabled = value.AsBool();
+            return true;
+        }
         if (property == new StringName(nameof(ForwardInputEvents)))
         {
             ForwardInputEvents = value.AsBool();
@@ -56,6 +70,11 @@ public partial class CefGlueControl
         if (property == new StringName(nameof(SyncCursor)))
         {
             value = Variant.CreateFrom(SyncCursor);
+            return true;
+        }
+        if (property == new StringName(nameof(ContextMenuEnabled)))
+        {
+            value = Variant.CreateFrom(ContextMenuEnabled);
             return true;
         }
         if (property == new StringName(nameof(ForwardInputEvents)))

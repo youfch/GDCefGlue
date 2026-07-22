@@ -81,9 +81,11 @@ Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
     protected override void _Draw()
     {
         if (Godot.Engine.Singleton.IsEditorHint()) return;
+        if (_renderMode == RenderMode.EmbeddedWindow) return;
         if (_texture != null && _controlWidth > 0 && _controlHeight > 0)
         {
-            if (_width == _controlWidth && _height == _controlHeight) DrawTexture(_texture, Vector2.Zero);
+            if (Transparent) DrawTextureRect(_texture, new Rect2(Vector2.Zero, _controlWidth, _controlHeight), false, new Color(1, 1, 1, 1), false);
+            else if (_width == _controlWidth && _height == _controlHeight) DrawTexture(_texture, Vector2.Zero);
             else DrawTextureRect(_texture, new Rect2(Vector2.Zero, _controlWidth, _controlHeight), false);
         }
     }

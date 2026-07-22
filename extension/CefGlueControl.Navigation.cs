@@ -54,6 +54,8 @@ public partial class CefGlueControl
                 using (var a = msg.Arguments) { a.SetString(0, kv.Key); a.SetString(1, kv.Value); }
                 frame.SendProcessMessage(CefProcessId.Renderer, msg);
             }
+            // 注入焦点监视 JS（驱动 IME 激活/关闭）
+            InjectFocusWatcherIfNeeded();
             // 嵌入模式下注入事件转发 JS
             InjectEventForwardingScriptIfNeeded();
         }

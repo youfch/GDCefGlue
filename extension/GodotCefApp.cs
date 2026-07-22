@@ -29,6 +29,8 @@ internal class GodotCefApp : CefApp
             }
             
             commandLine.AppendSwitch("disable-smooth-scrolling");
+            commandLine.AppendSwitch("allow-file-access-from-files");
+            commandLine.AppendSwitch("allow-universal-access-from-files");
         }
     }
 

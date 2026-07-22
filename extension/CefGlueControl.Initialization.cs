@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using Godot;
 using Xilium.CefGlue;
+using Xilium.CefGlue.Platform.Windows;
 
 namespace GDCefGlueExtension;
 
@@ -12,6 +13,8 @@ public partial class CefGlueControl
         if (Godot.Engine.Singleton.IsEditorHint()) { return; }
         _renderMode = Mode;
         UseGpuAcceleration = GpuAcceleration; UseTransparent = Transparent;
+        ActiveRenderMode = Mode;
+        CefInitializer.CacheDirectory = CacheDirectory;
         CefInitializer.Initialize();
         CustomMinimumSize = new Vector2(100, 100); FocusMode = FocusModeEnum.Click;
         _image = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
@@ -56,6 +59,8 @@ public partial class CefGlueControl
                 return;
             }
 
+            // 防止 CEF 子窗口被点击时抢走 Godot 主窗口的键盘焦点
+            windowInfo.StyleEx |= WindowStyleEx.WS_EX_NOACTIVATE;
             windowInfo.SetAsChild(_godotHwnd, new CefRectangle(0, 0, width, height));
         }
         else

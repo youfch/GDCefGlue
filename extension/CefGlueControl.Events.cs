@@ -4,7 +4,7 @@ using Godot;
 
 namespace GDCefGlueExtension;
 
-// ── ForwardInputEvents 事件转发 ─────────────────────────────
+// ── ForwardInputEvents 事件转发 + 焦点监视器 ────────────────
 public partial class CefGlueControl
 {
     /// <summary>
@@ -79,6 +79,50 @@ public partial class CefGlueControl
         if (frame != null)
             frame.ExecuteJavaScript(EventForwardingScript, "godot://event_forward", 0);
     }
+
+    /// <summary>
+    /// 注册 __hostFocus V8 对象 + 注入输入焦点监听 JS。
+    /// 页面通过 focusin/focusout 事件告知 C# 当前是否有可编辑元素聚焦，
+    /// 驱动 IME 激活/关闭。OSR 和 EmbeddedWindow 模式均适用。
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.DynamicDependency(
+        System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods,
+        typeof(GodotFocusWatcher))]
+    internal void InjectFocusWatcherIfNeeded()
+    {
+        if (_browser == null || !_browserCreated) return;
+        if (!_focusWatcherRegistered)
+        {
+            RegisterJavascriptObject(new GodotFocusWatcher(this), "__hostFocus");
+            _focusWatcherRegistered = true;
+        }
+        using var frame = _browser.GetMainFrame();
+        if (frame != null)
+            frame.ExecuteJavaScript(FocusWatcherScript, "godot://focus_watcher", 0);
+    }
+
+    private const string FocusWatcherScript = @"
+(function(){
+    if (window.__hostFocusInjected) return;
+    window.__hostFocusInjected = true;
+
+    function checkFocus() {
+        var el = document.activeElement;
+        if (!el) { window.__hostFocus.onInputFocusChanged(false); return; }
+        var tag = el.tagName;
+        var isInput = tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+        window.__hostFocus.onInputFocusChanged(isInput);
+    }
+
+    document.addEventListener('focusin', checkFocus, true);
+    document.addEventListener('focusout', function() {
+        setTimeout(checkFocus, 0);
+    }, true);
+
+    if (document.readyState === 'complete') checkFocus();
+    else window.addEventListener('load', checkFocus);
+})();
+";
 
     /// <summary>
     /// 注册 __hostEvents V8 对象。仅嵌入模式。

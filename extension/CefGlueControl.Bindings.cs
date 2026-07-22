@@ -91,6 +91,16 @@ public partial class CefGlueControl
             new ParameterInfo(new StringName("finalUpdate"), VariantType.Bool),
             (CefGlueControl i, int identifier, int count, int activeMatchOrdinal, bool finalUpdate) => i._notify_find_result(identifier, count, activeMatchOrdinal, finalUpdate));
 
+        // ── 右键菜单 deferred 方法 ──
+        context.BindMethod(new StringName("_notify_run_context_menu"), (CefGlueControl i) => i._notify_run_context_menu());
+        context.BindMethod(new StringName("_notify_context_menu_command"), (CefGlueControl i) => i._notify_context_menu_command());
+        context.BindMethod(new StringName("_notify_context_menu_dismissed"), (CefGlueControl i) => i._notify_context_menu_dismissed());
+        context.BindMethod(new StringName("_deferred_context_menu_popup_hide"), (CefGlueControl i) => i._deferred_context_menu_popup_hide());
+
+        // ── IME deferred 方法 ──
+        context.BindMethod(new StringName("_activate_ime"), (CefGlueControl i) => i._activate_ime());
+        context.BindMethod(new StringName("_deactivate_ime"), (CefGlueControl i) => i._deactivate_ime());
+
         context.BindSignal(new SignalInfo(new StringName("browser_initialized")));
         context.BindSignal(new SignalInfo(new StringName("address_changed")));
         context.BindSignal(new SignalInfo(new StringName("title_changed")));

@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
 using Godot;
+using Xilium.CefGlue;
 using Xilium.CefGlue.Common.Events;
 
 namespace GDCefGlueExtension;
 
 public partial class CefGlueControl
 {
-    // ── Inspector 属性（通过 BindMembers + _ValidateProperty 注册）──
+    // ── Inspector 属性（通过 BindMembers + _GetPropertyList 注册）──
     public string InitialUrl { get; set; } = "about:blank";
+
+    public string CacheDirectory { get; set; } = "user://cef_cache";
 
     private RenderMode _mode = RenderMode.OSR;
     public RenderMode Mode
@@ -58,6 +62,13 @@ public partial class CefGlueControl
         set => _enableMediaStream = value;
     }
 
+    private bool _contextMenuEnabled = true;
+    public bool ContextMenuEnabled
+    {
+        get => _contextMenuEnabled;
+        set => _contextMenuEnabled = value;
+    }
+
     // ── Embedded Mode ──
     private bool _forwardInputEvents;
     public bool ForwardInputEvents
@@ -68,8 +79,14 @@ public partial class CefGlueControl
 
     private static bool _useGpuAcceleration = true;
     private static bool _useTransparent = false;
+    private static RenderMode _activeRenderMode = RenderMode.OSR;
     public static bool UseGpuAcceleration { get => _useGpuAcceleration; set => _useGpuAcceleration = value; }
     public static bool UseTransparent { get => _useTransparent; set => _useTransparent = value; }
+    public static RenderMode ActiveRenderMode
+    {
+        get => _activeRenderMode;
+        set => _activeRenderMode = value;
+    }
 
     public string Address
     {
@@ -100,6 +117,32 @@ public partial class CefGlueControl
     public event Action<string, bool> NewWindowRequested;
     internal void RaiseNewWindowRequested(string url, bool isNewWindow) => NewWindowRequested?.Invoke(url, isNewWindow);
     internal bool HasNewWindowSubscribers => NewWindowRequested != null;
+
+    // ── 右键菜单事件（OSR 模式） ──
+
+    /// <summary>
+    /// 右键菜单即将显示时触发。可在事件处理中修改 <paramref name="model"/>
+    /// （清空、添加、移除项）来定制菜单内容。
+    /// </summary>
+    public event Action<ContextMenuModel, ContextMenuParams> BeforeContextMenu;
+
+    /// <summary>
+    /// 右键菜单命令被选中时触发。参数: (commandId, parameters, eventFlags)。
+    /// 返回 true 表示已处理；返回 false 让 CEF 应用默认行为（对内置 ID 有效）。
+    /// </summary>
+    public event Func<int, ContextMenuParams, CefEventFlags, bool> ContextMenuCommand;
+
+    internal void RaiseBeforeContextMenu(ContextMenuModel model, ContextMenuParams parameters)
+        => BeforeContextMenu?.Invoke(model, parameters);
+
+    internal bool RaiseContextMenuCommand(int commandId, ContextMenuParams parameters, CefEventFlags eventFlags)
+    {
+        var handler = ContextMenuCommand;
+        return handler != null && handler(commandId, parameters, eventFlags);
+    }
+
+    internal bool HasBeforeContextMenuSubscribers => BeforeContextMenu != null;
+    internal bool HasContextMenuCommandSubscribers => ContextMenuCommand != null;
 
     // ── 页面内查找事件 ──
     public event Action<int, int, int, bool> FindResult;

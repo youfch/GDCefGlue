@@ -47,5 +47,12 @@ internal class GodotRenderHandler : CefRenderHandler
 
     protected override void OnScrollOffsetChanged(CefBrowser browser, double x, double y) { }
 
-    protected override void OnImeCompositionRangeChanged(CefBrowser browser, CefRange selectedRange, CefRectangle[] characterBounds) { }
+    protected override void OnImeCompositionRangeChanged(CefBrowser browser, CefRange selectedRange, CefRectangle[] characterBounds)
+    {
+        if (characterBounds != null && characterBounds.Length > 0)
+        {
+            var bounds = characterBounds[0];
+            _control.OnCefImeCompositionChanged(true, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+        }
+    }
 }

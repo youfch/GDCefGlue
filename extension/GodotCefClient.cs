@@ -11,6 +11,8 @@ internal class GodotCefClient : CefClient
     private readonly GodotLoadHandler _loadHandler;
     private readonly GodotRequestHandler _requestHandler;
     private readonly GodotPermissionHandler _permissionHandler;
+    private readonly GodotContextMenuHandler _contextMenuHandler;
+    private readonly GodotFocusHandler _focusHandler;
     private readonly GodotFindHandler _findHandler;
 
     public GodotCefClient(CefGlueControl control)
@@ -22,6 +24,8 @@ internal class GodotCefClient : CefClient
         _loadHandler = new GodotLoadHandler(control);
         _requestHandler = new GodotRequestHandler(control);
         _permissionHandler = new GodotPermissionHandler(control);
+        _contextMenuHandler = new GodotContextMenuHandler(control);
+        _focusHandler = new GodotFocusHandler(control);
         _findHandler = new GodotFindHandler(control);
     }
 
@@ -32,6 +36,17 @@ internal class GodotCefClient : CefClient
     protected override CefRequestHandler GetRequestHandler() => _requestHandler;
     protected override CefPermissionHandler GetPermissionHandler() => _permissionHandler;
     protected override CefFindHandler GetFindHandler() => _findHandler;
+
+    protected override CefContextMenuHandler GetContextMenuHandler()
+    {
+        // 嵌入窗口模式：CEF 在原生子窗口上自行处理右键菜单
+        if (CefGlueControl.ActiveRenderMode == RenderMode.EmbeddedWindow)
+            return null;
+
+        return _contextMenuHandler;
+    }
+
+    protected override CefFocusHandler GetFocusHandler() => _focusHandler;
 
     protected override bool OnProcessMessageReceived(CefBrowser browser, CefFrame frame, CefProcessId sourceProcess, CefProcessMessage message)
     {

@@ -82,6 +82,7 @@ public partial class CefGlueControl
     {
         int cid; string on, mn, aj;
         using (var a = m.Arguments) { cid = a.GetInt(0); on = a.GetString(1); mn = a.GetString(2); aj = a.GetString(3); }
+        GD.Print($"[Bridge] NativeObjectCall: object='{on}' method='{mn}'");
 
         // dotnetBridge.eval → 走 async EvaluateJavaScript，结果通过 Promise 返回
         if (on == "dotnetBridge" && mn == "eval")
@@ -289,8 +290,10 @@ public partial class CefGlueControl
             var type = target.GetType();
             foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {
-                Methods[m.Name] = m;
-                names.Add(m.Name);
+                if (m.IsSpecialName) continue;
+                var jsName = char.ToLowerInvariant(m.Name[0]) + m.Name.Substring(1);
+                Methods[jsName] = m;
+                names.Add(jsName);
             }
             MethodNames = names.ToArray();
         }
@@ -332,22 +335,47 @@ public partial class CefGlueControl
             return Array.Empty<object>();
         try
         {
-            var elements = JsonSerializer.Deserialize<JsonElement[]>(argsJson);
-            var result = new object[parameters.Length];
-            for (int i = 0; i < parameters.Length && i < elements.Length; i++)
+            using var doc = JsonDocument.Parse(argsJson);
+            var root = doc.RootElement;
+
+            if (root.ValueKind == JsonValueKind.Array)
             {
-                var el = elements[i];
-                var paramType = parameters[i].ParameterType;
-                if (paramType == typeof(string)) result[i] = StripCefGlueMarker(el.GetString());
-                else if (paramType == typeof(int)) result[i] = el.GetInt32();
-                else if (paramType == typeof(long)) result[i] = el.GetInt64();
-                else if (paramType == typeof(double)) result[i] = el.GetDouble();
-                else if (paramType == typeof(float)) result[i] = el.GetSingle();
-                else if (paramType == typeof(bool)) result[i] = el.GetBoolean();
-                else result[i] = JsonSerializer.Deserialize(el.GetRawText(), paramType);
+                var elements = new JsonElement[root.GetArrayLength()];
+                int i = 0;
+                foreach (var el in root.EnumerateArray())
+                    elements[i++] = el;
+
+                var result = new object[parameters.Length];
+                for (int j = 0; j < parameters.Length && j < elements.Length; j++)
+                {
+                    result[j] = DeserializeJsonElement(elements[j], parameters[j].ParameterType);
+                }
+                return result;
             }
-            return result;
+            else
+            {
+                // 单个值
+                var result = new object[1];
+                result[0] = DeserializeJsonElement(root, parameters[0].ParameterType);
+                return result;
+            }
         }
-        catch { return Array.Empty<object>(); }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[Bridge] DeserializeCallArgs failed: {ex.Message}");
+            return Array.Empty<object>();
+        }
+    }
+
+    private static object DeserializeJsonElement(JsonElement el, Type targetType)
+    {
+        if (targetType == typeof(string)) return StripCefGlueMarker(el.GetString());
+        if (targetType == typeof(int)) return el.GetInt32();
+        if (targetType == typeof(long)) return el.GetInt64();
+        if (targetType == typeof(double)) return el.GetDouble();
+        if (targetType == typeof(float)) return el.GetSingle();
+        if (targetType == typeof(bool)) return el.GetBoolean();
+        try { return JsonSerializer.Deserialize(el.GetRawText(), targetType); }
+        catch { return null; }
     }
 }
