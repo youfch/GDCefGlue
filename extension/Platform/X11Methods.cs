@@ -24,7 +24,7 @@ namespace GDCefGlueExtension
                 {
                     if (_display == IntPtr.Zero)
                     {
-                        _display = XOpenDisplay(null);
+                        _display = OpenDisplay(null);
                         if (_display == IntPtr.Zero)
                             GD.PrintErr("[X11Methods] Failed to open X11 display");
                     }
@@ -67,8 +67,30 @@ namespace GDCefGlueExtension
 
         // ── libX11 P/Invoke ──
 
-        [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr XOpenDisplay(string display);
+        [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl, EntryPoint = "XOpenDisplay")]
+        private static extern IntPtr XOpenDisplay(IntPtr display);
+
+        /// <summary>
+        /// 打开 X11 显示连接。null = 使用 $DISPLAY 环境变量。
+        /// </summary>
+        internal static IntPtr OpenDisplay(string display)
+        {
+            if (display == null)
+                return XOpenDisplay(IntPtr.Zero);
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(display);
+            var ptr = Marshal.AllocHGlobal(bytes.Length + 1);
+            try
+            {
+                Marshal.Copy(bytes, 0, ptr, bytes.Length);
+                Marshal.WriteByte(ptr, bytes.Length, 0);
+                return XOpenDisplay(ptr);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
+        }
 
         // Using int for Window (XID is typically 32-bit on most Linux systems)
         [DllImport("libX11.so.6", CallingConvention = CallingConvention.Cdecl)]

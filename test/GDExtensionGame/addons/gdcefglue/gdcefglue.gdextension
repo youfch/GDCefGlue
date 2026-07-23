@@ -5,10 +5,10 @@ compatibility_minimum = 4.6
 [libraries]
 windows.x86_64.debug = "res://addons/gdcefglue/windows-x64/GDCefGlueExtension.dll"
 windows.x86_64.release = "res://addons/gdcefglue/windows-x64/GDCefGlueExtension.dll"
-linux.x86_64.debug = "res://addons/gdcefglue/linux-x64/libGDCefGlueExtension.so"
-linux.x86_64.release = "res://addons/gdcefglue/linux-x64/libGDCefGlueExtension.so"
-macos.debug = "res://addons/gdcefglue/macos-arm64/libGDCefGlueExtension.dylib"
-macos.release = "res://addons/gdcefglue/macos-arm64/libGDCefGlueExtension.dylib"
+linux.x86_64.debug = "res://addons/gdcefglue/linux-x64/GDCefGlueExtension.so"
+linux.x86_64.release = "res://addons/gdcefglue/linux-x64/GDCefGlueExtension.so"
+macos.debug = "res://addons/gdcefglue/macos-arm64/GDCefGlueExtension.dylib"
+macos.release = "res://addons/gdcefglue/macos-arm64/GDCefGlueExtension.dylib"
 
 [dependencies]
 windows.x86_64 = {
