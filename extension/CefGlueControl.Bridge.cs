@@ -82,7 +82,6 @@ public partial class CefGlueControl
     {
         int cid; string on, mn, aj;
         using (var a = m.Arguments) { cid = a.GetInt(0); on = a.GetString(1); mn = a.GetString(2); aj = a.GetString(3); }
-        GD.Print($"[Bridge] NativeObjectCall: object='{on}' method='{mn}'");
 
         // dotnetBridge.eval → 走 async EvaluateJavaScript，结果通过 Promise 返回
         if (on == "dotnetBridge" && mn == "eval")
