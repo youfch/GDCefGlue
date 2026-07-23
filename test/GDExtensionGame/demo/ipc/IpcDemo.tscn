@@ -13,9 +13,7 @@ script = ExtResource("1_main")
 
 [node name="Browser" type="CefGlueControl" parent="." unique_id=1295859973]
 initial_url = "www.bing.com"
-mode = 1
 address = "www.bing.com"
-forward_input_events = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

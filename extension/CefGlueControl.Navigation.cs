@@ -32,11 +32,11 @@ public partial class CefGlueControl
     // ── CEF 事件回调 ──
     internal void OnAddressChange(CefBrowser browser, CefFrame frame, string url)
     { if (!_disposed && frame.IsMain) CallDeferred("_notify_address_changed", url); }
-    private void _notify_address_changed(string url) => AddressChanged?.Invoke(this, url);
+    private void _notify_address_changed(string url) { AddressChanged?.Invoke(this, url); EmitSignal(new StringName("address_changed"), url); }
 
     internal void OnTitleChange(CefBrowser browser, string title)
     { if (!_disposed) { Title = title; CallDeferred("_notify_title_changed", title); } }
-    private void _notify_title_changed(string title) => TitleChanged?.Invoke(this, title);
+    private void _notify_title_changed(string title) { TitleChanged?.Invoke(this, title); EmitSignal(new StringName("title_changed"), title); }
 
     internal void OnLoadStart(CefBrowser browser, CefFrame frame, CefTransitionType transitionType)
     { if (!_disposed) CallDeferred("_notify_load_start"); }
@@ -78,5 +78,8 @@ public partial class CefGlueControl
     }
 
     private void _notify_find_result(int identifier, int count, int activeMatchOrdinal, bool finalUpdate)
-        => RaiseFindResult(identifier, count, activeMatchOrdinal, finalUpdate);
+    {
+        RaiseFindResult(identifier, count, activeMatchOrdinal, finalUpdate);
+        EmitSignal(new StringName("find_result"), identifier, count, activeMatchOrdinal, finalUpdate);
+    }
 }

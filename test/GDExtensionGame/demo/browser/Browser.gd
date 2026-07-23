@@ -94,7 +94,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _connect_tab(cef: CefGlueControl) -> void:
 	cef.browser_initialized.connect(_on_browser_initialized)
 	cef.address_changed.connect(_on_address_changed)
-	cef.title_changed.connect(_on_title_changed)
+	cef.title_changed.connect(_on_title_changed.bind(cef))
 	cef.load_start.connect(_on_load_start)
 	cef.load_end.connect(_on_load_end)
 	cef.load_error.connect(_on_load_error)
@@ -259,10 +259,8 @@ func _on_address_changed(url: String) -> void:
 	_url_input.text = url
 
 
-func _on_title_changed(title: String) -> void:
-	var cef = get_current_browser()
-	if cef and not title.is_empty():
-		# 更新标签页标题（TabContainer 的标签文字）
+func _on_title_changed(title: String, cef: CefGlueControl) -> void:
+	if not title.is_empty():
 		var idx = cef.get_index()
 		var tab_title = title.substr(0, 20) + "…" if title.length() > 20 else title
 		_tab_container.set_tab_title(idx, tab_title)

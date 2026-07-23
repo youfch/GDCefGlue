@@ -103,13 +103,12 @@ grow_vertical = 2
 current_tab = 0
 
 [node name="Tab1" type="CefGlueControl" parent="TabContainer" unique_id=247526417]
+initial_url = "www.bing.com"
+mode = 1
+address = "www.bing.com"
+forward_input_events = false
 layout_mode = 2
-Mode = 1
-FrameRate = 120
-OpenPopupInCurrentBrowser = false
-SyncCursor = true
-ContextMenuEnabled = true
-InitialUrl = "https://www.bing.com"
+metadata/_tab_index = 0
 
 [node name="SearchBar" type="Panel" parent="." unique_id=1000000104]
 visible = false
@@ -121,6 +120,7 @@ anchor_bottom = 1.0
 offset_top = -24.0
 offset_bottom = -24.0
 grow_horizontal = 2
+grow_vertical = 0
 
 [node name="SearchHBox" type="HBoxContainer" parent="SearchBar" unique_id=1000000105]
 layout_mode = 1

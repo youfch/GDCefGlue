@@ -101,6 +101,10 @@ public partial class CefGlueControl
         context.BindMethod(new StringName("_activate_ime"), (CefGlueControl i) => i._activate_ime());
         context.BindMethod(new StringName("_deactivate_ime"), (CefGlueControl i) => i._deactivate_ime());
 
+        // ── 光标 deferred 方法 ──
+        context.BindMethod(new StringName("UpdateCursorShape"), new ParameterInfo(new StringName("cefCursorType"), VariantType.Int),
+            (CefGlueControl i, int cefCursorType) => i.UpdateCursorShape(cefCursorType));
+
         context.BindSignal(new SignalInfo(new StringName("browser_initialized")));
         context.BindSignal(new SignalInfo(new StringName("address_changed")));
         context.BindSignal(new SignalInfo(new StringName("title_changed")));
