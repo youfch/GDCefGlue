@@ -280,7 +280,7 @@ public partial class Browser : Control
     {
         _searchVisible = true;
         _searchBar.Visible = true;
-        _searchBar.OffsetTop = -48;
+        _searchBar.OffsetTop = -52;
         _searchBar.OffsetBottom = -24;
         _searchInput.GrabFocus();
         _searchInput.SelectAll();
@@ -480,6 +480,49 @@ public partial class Browser : Control
         _searchMatchCount.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.3f)); // 黄色高亮匹配数
         _searchMatchCount.AddThemeFontSizeOverride("font_size", 12);
 
+        // 搜索栏按钮使用更紧凑的边距（搜索栏高度较矮）
+        var searchBtnNormal = new StyleBoxFlat();
+        searchBtnNormal.BgColor = new Color(0, 0, 0, 0);
+        searchBtnNormal.ContentMarginLeft = 4;
+        searchBtnNormal.ContentMarginRight = 4;
+        searchBtnNormal.ContentMarginTop = 2;
+        searchBtnNormal.ContentMarginBottom = 2;
+
+        var searchBtnHover = new StyleBoxFlat();
+        searchBtnHover.BgColor = bgLight;
+        searchBtnHover.CornerRadiusTopLeft = 3;
+        searchBtnHover.CornerRadiusTopRight = 3;
+        searchBtnHover.CornerRadiusBottomLeft = 3;
+        searchBtnHover.CornerRadiusBottomRight = 3;
+        searchBtnHover.ContentMarginLeft = 4;
+        searchBtnHover.ContentMarginRight = 4;
+        searchBtnHover.ContentMarginTop = 2;
+        searchBtnHover.ContentMarginBottom = 2;
+
+        var searchBtnPressed = new StyleBoxFlat();
+        searchBtnPressed.BgColor = new Color(0.28f, 0.28f, 0.30f);
+        searchBtnPressed.CornerRadiusTopLeft = 3;
+        searchBtnPressed.CornerRadiusTopRight = 3;
+        searchBtnPressed.CornerRadiusBottomLeft = 3;
+        searchBtnPressed.CornerRadiusBottomRight = 3;
+        searchBtnPressed.ContentMarginLeft = 4;
+        searchBtnPressed.ContentMarginRight = 4;
+        searchBtnPressed.ContentMarginTop = 2;
+        searchBtnPressed.ContentMarginBottom = 2;
+
+        var searchButtons = new[] { _searchPrev, _searchNext, _searchClose };
+        foreach (var btn in searchButtons)
+        {
+            if (btn == null) continue;
+            btn.AddThemeStyleboxOverride("normal", searchBtnNormal);
+            btn.AddThemeStyleboxOverride("hover", searchBtnHover);
+            btn.AddThemeStyleboxOverride("pressed", searchBtnPressed);
+            btn.AddThemeColorOverride("font_color", textPrimary);
+            btn.AddThemeColorOverride("font_hover_color", textPrimary);
+            btn.AddThemeColorOverride("font_pressed_color", textPrimary);
+            btn.AddThemeFontSizeOverride("font_size", 12);
+        }
+
         // ── TabContainer ──
         var tabContainerBg = new StyleBoxFlat();
         tabContainerBg.BgColor = bgMedium;
@@ -539,9 +582,8 @@ public partial class Browser : Control
             btn.AddThemeFontSizeOverride("font_size", 12);
         }
 
-        // OSR 按钮使用蓝色强调色
-        _addOsrTabButton.AddThemeColorOverride("font_color", accent);
-        _addOsrTabButton.AddThemeColorOverride("font_hover_color", accentHover);
+        // OSR 按钮初始状态（默认不激活）
+        UpdateOsrButtonState();
 
         // ── LineEdit (URL bar + search) ──
         var urlBg = new StyleBoxFlat();

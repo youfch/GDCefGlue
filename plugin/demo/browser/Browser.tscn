@@ -88,7 +88,6 @@ size_flags_horizontal = 0
 [node name="UrlInput" type="LineEdit" parent="Toolbar/ToolbarHBox" unique_id=584345537]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 4
 placeholder_text = "Enter URL..."
 caret_blink = true
 
@@ -156,7 +155,6 @@ vertical_alignment = 1
 [node name="SearchInput" type="LineEdit" parent="SearchBar/SearchHBox" unique_id=1000000008]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 4
 placeholder_text = "Search in page..."
 caret_blink = true
 
