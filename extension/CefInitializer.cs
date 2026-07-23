@@ -96,9 +96,18 @@ public static class CefInitializer
 
     private static string DetectPlatform()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return "windows-x64";
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return "linux-x64";
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return "macos-arm64";
+        var isArm64 = RuntimeInformation.OSArchitecture == Architecture.Arm64;
+        var isX64 = RuntimeInformation.OSArchitecture == Architecture.X64;
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return isArm64 ? "windows-arm64" : "windows-x64";
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            return isArm64 ? "linux-arm64" : "linux-x64";
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            return isArm64 ? "macos-arm64" : "macos-x64";
+
         return "windows-x64";
     }
 
