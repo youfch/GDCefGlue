@@ -58,7 +58,7 @@ text = "Eval: Math.PI*2"
 [node name="BtnClearLog" type="Button" parent="Toolbar/ButtonRow" unique_id=704965235]
 layout_mode = 2
 size_flags_horizontal = 0
-text = "清空日志"
+text = "Clear Log"
 
 [node name="CustomCode" type="LineEdit" parent="Toolbar" unique_id=1024720943]
 layout_mode = 1
@@ -68,7 +68,7 @@ offset_left = 8.0
 offset_top = 44.0
 offset_bottom = 72.0
 size_flags_horizontal = 3
-placeholder_text = "自定义 JS 代码（如 1+2+3）..."
+placeholder_text = "Custom JS code (e.g. 1+2+3)..."
 
 [node name="BtnEvalCustom" type="Button" parent="Toolbar" unique_id=1842877859]
 layout_mode = 1
@@ -80,7 +80,7 @@ offset_top = 44.0
 offset_right = -8.0
 offset_bottom = 72.0
 grow_horizontal = 0
-text = "执行"
+text = "Run"
 
 [node name="LogPanel" type="Panel" parent="." unique_id=1106535274]
 layout_mode = 1

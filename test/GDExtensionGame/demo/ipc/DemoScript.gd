@@ -23,19 +23,19 @@ func _ready() -> void:
 	$Toolbar/BtnEvalCustom.pressed.connect(_on_custom_eval)
 
 func _on_browser_ready() -> void:
-	_log_add("浏览器已就绪")
+	_log_add("Browser ready")
 	_register_bridge()
-	# 首次加载测试页面
+	# Load test page on first load
 	_load_test_html()
 
 func _on_load_end() -> void:
-	# 每次页面加载后重新注册 JS handler（V8 绑定在导航后丢失）
-	# 不重新加载 test.html，避免死循环
+	# Re-register JS handler after each page load (V8 binding lost on navigation)
+	# Don't reload test.html to avoid infinite loop
 	_register_bridge()
 
 func _register_bridge() -> void:
 	_browser.register_js_handler("dotnetBridge", Callable(self, "_on_js_call"))
-	_log_add("已注册 dotnetBridge，JS 可通过 window.dotnetBridge.* 调用")
+	_log_add("dotnetBridge registered, JS can call window.dotnetBridge.*")
 	_inject_bridge()
 
 func _inject_bridge() -> void:
@@ -55,10 +55,10 @@ func _inject_bridge() -> void:
 func _load_test_html() -> void:
 	var file = FileAccess.open("res://demo/ipc/test.html", FileAccess.READ)
 	if file == null:
-		_log_add("❌ 找不到 test.html")
+		_log_add("❌ test.html not found")
 		return
 	_browser.address = "data:text/html;charset=utf-8," + _uri_encode(file.get_as_text())
-	_log_add("已加载测试页面")
+	_log_add("Test page loaded")
 
 static func _uri_encode(s: String) -> String:
 	var hex = "0123456789ABCDEF"
@@ -71,14 +71,14 @@ static func _uri_encode(s: String) -> String:
 			result += "%" + hex[c >> 4] + hex[c & 0xF]
 	return result
 
-# ── JS Bridge 处理器 ──
+# ── JS Bridge handler ──
 
 func _on_js_call(method_name: String, args_json: String) -> Variant:
-	# 来自 CEF 线程，UI 操作需 defer
-	_log_add("← JS 调用: " + method_name)
+	# From CEF thread, defer UI ops
+	_log_add("← JS call: " + method_name)
 	match method_name:
 		"hello":
-			return "Hello from GDScript! 你好，世界！"
+			return "Hello from GDScript!"
 		"echo":
 			var arr = JSON.parse_string(args_json) as Array
 			return "GDScript echoes: " + str(arr[0] if arr and arr.size() > 0 else "")
@@ -93,16 +93,16 @@ func _on_js_call(method_name: String, args_json: String) -> Variant:
 			return "eval started"
 	return "unknown method: " + method_name
 
-# ── Eval 按钮 ──
+# ── Eval buttons ──
 
 func _on_eval(code: String) -> void:
-	_log_add("→ 计算 " + code)
+	_log_add("→ eval " + code)
 	_browser.eval_js(code)
 
 func _on_custom_eval() -> void:
 	var code = _custom_code.text.strip_edges()
 	if code.is_empty(): code = "1 + 2 + 3"; _custom_code.text = code
-	_log_add("→ 自定义计算 " + code)
+	_log_add("→ custom eval " + code)
 	_browser.eval_js(code)
 
 func _on_eval_completed(result: String, error: String) -> void:
@@ -110,12 +110,12 @@ func _on_eval_completed(result: String, error: String) -> void:
 	else: _log_add("← " + result)
 
 func _on_bridge_request(type: String, payload: String, cb_id: String) -> void:
-	_log_add("← 桥接请求: " + type)
+	_log_add("← bridge request: " + type)
 
 func _clear_log() -> void: _log.clear()
 
 func _log_add(msg: String) -> void:
-	# 可能来自 CEF 线程，用 call_deferred 保证线程安全
+	# May come from CEF thread, use call_deferred for thread safety
 	var time = Time.get_time_string_from_system()
 	call_deferred("_log_add_deferred", time, msg)
 

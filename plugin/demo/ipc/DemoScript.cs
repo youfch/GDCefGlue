@@ -22,7 +22,7 @@ public class DotnetBridge
     public string Hello()
     {
         GD.Print("[DotnetBridge] Hello() called from JS");
-        return "Hello from C#! 你好，世界！";
+        return "Hello from C#!";
     }
 
     public string Echo(string message)
@@ -99,7 +99,7 @@ public partial class DemoScript : Control
     private void OnBrowserReady()
     {
         GD.Print("[Demo] Browser initialized");
-        Log("浏览器已就绪");
+        Log("Browser ready");
 
         // 注册 C# 对象到 JS — 在 OnLoadEnd 也会重新注册以确保导航后 V8 绑定可用
         RegisterBridgeObjects();
@@ -118,7 +118,7 @@ public partial class DemoScript : Control
     {
         _browser.RegisterJavascriptObject(new DotnetBridge(_browser), "dotnetBridge");
         GD.Print("[Demo] Registered 'dotnetBridge' — JS can call window.dotnetBridge.*");
-        Log("已注册 dotnetBridge 对象，JS 可通过 window.dotnetBridge.* 调用");
+        Log("dotnetBridge registered, JS can call window.dotnetBridge.*");
     }
 
     private void InjectBridgeScript()
@@ -144,7 +144,7 @@ public partial class DemoScript : Control
         if (!File.Exists(htmlPath))
         {
             GD.PrintErr($"[Demo] HTML not found at {htmlPath}");
-            LogErr($"找不到 test.html: {htmlPath}");
+            LogErr($"test.html not found: {htmlPath}");
             return;
         }
 
@@ -152,7 +152,7 @@ public partial class DemoScript : Control
         var encoded = Uri.EscapeDataString(html);
         _browser.Address = "data:text/html;charset=utf-8," + encoded;
         GD.Print("[Demo] Loaded test.html via data: URI");
-        Log("已加载测试页面");
+        Log("Test page loaded");
     }
 
     private void OnLoadEnd(object sender, Xilium.CefGlue.Common.Events.LoadEndEventArgs e)
@@ -183,7 +183,7 @@ public partial class DemoScript : Control
         catch (Exception ex)
         {
             GD.PrintErr($"[Demo] Eval failed: {ex.Message}");
-            LogErr($"Eval 失败: {ex.Message}");
+            LogErr($"Eval failed: {ex.Message}");
         }
 
         try
@@ -200,7 +200,7 @@ public partial class DemoScript : Control
         // 测试 C# → JS 推送消息
         _browser.SendToJs("{\"type\":\"notification\",\"message\":\"Hello from C#!\"}");
         GD.Print("[Demo] Sent push message to JS");
-        Log("C# → JS 推送消息已发送");
+        Log("C# → JS push message sent");
     }
 
     // ── 按钮事件 ────────────────────────────────────────────────
@@ -208,7 +208,7 @@ public partial class DemoScript : Control
     private async void OnEvalButton(string jsCode)
     {
         GD.Print($"[Demo] Button: eval '{jsCode}'");
-        Log($"→ 计算: {jsCode}");
+        Log($"→ eval: {jsCode}");
 
         try
         {
@@ -219,7 +219,7 @@ public partial class DemoScript : Control
         catch (TimeoutException)
         {
             GD.PrintErr("[Demo] Eval timed out");
-            LogErr("超时");
+            LogErr("Timeout");
         }
         catch (Exception ex)
         {
@@ -239,7 +239,7 @@ public partial class DemoScript : Control
         }
 
         GD.Print($"[Demo] Custom eval: '{code}'");
-        Log($"→ 自定义: {code}");
+        Log($"→ custom: {code}");
 
         try
         {
@@ -259,19 +259,19 @@ public partial class DemoScript : Control
     private void OnBridgeRequest(string type, string payload, string cbId)
     {
         GD.Print($"[Demo] BridgeRequest: type={type}, payload={payload}, cb={cbId ?? "(none)"}");
-        Log($"← JS 桥接请求: {type}");
+        Log($"← JS bridge request: {type}");
 
         switch (type)
         {
             case "ping":
                 _browser.SendResponse(cbId, "{\"status\":\"pong\",\"from\":\"C#\"}");
-                Log("→ 已回复 pong");
+                Log("→ replied pong");
                 break;
 
             case "status":
                 var status = $"{{\"initialized\":true,\"loading\":{_browser.IsLoading.ToString().ToLower()}}}";
                 _browser.SendResponse(cbId, status);
-                Log("→ 已回复状态");
+                Log("→ replied status");
                 break;
 
             default:
