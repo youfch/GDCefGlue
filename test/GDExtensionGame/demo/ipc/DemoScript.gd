@@ -9,8 +9,8 @@ func _ready() -> void:
 	_log = $LogPanel/Log
 	_custom_code = $Toolbar/CustomCode
 
-	_browser.InitialUrl = "about:blank"
-	_browser.FrameRate = 60
+	_browser.initial_url = "about:blank"
+	_browser.frame_rate = 60
 	_browser.browser_initialized.connect(_on_browser_ready)
 	_browser.load_end.connect(_on_load_end)
 	_browser.eval_completed.connect(_on_eval_completed)
@@ -57,7 +57,7 @@ func _load_test_html() -> void:
 	if file == null:
 		_log_add("❌ 找不到 test.html")
 		return
-	_browser.Address = "data:text/html;charset=utf-8," + _uri_encode(file.get_as_text())
+	_browser.address = "data:text/html;charset=utf-8," + _uri_encode(file.get_as_text())
 	_log_add("已加载测试页面")
 
 static func _uri_encode(s: String) -> String:

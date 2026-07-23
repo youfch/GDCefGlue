@@ -96,10 +96,10 @@ public static class CefInitializer
 
     private static string DetectPlatform()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return "windows";
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return "linux";
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return "macos";
-        return "windows";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return "windows-x64";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return "linux-x64";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return "macos-arm64";
+        return "windows-x64";
     }
 
     private static string ResolveAddonRoot()

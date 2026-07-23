@@ -11,23 +11,23 @@ public partial class CefGlueControl
         context.BindConstructor(() => new CefGlueControl());
 
         context.AddPropertyGroup("Browser Settings");
-        context.BindProperty(new PropertyInfo(new StringName(nameof(InitialUrl)), VariantType.String) { Usage = PropertyUsageFlags.Default },
+        context.BindProperty(new PropertyInfo(new StringName("initial_url"), VariantType.String) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.InitialUrl, static (CefGlueControl i, string v) => i.InitialUrl = v);
-        context.BindProperty(new PropertyInfo(new StringName(nameof(Mode)), VariantType.Int) { Hint = PropertyHint.Enum, HintString = "OSR,EmbeddedWindow", Usage = PropertyUsageFlags.Default },
+        context.BindProperty(new PropertyInfo(new StringName("mode"), VariantType.Int) { Hint = PropertyHint.Enum, HintString = "OSR,EmbeddedWindow", Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => (int)i.Mode, static (CefGlueControl i, int v) => i.Mode = (RenderMode)v);
-        context.BindProperty(new PropertyInfo(new StringName(nameof(FrameRate)), VariantType.Int) { Hint = PropertyHint.Range, HintString = "1,360", Usage = PropertyUsageFlags.Default },
+        context.BindProperty(new PropertyInfo(new StringName("frame_rate"), VariantType.Int) { Hint = PropertyHint.Range, HintString = "1,360", Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.FrameRate, static (CefGlueControl i, int v) => i.FrameRate = v);
-        context.BindProperty(new PropertyInfo(new StringName(nameof(Transparent)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
+        context.BindProperty(new PropertyInfo(new StringName("transparent"), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.Transparent, static (CefGlueControl i, bool v) => i.Transparent = v);
-        context.BindProperty(new PropertyInfo(new StringName(nameof(Address)), VariantType.String) { Usage = PropertyUsageFlags.Default },
+        context.BindProperty(new PropertyInfo(new StringName("address"), VariantType.String) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.Address, static (CefGlueControl i, string v) => i.Address = v);
 
         context.AddPropertyGroup("Feature Toggles");
-        context.BindProperty(new PropertyInfo(new StringName(nameof(GpuAcceleration)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
+        context.BindProperty(new PropertyInfo(new StringName("gpu_acceleration"), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.GpuAcceleration, static (CefGlueControl i, bool v) => i.GpuAcceleration = v);
-        context.BindProperty(new PropertyInfo(new StringName(nameof(OpenPopupInCurrentBrowser)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
+        context.BindProperty(new PropertyInfo(new StringName("open_popup_in_current_browser"), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.OpenPopupInCurrentBrowser, static (CefGlueControl i, bool v) => i.OpenPopupInCurrentBrowser = v);
-        context.BindProperty(new PropertyInfo(new StringName(nameof(EnableMediaStream)), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
+        context.BindProperty(new PropertyInfo(new StringName("enable_media_stream"), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.EnableMediaStream, static (CefGlueControl i, bool v) => i.EnableMediaStream = v);
 
         // SyncCursor / ForwardInputEvents 通过 _GetPropertyList 动态添加

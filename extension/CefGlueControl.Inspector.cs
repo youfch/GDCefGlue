@@ -14,7 +14,7 @@ public partial class CefGlueControl
         // SyncCursor: 仅 OSR 模式
         if (_mode != RenderMode.EmbeddedWindow)
         {
-            properties.Add(new PropertyInfo(new StringName(nameof(SyncCursor)), VariantType.Bool)
+            properties.Add(new PropertyInfo(new StringName("sync_cursor"), VariantType.Bool)
             {
                 Usage = PropertyUsageFlags.Default,
             });
@@ -23,7 +23,7 @@ public partial class CefGlueControl
         // ContextMenuEnabled: 仅 OSR 模式
         if (_mode != RenderMode.EmbeddedWindow)
         {
-            properties.Add(new PropertyInfo(new StringName(nameof(ContextMenuEnabled)), VariantType.Bool)
+            properties.Add(new PropertyInfo(new StringName("context_menu_enabled"), VariantType.Bool)
             {
                 Usage = PropertyUsageFlags.Default,
             });
@@ -38,7 +38,7 @@ public partial class CefGlueControl
                 Usage = PropertyUsageFlags.Group,
             });
             // 分组属性
-            properties.Add(new PropertyInfo(new StringName(nameof(ForwardInputEvents)), VariantType.Bool)
+            properties.Add(new PropertyInfo(new StringName("forward_input_events"), VariantType.Bool)
             {
                 Usage = PropertyUsageFlags.Default,
             });
@@ -47,17 +47,17 @@ public partial class CefGlueControl
 
     protected override bool _Set(StringName property, Variant value)
     {
-        if (property == new StringName(nameof(SyncCursor)))
+        if (property == new StringName("sync_cursor"))
         {
             SyncCursor = value.AsBool();
             return true;
         }
-        if (property == new StringName(nameof(ContextMenuEnabled)))
+        if (property == new StringName("context_menu_enabled"))
         {
             ContextMenuEnabled = value.AsBool();
             return true;
         }
-        if (property == new StringName(nameof(ForwardInputEvents)))
+        if (property == new StringName("forward_input_events"))
         {
             ForwardInputEvents = value.AsBool();
             return true;
@@ -67,17 +67,17 @@ public partial class CefGlueControl
 
     protected override bool _Get(StringName property, out Variant value)
     {
-        if (property == new StringName(nameof(SyncCursor)))
+        if (property == new StringName("sync_cursor"))
         {
             value = Variant.CreateFrom(SyncCursor);
             return true;
         }
-        if (property == new StringName(nameof(ContextMenuEnabled)))
+        if (property == new StringName("context_menu_enabled"))
         {
             value = Variant.CreateFrom(ContextMenuEnabled);
             return true;
         }
-        if (property == new StringName(nameof(ForwardInputEvents)))
+        if (property == new StringName("forward_input_events"))
         {
             value = Variant.CreateFrom(ForwardInputEvents);
             return true;
