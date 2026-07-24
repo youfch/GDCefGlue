@@ -5,8 +5,6 @@
     <PublishAot>true</PublishAot>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <!-- CefGlue.Common.targets expects Pkgcef_redist_osx_arm64 but NuGet generates Pkgcef_redist_osxarm64 -->
-    <Pkgcef_redist_osx_arm64>$(Pkgcef_redist_osxarm64)</Pkgcef_redist_osx_arm64>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,15 +14,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="cef.redist.linux64" Version="149.0.4" GeneratePathProperty="true" />
-    <PackageReference Include="cef.redist.linuxarm64" Version="149.0.4" GeneratePathProperty="true" />
-    <PackageReference Include="cef.redist.osx64" Version="149.0.4" GeneratePathProperty="true" />
-    <PackageReference Include="cef.redist.osxarm64" Version="149.0.4" GeneratePathProperty="true" />
-    <PackageReference Include="CefGlue.BrowserProcess.runtime" Version="149.7827.156" />
-    <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
-    <PackageReference Include="CefGlue.Common.ARM64" Version="149.7827.156" />
-    <PackageReference Include="chromiumembeddedframework.runtime" Version="149.0.4" />
-    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
+    <PackageReference Include="cef.redist.linux64" Version="120.1.8" GeneratePathProperty="true" />
+    <PackageReference Include="cef.redist.linuxarm64" Version="120.1.8" GeneratePathProperty="true" />
+    <PackageReference Include="CefGlue.Common" Version="120.6099.211" />
+    <PackageReference Include="CefGlue.Common.ARM64" Version="120.6099.211" />
+    <PackageReference Include="chromiumembeddedframework.runtime" Version="120.1.8" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="120.1.8" />
   </ItemGroup>
 
 </Project>

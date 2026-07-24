@@ -72,7 +72,7 @@ add_child(browser)
 CefGlue packages are published on GitHub Releases, not NuGet.org.
 
 **Download:**
-- [CefGlue NuGet packages](https://github.com/youfch/CefGlue/releases/tag/v149.7827.156)
+- [CefGlue NuGet packages](https://www.nuget.org/packages/CefGlue.Common/120.6099.211)
 - [chromiumembeddedframework.runtime](https://github.com/youfch/cef.redist.win/releases)
 
 Create `nuget.config`:
@@ -91,10 +91,9 @@ Add to `.csproj`:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
-  <PackageReference Include="CefGlue.BrowserProcess.runtime.jit" Version="149.7827.156" />
-  <PackageReference Include="chromiumembeddedframework.runtime" Version="149.0.4" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
+<PackageReference Include="CefGlue.Common" Version="120.6099.211" />
+<PackageReference Include="chromiumembeddedframework.runtime" Version="120.1.8" />
+<PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="120.1.8" />
 </ItemGroup>
 ```
 

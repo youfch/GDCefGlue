@@ -60,7 +60,7 @@ namespace GDCefGlue
             finally { browser.Dispose(); }
         }
 
-        protected override void OnAcceleratedPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, CefAcceleratedPaintInfo info) { }
+        protected override void OnAcceleratedPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, IntPtr sharedHandle) { }
 
         protected override void OnScrollOffsetChanged(CefBrowser browser, double x, double y) { }
 

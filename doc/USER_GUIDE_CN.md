@@ -28,7 +28,7 @@ GDCefGlue 将完整的 Chromium 浏览器（CEF）嵌入 Godot 4.x 的 `Control`
 CefGlue 的 NuGet 包发布在 GitHub Releases 上（不在 NuGet.org），需要手动下载并配置本地源。
 
 **下载地址：**
-- [CefGlue NuGet 包](https://github.com/youfch/CefGlue/releases/tag/v149.7827.156) — 下载全部 `.nupkg` 文件
+- [CefGlue NuGet 包](https://www.nuget.org/packages/CefGlue.Common/120.6099.211) — 使用 nuget.org 上的 `CefGlue.Common`
 - [chromiumembeddedframework.runtime](https://github.com/youfch/cef.redist.win/releases) — CEF 运行时包
 
 **配置步骤：**
@@ -50,10 +50,9 @@ CefGlue 的 NuGet 包发布在 GitHub Releases 上（不在 NuGet.org），需�
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
-  <PackageReference Include="CefGlue.BrowserProcess.runtime.jit" Version="149.7827.156" />
-  <PackageReference Include="chromiumembeddedframework.runtime" Version="149.0.4" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
+<PackageReference Include="CefGlue.Common" Version="120.6099.211" />
+<PackageReference Include="chromiumembeddedframework.runtime" Version="120.1.8" />
+<PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="120.1.8" />
 </ItemGroup>
 ```
 

@@ -15,7 +15,6 @@ namespace GDCefGlue
         public void ShowDeveloperTools()
         {
             var windowInfo = CefWindowInfo.Create();
-            windowInfo.RuntimeStyle = CefRuntimeStyle.Chrome;
             _browserHost?.ShowDevTools(windowInfo, _client, new CefBrowserSettings(), new CefPoint());
         }
 

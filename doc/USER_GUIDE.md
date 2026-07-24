@@ -28,7 +28,7 @@ GDCefGlue embeds a full Chromium browser (CEF) into Godot 4.x as a `Control` nod
 CefGlue NuGet packages are published on GitHub Releases (not on NuGet.org). Download and set up a local feed.
 
 **Download:**
-- [CefGlue NuGet packages](https://github.com/youfch/CefGlue/releases/tag/v149.7827.156) — download all `.nupkg` files
+- [CefGlue NuGet packages](https://www.nuget.org/packages/CefGlue.Common/120.6099.211) — use `CefGlue.Common` from nuget.org
 - [chromiumembeddedframework.runtime](https://github.com/youfch/cef.redist.win/releases) — CEF runtime packages
 
 **Setup:**
@@ -50,10 +50,9 @@ Add to your `.csproj`:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
-  <PackageReference Include="CefGlue.BrowserProcess.runtime.jit" Version="149.7827.156" />
-  <PackageReference Include="chromiumembeddedframework.runtime" Version="149.0.4" />
-  <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
+<PackageReference Include="CefGlue.Common" Version="120.6099.211" />
+<PackageReference Include="chromiumembeddedframework.runtime" Version="120.1.8" />
+<PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="120.1.8" />
 </ItemGroup>
 ```
 
