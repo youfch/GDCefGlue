@@ -1,6 +1,6 @@
 # Linux (Kylin V10) 排障指南
 
-GDCefGlue 在 Linux 上运行 CEF 时会遇到一系列平台特有的问题。本文档记录了在 **Kylin V10 SP1**（GLIBC 2.31、国产 LISUAN GPU）上的排查过程和修复方案，适用于所有 Linux 发行版。
+GDCefGlue 在 Linux 上运行 CEF 时会遇到一系列平台特有的问题。本文档记录了在 **Kylin V10 SP1**（GLIBC 2.31、国产 GPU）上的排查过程和修复方案，适用于所有 Linux 发行版。
 
 ---
 
@@ -10,7 +10,7 @@ GDCefGlue 在 Linux 上运行 CEF 时会遇到一系列平台特有的问题。�
 |------|-----|
 | 操作系统 | Kylin V10 SP1 (x86_64) |
 | GLIBC | 2.31 |
-| GPU | LISUAN 7G100（国产 GPU，Vulkan 驱动兼容性一般） |
+| GPU | 国产 GPU（Vulkan 驱动兼容性一般） |
 | Godot | 4.6.3 Mono (linux_x86_64) |
 | CEF | 120.1.8 (Chromium 120.0.6099.109) |
 | CefGlue | 120.6099.211 (OutSystems/CefGlue) |
@@ -243,7 +243,7 @@ FATAL:gpu_data_manager_impl_private.cc(448)] GPU process isn't usable. Goodbye.
 
 ### 根因
 
-LISUAN 7G100 等国产 GPU 的 Vulkan/OpenGL 驱动兼容性有限，CEF GPU 进程无法正常初始化。
+国产 GPU 的 Vulkan/OpenGL 驱动兼容性有限，CEF GPU 进程无法正常初始化。
 
 ### 修复
 
