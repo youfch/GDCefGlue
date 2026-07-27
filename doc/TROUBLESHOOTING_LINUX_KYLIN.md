@@ -353,33 +353,41 @@ sudo gdb -batch -ex "bt" -ex "info registers" /path/to/executable /tmp/core.raw
 
 ---
 
-## 完整启动脚本示例
+## 完整启动脚本
+
+项目提供了通用启动脚本，自动处理 `LD_PRELOAD` 和路径配置：
 
 ```bash
-#!/bin/bash
-# run_gde.sh — GDCefGlue GDExtension 启动脚本 (Linux)
-
-export DISPLAY=:0
-
-# 【关键】预加载 libcef.so 解决 TLS 初始化问题
-export LD_PRELOAD="$(dirname "$0")/addons/gdcefglue/linux-x64/libcef.so"
-
-# .NET SDK 路径（如果不在 PATH 中）
-export PATH="/home/user/dotnet:$PATH"
-
-godot --path ./ --verbose 2>&1 | tee godot.log
+# 查看脚本
+cat scripts/run_gde_linux.sh      # GDExtension 版
+cat scripts/run_plugin_linux.sh   # Plugin 版
 ```
 
+### GDExtension
+
 ```bash
 #!/bin/bash
-# run_plugin.sh — GDCefGlue Plugin 启动脚本 (Linux)
-
+# 放在项目根目录运行
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 export DISPLAY=:0
 
-# 【关键】预加载 libcef.so（路径指向 .godot/mono/temp/bin/Debug/CefGlueBrowserProcess/）
-export LD_PRELOAD="$(pwd)/.godot/mono/temp/bin/Debug/CefGlueBrowserProcess/libcef.so"
+# 预加载 libcef.so
+export LD_PRELOAD="$PROJECT_DIR/addons/gdcefglue/linux-x64/libcef.so"
 
-godot --path ./ --verbose 2>&1 | tee godot.log
+exec godot --path "$PROJECT_DIR" --verbose 2>&1 | tee godot.log
+```
+
+### Plugin
+
+```bash
+#!/bin/bash
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+export DISPLAY=:0
+
+# Plugin 模式下 CEF 运行时在 .godot/mono/temp/bin/Debug/CefGlueBrowserProcess/
+export LD_PRELOAD="$PROJECT_DIR/.godot/mono/temp/bin/Debug/CefGlueBrowserProcess/libcef.so"
+
+exec godot --path "$PROJECT_DIR" --verbose 2>&1 | tee godot.log
 ```
 
 ---
