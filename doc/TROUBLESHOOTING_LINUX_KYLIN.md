@@ -1,6 +1,6 @@
 # Linux (Kylin V10) 排障指南
 
-GDCefGlue 在 Linux 上运行 CEF 时会遇到一系列平台特有的问题。本文档记录了在 **Kylin V10 SP1**（GLIBC 2.31、国产 GPU）上的排查过程和修复方案，适用于所有 Linux 发行版。
+GDCefGlue 在 Linux 上运行 CEF 时会遇到一系列平台特有的问题。本文档记录了在 **Kylin V10 SP1**（GLIBC 2.31）上的排查过程和修复方案，适用于所有 Linux 发行版。
 
 ---
 
@@ -10,7 +10,7 @@ GDCefGlue 在 Linux 上运行 CEF 时会遇到一系列平台特有的问题。�
 |------|-----|
 | 操作系统 | Kylin V10 SP1 (x86_64) |
 | GLIBC | 2.31 |
-| GPU | 国产 GPU（Vulkan 驱动兼容性一般） |
+| GPU | Vulkan 驱动兼容性一般的 GPU |
 | Godot | 4.6.3 Mono (linux_x86_64) |
 | CEF | 120.1.8 (Chromium 120.0.6099.109) |
 | CefGlue | 120.6099.211 (OutSystems/CefGlue) |
@@ -26,7 +26,7 @@ GDCefGlue 在 Linux 上运行 CEF 时会遇到一系列平台特有的问题。�
 | 2 | Zygote 子进程 int3 崩溃 | `--type=zygote` 子进程 `trap int3` | `GodotCefApp` 添加 `--no-zygote`，GPU 开关移到所有进程类型 |
 | 3 | `libcef.so` initial-exec TLS 模型，dlopen 加载时 SEGV | 主进程 `general protection fault` in libcef.so | `LD_PRELOAD` 预加载 `libcef.so` |
 | 4 | CEF 149 需要 GLIBC 2.34 | `GLIBC_2.34 not found` | 降级到 CEF 120（需要 GLIBC 2.17） |
-| 5 | 国产 GPU 驱动兼容性 | GPU 进程 `error_code=1002` | `--disable-gpu` + `--use-gl=swiftshader` 软渲染 |
+| 5 | GPU 驱动兼容性 | GPU 进程 `error_code=1002` | `--disable-gpu` + `--use-gl=swiftshader` 软渲染 |
 
 ---
 
@@ -231,7 +231,7 @@ CEF 149（Chromium 149）的 `libcef.so` 和 `BrowserProcess` 需要 GLIBC 2.34+
 
 ---
 
-## 问题 5：国产 GPU 兼容性
+## 问题 5：GPU 兼容性
 
 ### 现象
 
@@ -243,7 +243,7 @@ FATAL:gpu_data_manager_impl_private.cc(448)] GPU process isn't usable. Goodbye.
 
 ### 根因
 
-国产 GPU 的 Vulkan/OpenGL 驱动兼容性有限，CEF GPU 进程无法正常初始化。
+部分 GPU 的 Vulkan/OpenGL 驱动兼容性有限，CEF GPU 进程无法正常初始化。
 
 ### 修复
 
@@ -390,7 +390,7 @@ godot --path ./ --verbose 2>&1 | tee godot.log
 - [ ] `libcef.so` 和 `BrowserProcess` 有可执行权限
 - [ ] 启动脚本设置了 `LD_PRELOAD`
 - [ ] 启动脚本设置了 `DISPLAY=:0`（无桌面环境时）
-- [ ] 场景中 `gpu_acceleration = false`（国产 GPU）
+- [ ] 场景中 `gpu_acceleration = false`（GPU 兼容性差时）
 - [ ] CEF 版本为 120（GLIBC < 2.34 时）
 - [ ] Godot 日志显示 `CEF initialized. IsInitialized = True`
 - [ ] Godot 日志显示 `Browser initialized`
