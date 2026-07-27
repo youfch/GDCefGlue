@@ -300,6 +300,7 @@ browser.CloseDeveloperTools();               // 关闭 DevTools
 - **EmbeddedWindow**：使用 X11 子窗口。
 - **依赖**：安装 `libxkbcommon-x11-dev` 以支持键盘。
 - **AOT 构建**：需要 `clang` 和 `zlib1g-dev`。
+- **⚠️ 必须使用启动脚本运行**：CEF 的 `libcef.so` 在 Linux 上通过 `dlopen` 加载时会因 TLS 初始化问题导致 SEGV。必须使用项目提供的 `scripts/run_gde_linux.sh` 或 `scripts/run_plugin_linux.sh` 启动，这些脚本会自动设置 `LD_PRELOAD` 预加载 `libcef.so`。直接运行 Godot 可执行文件会导致崩溃。详情见 [Linux 排障指南](TROUBLESHOOTING_LINUX_KYLIN.md)。
 
 ### macOS
 

@@ -300,6 +300,7 @@ browser.CloseDeveloperTools();              // Close DevTools
 - **EmbeddedWindow**: Uses X11 child window.
 - **Dependencies**: Install `libxkbcommon-x11-dev` for keyboard support.
 - **AOT build**: Requires `clang` and `zlib1g-dev`.
+- **⚠️ Must use the launch scripts**: CEF's `libcef.so` uses the initial-exec TLS model, which causes a SEGV when loaded via `dlopen` on Linux. You must use `scripts/run_gde_linux.sh` or `scripts/run_plugin_linux.sh` to launch your project — these scripts set `LD_PRELOAD` to preload `libcef.so`. Running Godot directly will crash. See [Linux Troubleshooting Guide](TROUBLESHOOTING_LINUX_KYLIN.md) for details.
 
 ### macOS
 

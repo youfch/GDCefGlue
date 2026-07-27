@@ -2,6 +2,17 @@
 
 GDCefGlue 在 Linux 上运行 CEF 时会遇到一系列平台特有的问题。本文档记录了在 **Kylin V10 SP1**（GLIBC 2.31）上的排查过程和修复方案，适用于所有 Linux 发行版。
 
+> **⚠️ Linux 上必须使用 `scripts/` 下的启动脚本运行项目**
+> 
+> CEF 的 `libcef.so` 使用 initial-exec TLS 模型，通过 `dlopen` 动态加载时会 SEGV。
+> 项目提供的 `scripts/run_gde_linux.sh` 和 `scripts/run_plugin_linux.sh` 会自动设置
+> `LD_PRELOAD` 预加载 `libcef.so`，解决此问题。直接运行 Godot 可执行文件会导致崩溃。
+> 
+> ```bash
+> # 将脚本复制到项目根目录后执行
+> cp scripts/run_gde_linux.sh ./run.sh && chmod +x ./run.sh && ./run.sh
+> ```
+
 ---
 
 ## 环境信息
