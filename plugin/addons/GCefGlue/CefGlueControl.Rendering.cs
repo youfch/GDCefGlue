@@ -72,6 +72,15 @@ namespace GDCefGlue
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint()) return;
+
+            // 在非 Windows 平台上，CEF 使用外部消息循环模式，
+            // 需要在主线程定期调用 DoMessageLoopWork() 驱动 CEF 消息循环。
+            if (CefInitializer.UseExternalMessageLoop && CefRuntime.IsInitialized)
+            {
+                try { CefRuntime.DoMessageLoopWork(); }
+                catch { /* CEF 尚未完成初始化或已关闭，忽略 */ }
+            }
+
             _cachedGlobalPosition = GlobalPosition;
             _cachedContentScale = DisplayServer.ScreenGetScale();
 

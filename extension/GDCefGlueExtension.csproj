@@ -18,6 +18,7 @@
     <PackageReference Include="cef.redist.linuxarm64" Version="120.1.8" GeneratePathProperty="true" />
     <PackageReference Include="CefGlue.Common" Version="120.6099.211" />
     <PackageReference Include="CefGlue.Common.ARM64" Version="120.6099.211" />
+    <PackageReference Include="CefGlue.BrowserProcess.runtime.linux-x64" Version="120.6099.211" />
     <PackageReference Include="chromiumembeddedframework.runtime" Version="120.1.8" />
     <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="120.1.8" />
   </ItemGroup>

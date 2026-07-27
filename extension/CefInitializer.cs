@@ -16,6 +16,12 @@ public static class CefInitializer
 
     public static string CacheDirectory { get; set; } = "user://cef_cache";
 
+    /// <summary>
+    /// 在非 Windows 平台上为 true，表示 CEF 运行在外部消息循环模式下，
+    /// 需要由宿主程序定期调用 CefRuntime.DoMessageLoopWork() 驱动 CEF 消息循环。
+    /// </summary>
+    public static bool UseExternalMessageLoop { get; private set; }
+
     public static void Initialize()
     {
         if (_initialized) return;
@@ -46,13 +52,19 @@ public static class CefInitializer
             var resourcesDir = FindResources(platformDir);
             var localesDir = Path.Combine(resourcesDir, "locales");
 
+            // Linux/macOS 不支持 MultiThreadedMessageLoop（Windows 专用）。
+            // 在非 Windows 平台使用外部消息循环模式，由 CefGlueControl._Process 驱动 DoMessageLoopWork()。
+            // 若在 Linux 上设为 true，CEF 会在初始化时触发 int3 (DCHECK) 崩溃。
+            var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
             var settings = new CefSettings
             {
                 CachePath = cachePath,
                 RootCachePath = cachePath,
                 WindowlessRenderingEnabled = true,
                 NoSandbox = true,
-                MultiThreadedMessageLoop = true,
+                MultiThreadedMessageLoop = isWindows,
+                ExternalMessagePump = !isWindows,
                 UncaughtExceptionStackSize = 100,
                 RemoteDebuggingPort = 0,
                 LogSeverity = CefLogSeverity.Warning,
@@ -61,6 +73,9 @@ public static class CefInitializer
                 LocalesDirPath = localesDir,
                 Locale = "zh-CN"
             };
+
+            // 在非 Windows 平台，暴露外部消息循环标志给 CefGlueControl 使用
+            UseExternalMessageLoop = !isWindows;
 
             var libcefHandle = NativeLibrary.Load(cefLibraryPath);
             if (libcefHandle == IntPtr.Zero) { GD.PrintErr("CefInitializer: Failed to load libcef"); return; }
