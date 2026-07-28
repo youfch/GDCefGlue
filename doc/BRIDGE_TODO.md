@@ -38,7 +38,7 @@ RenderMode 枚举:
   └── Transparent
 
 ▸ Feature Toggles
-  ├── GpuAcceleration
+  ├── GpuCompositing
   ├── OpenPopupInCurrentBrowser
   ├── EnableMediaStream
   ├── SyncCursor          ← 仅 OSR 显示

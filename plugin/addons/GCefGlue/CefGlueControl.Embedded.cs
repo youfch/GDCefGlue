@@ -79,8 +79,6 @@ namespace GDCefGlue
             int physW = (int)(size.X * contentScale);
             int physH = (int)(size.Y * contentScale);
 
-            GD.Print($"[Embedded] MoveResize: pos=({physX},{physY}) size=({physW},{physH}) scale={contentScale} visible={Visible} winPos=({windowPos.X},{windowPos.Y}) globalPos=({globalPos.X},{globalPos.Y})");
-
             // 同步 CEF 子窗口位置和大小（坐标相对于父窗口客户区）
             NativeWindowMethods.MovePlatformWindow(
                 _cefChildHwnd, physX, physY, physW, physH);

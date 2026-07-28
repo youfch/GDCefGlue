@@ -20,7 +20,7 @@ namespace GDCefGlue
             // 将控件的 CacheDirectory 传给 CEF 初始化器
             CefInitializer.CacheDirectory = CacheDirectory;
 
-            UseGpuAcceleration = GpuAcceleration;
+            UseGpuCompositing = GpuCompositing;
             UseTransparent = Transparent;
             ActiveRenderMode = Mode;
             _renderMode = Mode;

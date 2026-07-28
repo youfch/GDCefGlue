@@ -13,7 +13,7 @@ public partial class CefGlueControl
     {
         if (Godot.Engine.Singleton.IsEditorHint()) { return; }
         _renderMode = Mode;
-        UseGpuAcceleration = GpuAcceleration; UseTransparent = Transparent;
+        UseGpuCompositing = GpuCompositing; UseTransparent = Transparent;
         ActiveRenderMode = Mode;
         CefInitializer.CacheDirectory = CacheDirectory;
         CefInitializer.Initialize();

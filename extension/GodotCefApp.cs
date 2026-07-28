@@ -30,7 +30,7 @@ internal class GodotCefApp : CefApp
 
         // GPU 相关开关需要应用到所有进程类型（包括 gpu-process），
         // 否则 --no-zygote 模式下 GPU 子进程仍会尝试硬件加速并崩溃。
-        if (!CefGlueControl.UseGpuAcceleration)
+        if (!CefGlueControl.UseGpuCompositing)
         {
             commandLine.AppendSwitch("disable-gpu");
             commandLine.AppendSwitch("disable-gpu-compositing");

@@ -72,7 +72,7 @@ namespace GDCefGlue
         /// Enables GPU hardware acceleration.
         /// </summary>
         [Export]
-        public bool GpuAcceleration { get; set; } = true;
+        public bool GpuCompositing { get; set; } = true;
 
         /// <summary>
         /// If true, popup windows navigate in the current browser instead of opening new windows.
@@ -134,17 +134,19 @@ namespace GDCefGlue
         //  静态属性（CEF 初始化前设置）
         // ══════════════════════════════════════════════════════════════
 
-        private static bool _useGpuAcceleration = true;
+        private static bool _useGpuCompositing = true;
         private static bool _useTransparent = false;
         private static RenderMode _activeRenderMode = RenderMode.OSR;
 
         /// <summary>
-        /// Gets or sets the global GPU acceleration setting. Must be set before CEF initialization.
+        /// Gets or sets the global GPU compositing setting. Must be set before CEF initialization.
+        /// When true, CEF uses GPU compositing for page rendering; when false, falls back to
+        /// software rendering which is significantly slower for WebGL/CSS 3D content.
         /// </summary>
-        public static bool UseGpuAcceleration
+        public static bool UseGpuCompositing
         {
-            get => _useGpuAcceleration;
-            set => _useGpuAcceleration = value;
+            get => _useGpuCompositing;
+            set => _useGpuCompositing = value;
         }
 
         /// <summary>
