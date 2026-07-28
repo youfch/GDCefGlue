@@ -13,7 +13,7 @@ public partial class CefGlueControl
     public void GoForward() => _browser?.GoForward();
     public void NavigateToUrl(string url) { if (!string.IsNullOrEmpty(url)) { using var frame = _browser?.GetMainFrame(); frame?.LoadUrl(url); } }
     public void Reload(bool ignoreCache = false) => _browser?.Reload();
-    public void ShowDeveloperTools() { var w = CefWindowInfo.Create(); w.RuntimeStyle = CefRuntimeStyle.Chrome; _browserHost?.ShowDevTools(w, _client, new CefBrowserSettings(), new CefPoint()); }
+    public void ShowDeveloperTools() { var w = CefWindowInfo.Create(); w.RuntimeStyle = CefRuntimeStyle.Chrome; w.SetAsPopup(IntPtr.Zero, "DevTools"); _browserHost?.ShowDevTools(w, new PopupCefClient(), new CefBrowserSettings(), new CefPoint()); }
     public void CloseDeveloperTools() => _browserHost?.CloseDevTools();
 
     // ── 页面内查找 ──

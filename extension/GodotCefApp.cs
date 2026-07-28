@@ -19,11 +19,28 @@ internal class GodotCefApp : CefApp
         if (CefRuntime.Platform == CefRuntimePlatform.Linux)
         {
             commandLine.AppendSwitch("no-zygote");
+
+            // 强制使用 X11 后端，禁用 Wayland Ozone 后端。
+            // 在 XWayland 环境下，Godot 报告 DisplayServer name 为 "X11"，
+            // 但 CEF 内部会检测到 Wayland 并使用 Ozone Wayland 后端，
+            // 导致 CEF 创建的 Wayland surface 无法嵌入到 XWayland 窗口中。
+            // 强制 --ozone-platform=x11 让 CEF 使用 X11 后端，与 Godot 一致。
+            commandLine.AppendSwitch("ozone-platform", "x11");
         }
 
         // GPU 相关开关需要应用到所有进程类型（包括 gpu-process），
         // 否则 --no-zygote 模式下 GPU 子进程仍会尝试硬件加速并崩溃。
         if (!CefGlueControl.UseGpuAcceleration)
+        {
+            commandLine.AppendSwitch("disable-gpu");
+            commandLine.AppendSwitch("disable-gpu-compositing");
+            commandLine.AppendSwitch("use-angle", "swiftshader");
+        }
+
+        // 嵌入窗口模式在 Linux/XWayland 下需要禁用 GPU 合成，
+        // 否则 CEF 的 GPU 进程创建 CommandBuffer 失败导致内容不渲染。
+        // 报错: ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer
+        if (CefRuntime.Platform == CefRuntimePlatform.Linux)
         {
             commandLine.AppendSwitch("disable-gpu");
             commandLine.AppendSwitch("disable-gpu-compositing");

@@ -76,6 +76,12 @@ var basePath = AppContext.BaseDirectory;
                 // 在非 Windows 平台，暴露外部消息循环标志给 CefGlueControl 使用
                 UseExternalMessageLoop = !isWindows;
 
+                // Linux: 安装全局 X11 错误处理器，忽略 BadWindow 等嵌入窗口模式下的非致命错误
+                if (!isWindows)
+                {
+                    X11Methods.InstallGlobalErrorHandler();
+                }
+
                 CefRuntime.Load();
 
                 var subProcessPath = FindBrowserSubprocessPath();

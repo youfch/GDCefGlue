@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Godot;
 using Xilium.CefGlue;
@@ -16,7 +17,10 @@ namespace GDCefGlue
         {
             var windowInfo = CefWindowInfo.Create();
             windowInfo.RuntimeStyle = CefRuntimeStyle.Chrome;
-            _browserHost?.ShowDevTools(windowInfo, _client, new CefBrowserSettings(), new CefPoint());
+            windowInfo.SetAsPopup(IntPtr.Zero, "DevTools");
+            // 使用 PopupCefClient（空 handler），避免主浏览器 GodotCefClient 的
+            // OSR 渲染处理器、事件转发器等干扰 DevTools 窗口。
+            _browserHost?.ShowDevTools(windowInfo, new PopupCefClient(), new CefBrowserSettings(), new CefPoint());
         }
 
         public void CloseDeveloperTools() => _browserHost?.CloseDevTools();

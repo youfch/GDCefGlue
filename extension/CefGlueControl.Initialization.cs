@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Runtime.InteropServices;
 using Godot;
 using Xilium.CefGlue;
 using Xilium.CefGlue.Platform.Windows;
@@ -54,6 +55,8 @@ public partial class CefGlueControl
             _godotHwnd = (IntPtr)DisplayServer.Singleton.WindowGetNativeHandle(
                 DisplayServer.HandleType.WindowHandle, 0);
 
+            GD.Print($"[Embedded] Godot window handle: 0x{_godotHwnd.ToInt64():X}, DisplayServer name: {DisplayServer.Singleton.GetName()}, OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+
             if (_godotHwnd == IntPtr.Zero)
             {
                 GD.PrintErr("CefGlueControl: Failed to get Godot window handle");
@@ -63,6 +66,7 @@ public partial class CefGlueControl
             // 防止 CEF 子窗口被点击时抢走 Godot 主窗口的键盘焦点
             windowInfo.StyleEx |= WindowStyleEx.WS_EX_NOACTIVATE;
             windowInfo.SetAsChild(_godotHwnd, new CefRectangle(0, 0, width, height));
+            GD.Print($"[Embedded] SetAsChild parent=0x{_godotHwnd.ToInt64():X} bounds=({0},{0},{width},{height})");
         }
         else
         {
@@ -82,8 +86,37 @@ public partial class CefGlueControl
         if (_renderMode == RenderMode.EmbeddedWindow && _browserHost != null)
         {
             _cefChildHwnd = _browserHost.GetWindowHandle();
-            if (_cefChildHwnd == IntPtr.Zero)
-                GD.Print("CefGlueControl: GetWindowHandle returned zero, will retry in _Process");
+            GD.Print($"[Embedded] OnBrowserCreated: GetWindowHandle returned 0x{_cefChildHwnd.ToInt64():X}");
+
+            // Linux 上 GetWindowHandle() 可能返回 0x1（哨兵值）而非真实 X11 Window ID。
+            // 只有当返回值无效时（0 或极小值），才通过 XQueryTree 查找实际子窗口。
+            // --ozone-platform=x11 生效后，GetWindowHandle 返回真实 XID，不需要回退。
+            if (OperatingSystem.IsLinux() && _godotHwnd != IntPtr.Zero
+                && (_cefChildHwnd.ToInt64() <= 0x100))
+            {
+                GD.Print("[Embedded] GetWindowHandle returned invalid value, using XQueryTree fallback...");
+                var display = X11Methods.GetDisplay();
+                if (display != IntPtr.Zero)
+                {
+                    X11Methods.XQueryTree(display, _godotHwnd, out var root, out var parent, out var children, out var nChildren);
+                    GD.Print($"[Embedded] XQueryTree on Godot window 0x{_godotHwnd.ToInt64():X}: nChildren={nChildren}");
+
+                    if (nChildren > 0 && children != IntPtr.Zero)
+                    {
+                        _cefChildHwnd = Marshal.ReadIntPtr(children);
+                        GD.Print($"[Embedded] Found CEF child window via XQueryTree: 0x{_cefChildHwnd.ToInt64():X}");
+                        X11Methods.XFree(children);
+                    }
+                    else
+                    {
+                        GD.Print("[Embedded] No child windows found on Godot window");
+                    }
+                }
+            }
+            else
+            {
+                GD.Print($"[Embedded] Using GetWindowHandle value directly: 0x{_cefChildHwnd.ToInt64():X}");
+            }
         }
 
         CallDeferred("_notify_browser_initialized");
