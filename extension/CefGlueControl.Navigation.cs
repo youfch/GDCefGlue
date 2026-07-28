@@ -56,6 +56,8 @@ public partial class CefGlueControl
             }
             // 注入焦点监视 JS（驱动 IME 激活/关闭）
             InjectFocusWatcherIfNeeded();
+            // 注入光标追踪 JS（IME 候选窗跟随光标）
+            InjectCaretTrackerIfNeeded();
             // 嵌入模式下注入事件转发 JS
             InjectEventForwardingScriptIfNeeded();
         }

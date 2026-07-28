@@ -51,6 +51,23 @@ namespace GDCefGlue
                 Win32ShowWindow(window, visible ? SW_SHOW : SW_HIDE);
         }
 
+/// <summary>
+        /// 获取窗口客户区（内容区域）在屏幕上的位置（物理像素）。
+        /// 与 DisplayServer.WindowGetPosition 不同，此方法返回客户区位置，
+        /// 自动扣除了标题栏和边框的偏移。仅在 Windows 上有效，
+        /// 其他平台回退到 DisplayServer.WindowGetPosition。
+        /// </summary>
+        internal static System.Numerics.Vector2 GetWindowClientScreenPosition(IntPtr window)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                var pt = new Win32Point { X = 0, Y = 0 };
+                Win32ClientToScreen(window, ref pt);
+                return new System.Numerics.Vector2(pt.X, pt.Y);
+            }
+            return System.Numerics.Vector2.Zero;
+        }
+
         // ── Win32 实现 ──
 
         [DllImport("user32.dll", EntryPoint = "SetFocus", SetLastError = true)]
@@ -62,6 +79,16 @@ namespace GDCefGlue
 
         [DllImport("user32.dll", EntryPoint = "ShowWindow", SetLastError = true)]
         private static extern bool Win32ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll", EntryPoint = "ClientToScreen", SetLastError = true)]
+        private static extern bool Win32ClientToScreen(IntPtr hWnd, ref Win32Point lpPoint);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Win32Point
+        {
+            public int X;
+            public int Y;
+        }
 
         internal const uint SWP_NOZORDER = 0x0004;
         internal const uint SWP_NOACTIVATE = 0x0010;
