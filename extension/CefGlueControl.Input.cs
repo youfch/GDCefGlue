@@ -153,6 +153,10 @@ public partial class CefGlueControl
         switch ((long)what)
         {
             case NotificationResized: break;
+            case NotificationVisibilityChanged:
+                if (_renderMode == RenderMode.EmbeddedWindow && _cefChildHwnd != IntPtr.Zero)
+                    NativeWindowMethods.SetPlatformWindowVisible(_cefChildHwnd, Visible);
+                break;
             case NotificationMouseExit: _isMousePressed = false; _pressedButton = (CefMouseButtonType)(-1); break;
             case NotificationFocusEnter:
                 _browserHost?.SetFocus(true);

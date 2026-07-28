@@ -24,6 +24,14 @@ public partial class CefGlueControl
         if (_browserHost == null || _godotHwnd == IntPtr.Zero)
             return;
 
+        // Godot 控件隐藏时同步隐藏 CEF 子窗口
+        if (!Visible)
+        {
+            if (_cefChildHwnd != IntPtr.Zero)
+                NativeWindowMethods.SetPlatformWindowVisible(_cefChildHwnd, false);
+            return;
+        }
+
         var globalPos = GlobalPosition;
         var size = Size;
         if (size.X <= 0 || size.Y <= 0)
