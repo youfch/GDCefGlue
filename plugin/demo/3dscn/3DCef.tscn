@@ -1,0 +1,56 @@
+[gd_scene format=3 uid="uid://1ah7k1lapryu"]
+
+[ext_resource type="Script" uid="uid://d25hmir240bvt" path="res://addons/GCefGlue/CefGlueControl.cs" id="1_y7let"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_387v2"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_y7let"]
+sky_material = SubResource("ProceduralSkyMaterial_387v2")
+
+[sub_resource type="Environment" id="Environment_rp0m7"]
+background_mode = 2
+sky = SubResource("Sky_y7let")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_387v2"]
+viewport_path = NodePath("SubViewport")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_387v2"]
+resource_local_to_scene = true
+albedo_texture = SubResource("ViewportTexture_387v2")
+
+[sub_resource type="QuadMesh" id="QuadMesh_387v2"]
+size = Vector2(19.2, 10.8)
+
+[node name="Node3D" type="Node3D" unique_id=2126422369]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1392546080]
+transform = Transform3D(-0.8660254, -0.43301278, 0.24999999, 0.4212404, -0.36249712, 0.8313558, -0.26936337, 0.8252853, 0.4963342, 0, 0, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1941227415]
+environment = SubResource("Environment_rp0m7")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=485914429]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1935709477]
+transform = Transform3D(0.95368546, 0, 0.3008057, 0, 1, 0, -0.3008057, 0, 0.95368546, 0, 0, -10.758549)
+material_override = SubResource("StandardMaterial3D_387v2")
+mesh = SubResource("QuadMesh_387v2")
+
+[node name="SubViewport" type="SubViewport" parent="." unique_id=750603474]
+size = Vector2i(1920, 1080)
+size_2d_override_stretch = true
+
+[node name="CefGlueControl" type="Control" parent="SubViewport" unique_id=553113191]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1920.0
+offset_bottom = 1080.0
+script = ExtResource("1_y7let")
+InitialUrl = "www.bing.com"
+"Embedded Mode" = null
+metadata/_custom_type_script = "uid://d25hmir240bvt"
