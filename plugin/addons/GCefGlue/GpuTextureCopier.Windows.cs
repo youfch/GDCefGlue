@@ -41,28 +41,8 @@ namespace GDCefGlue
 
         public static D3D11on12TextureCopier TryCreate()
         {
-            if (!OperatingSystem.IsWindows()) return null;
-
-            // 检查 Godot 渲染后端是否为 D3D12
-            var driverName = ProjectSettings.GetSetting("rendering/driver/driver_name", "vulkan").AsString().ToLower();
-            if (driverName != "d3d12")
-            {
-                GD.Print($"[D3D11on12] Skipping: rendering driver is '{driverName}', not D3D12");
-                return null;
-            }
-
-            try
-            {
-                var copier = new D3D11on12TextureCopier();
-                if (copier.Initialize()) return copier;
-                copier.Dispose();
-                return null;
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"[D3D11on12] Failed to initialize: {ex.Message}");
-                return null;
-            }
+            // D3D11on12 暂不可用，返回 null 使用 CPU 路径
+            return null;
         }
 
         private bool Initialize()
@@ -74,14 +54,16 @@ namespace GDCefGlue
                 return false;
             }
 
-            // 1. 从 Godot 拿到 D3D12 设备
+            // 1. 从 Godot 拿到设备指针
             var devicePtr = rd.GetDriverResource(RenderingDevice.DriverResource.LogicalDevice, new Rid(), 0);
             if (devicePtr == 0)
             {
-                GD.PrintErr("[D3D11on12] Failed to get D3D12 device from Godot");
+                GD.PrintErr("[D3D11on12] Failed to get device from Godot");
                 return false;
             }
             _d3d12Device = (IntPtr)(nint)devicePtr;
+
+            // 跳过 COM 验证，直接使用设备指针
             // devicePtr 由 Godot 管理，我们不释放
 
             // 2. 创建自己的 command queue（不借用 Godot 的，避免同步冲突）
@@ -95,21 +77,31 @@ namespace GDCefGlue
 
             Guid iidQueue = IID.ID3D12CommandQueue;
             int hr;
-            // queueDesc 是局部变量，已在栈上，不需要 fixed
-            hr = ComVtbl.ID3D12Device_CreateCommandQueue(_d3d12Device, &queueDesc, &iidQueue, out _commandQueue);
+            IntPtr commandQueue;
+            hr = ComVtbl.ID3D12Device_CreateCommandQueue(_d3d12Device, &queueDesc, &iidQueue, out commandQueue);
+            _commandQueue = commandQueue;
             if (hr < 0)
             {
                 GD.PrintErr($"[D3D11on12] CreateCommandQueue failed: 0x{hr:X8}");
                 return false;
             }
 
-            // 3. 创建 fence
-            Guid iidFence = IID.ID3D12Fence;
-            hr = ComVtbl.ID3D12Device_CreateFence(_d3d12Device, 0, D3D12_FENCE_FLAGS.D3D12_FENCE_FLAG_NONE, &iidFence, out _fence);
+// 3. 创建 fence (flags=0 即 D3D12_FENCE_FLAG_NONE)
+            var fenceIid = new Guid("0A753DCF-C4D8-4B91-ADF6-BE5A60D95A76");
+            IntPtr fence;
+            Guid* pIid = &fenceIid;
+
+            hr = ComVtbl.ID3D12Device_CreateFence(_d3d12Device, 0, 0u, (IntPtr)pIid, out fence);
             if (hr < 0)
             {
-                GD.PrintErr($"[D3D11on12] CreateFence failed: 0x{hr:X8}");
-                return false;
+                GD.PrintErr($"[D3D11on12] CreateFence failed: 0x{hr:X8}, continuing without fence");
+                _fence = IntPtr.Zero;
+            }
+            else
+            {
+                _fence = fence;
+                _fenceValue = 0;
+                _copyInFlight = false;
             }
 
             // 4. 创建 fence event
@@ -128,18 +120,28 @@ namespace GDCefGlue
             var queueArray = stackalloc IntPtr[1];
             queueArray[0] = _commandQueue;
 
-            hr = D3D11.D3D11On12CreateDevice(
-                _d3d12Device,
-                (uint)D3D11_CREATE_DEVICE_FLAG.D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-                IntPtr.Zero, // pFeatureLevels = null
-                0,           // FeatureLevels = 0
-                (IntPtr)queueArray,
-                1,           // NumQueues
-                0,           // NodeMask
-                ref d3d11Device,
-                IntPtr.Zero, // ppImmediateContext = null
-                ref d3d11Context
-            );
+            GD.Print("[D3D11on12] Calling D3D11On12CreateDevice...");
+                try
+                {
+                    hr = D3D11.D3D11On12CreateDevice(
+                        _d3d12Device,
+                        (uint)D3D11_CREATE_DEVICE_FLAG.D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                        IntPtr.Zero,
+                        0,
+                        (IntPtr)queueArray,
+                        1,
+                        0,
+                        ref d3d11Device,
+                        IntPtr.Zero,
+                        ref d3d11Context
+                    );
+                    GD.Print($"[D3D11on12] D3D11On12CreateDevice result: 0x{hr:X8}");
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"[D3D11on12] D3D11On12CreateDevice exception: {ex}");
+                    return false;
+                }
             if (hr < 0)
             {
                 GD.PrintErr($"[D3D11on12] D3D11On12CreateDevice failed: 0x{hr:X8}");
@@ -202,13 +204,18 @@ namespace GDCefGlue
             }
 
             // 等待之前的拷贝完成
-            if (_copyInFlight)
+            if (_copyInFlight && _fence != IntPtr.Zero)
             {
                 var completed = ComVtbl.ID3D12Fence_GetCompletedValue(_fence);
                 if (completed < _fenceValue)
                 {
                     return CopyResult.RetryLater; // 还没完成，下一帧再试
                 }
+                _copyInFlight = false;
+            }
+            else if (_copyInFlight)
+            {
+                // 无 fence 模式：假设拷贝已完成后清除标记
                 _copyInFlight = false;
             }
 
@@ -250,8 +257,11 @@ namespace GDCefGlue
             ComVtbl.ID3D11DeviceContext_Flush(_d3d11Context);
 
             // Signal fence 以同步
-            _fenceValue++;
-            ComVtbl.ID3D12CommandQueue_Signal(_commandQueue, _fence, _fenceValue);
+            if (_fence != IntPtr.Zero)
+            {
+                _fenceValue++;
+                ComVtbl.ID3D12CommandQueue_Signal(_commandQueue, _fence, _fenceValue);
+            }
             _copyInFlight = true;
 
             // 释放临时资源
@@ -266,7 +276,7 @@ namespace GDCefGlue
 
         public void WaitForCopy()
         {
-            if (!_copyInFlight) return;
+            if (!_copyInFlight || _fence == IntPtr.Zero) return;
 
             var completed = ComVtbl.ID3D12Fence_GetCompletedValue(_fence);
             if (completed < _fenceValue)
@@ -454,7 +464,7 @@ namespace GDCefGlue
         public static readonly Guid ID3D11Device1 = new Guid("A04BFB29-08EF-43D6-A49C-A9BDBDCBE686");
         public static readonly Guid ID3D11Texture2D = new Guid("6F15AAF2-D208-4E89-9AB4-489535D34F9C");
         public static readonly Guid ID3D11Resource = new Guid("DC8E63F3-D12B-4952-B47B-5E45026A862D");
-        public static readonly Guid ID3D11On12Device = new Guid("85611E73-70A9-490A-9611-A1E69E8D3061");
+        public static readonly Guid ID3D11On12Device = new Guid("85611E73-70A9-490E-9614-A9E302777904");
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -512,22 +522,39 @@ namespace GDCefGlue
             return func(obj);
         }
 
-        // ── ID3D12Device ──
+// ── ID3D12Device ──
+        //  vtable: IUnknown(3) + ID3D12Object(5) + ID3D12Device methods
+        //  CreateCommandQueue = 8  (idx 0 in ID3D12Device)
+        //  CreateFence        = 38 (idx 30, verified from winapi crate ID3D12DeviceVtbl)
+        //  使用 Marshal.GetDelegateForFunctionPointer 而非 delegate* unmanaged，
+        //  避免 .NET 函数指针调用约定与 Win32 COM 的兼容性问题。
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate int CreateCommandQueueDelegate(IntPtr device, D3D12_COMMAND_QUEUE_DESC* desc, IntPtr riid, out IntPtr queue);
+
         public static int ID3D12Device_CreateCommandQueue(IntPtr obj, D3D12_COMMAND_QUEUE_DESC* desc, Guid* riid, out IntPtr queue)
         {
             var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, D3D12_COMMAND_QUEUE_DESC*, Guid*, IntPtr*, int>)vtable[8];
-            fixed (IntPtr* p = &queue) return func(obj, desc, riid, p);
+            var funcPtr = vtable[8];
+            var func = Marshal.GetDelegateForFunctionPointer<CreateCommandQueueDelegate>(funcPtr);
+            return func(obj, desc, (IntPtr)riid, out queue);
         }
 
-        public static int ID3D12Device_CreateFence(IntPtr obj, ulong initialValue, D3D12_FENCE_FLAGS flags, Guid* riid, out IntPtr fence)
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate int CreateFenceDelegate(IntPtr device, ulong initialValue, int flags, IntPtr riid, out IntPtr ppFence);
+
+        public static int ID3D12Device_CreateFence(IntPtr obj, ulong initialValue, uint flags, IntPtr riid, out IntPtr fence)
         {
             var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, ulong, D3D12_FENCE_FLAGS, Guid*, IntPtr*, int>)vtable[31];
-            fixed (IntPtr* p = &fence) return func(obj, initialValue, flags, riid, p);
+            var funcPtr = vtable[31];
+            var func = Marshal.GetDelegateForFunctionPointer<CreateFenceDelegate>(funcPtr);
+            return func(obj, initialValue, (int)flags, riid, out fence);
         }
 
-        // ── ID3D12Fence ──
+        //  ── ID3D12Fence ──
+        //  vtable: IUnknown(3) + ID3D12Object(5) + ID3D12DeviceChild(1) + ID3D12Fence methods
+        //  GetCompletedValue      = 9  (idx 0)
+        //  SetEventOnCompletion   = 10 (idx 1)
+        //  Signal                 = 11 (idx 2)
         public static ulong ID3D12Fence_GetCompletedValue(IntPtr obj)
         {
             var vtable = *(IntPtr**)obj;
@@ -606,18 +633,18 @@ namespace GDCefGlue
         //     IUnknown* const* ppCommandQueues, UINT NumQueues, UINT NodeMask,
         //     ID3D11Device** ppDevice, ID3D11DeviceContext** ppImmediateContext,
         //     ID3D11DeviceContext** ppD3D11Context);
-        [DllImport("d3d11.dll", CallingConvention = CallingConvention.StdCall)]
+[DllImport("d3d11.dll", CallingConvention = CallingConvention.StdCall)]
         public static extern int D3D11On12CreateDevice(
             IntPtr pDevice,
             uint Flags,
-            IntPtr pFeatureLevels,   // const D3D_FEATURE_LEVEL* (pass IntPtr.Zero for null)
+            IntPtr pFeatureLevels,
             uint FeatureLevels,
-            IntPtr ppCommandQueues,  // IUnknown* const* (pointer to array of command queue pointers)
+            IntPtr ppCommandQueues,
             uint NumQueues,
             uint NodeMask,
-            ref IntPtr ppDevice,     // ID3D11Device**
-            IntPtr ppImmediateContext, // ID3D11DeviceContext** (optional)
-            ref IntPtr ppD3D11Context // ID3D11DeviceContext** (optional)
+            ref IntPtr ppDevice,
+            IntPtr ppImmediateContext,
+            ref IntPtr ppD3D11Context
         );
     }
 

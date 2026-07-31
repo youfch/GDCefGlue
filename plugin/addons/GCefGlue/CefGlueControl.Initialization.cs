@@ -132,11 +132,19 @@ namespace GDCefGlue
                 windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
 
                 // 启用 GPU 加速 OSR (SharedTexture) — CEF 将调用 OnAcceleratedPaint 而非 OnPaint
+                // 先尝试初始化 copier，成功后才设置 SharedTextureEnabled
                 if (EnableGpuAcceleration)
                 {
-                    windowInfo.SharedTextureEnabled = true;
                     InitializeGpuAcceleration();
-                    GD.Print("[CefGlueControl] SharedTextureEnabled=true, GPU acceleration requested");
+                    if (_gpuAccelerationActive)
+                    {
+                        windowInfo.SharedTextureEnabled = true;
+                        GD.Print("[CefGlueControl] SharedTextureEnabled=true, GPU acceleration activated");
+                    }
+                    else
+                    {
+                        GD.Print("[CefGlueControl] GPU acceleration not available, using CPU OnPaint");
+                    }
                 }
             }
 
