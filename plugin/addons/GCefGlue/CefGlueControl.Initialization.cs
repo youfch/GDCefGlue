@@ -22,6 +22,7 @@ namespace GDCefGlue
 
             UseGpuCompositing = GpuCompositing;
             UseTransparent = Transparent;
+            UseGpuAcceleration = EnableGpuAcceleration;
             ActiveRenderMode = Mode;
             _renderMode = Mode;
             CefInitializer.Initialize();
