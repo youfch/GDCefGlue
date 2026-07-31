@@ -94,12 +94,15 @@ add_child(browser)
 | FrameRate | `60` | 浏览器帧率（1-360，仅 OSR） |
 | Transparent | `false` | 启用透明背景（仅 OSR） |
 | ContextMenuEnabled | `true` | 显示右键菜单（仅 OSR） |
+| EnableGpuAcceleration | `false` | ⚠️ **实验性** — 暂不可用，默认保持禁用 |
 
 ---
 
 ## 渲染模式
 
 ### OSR（离屏渲染）— 默认
+
+> **注意：** GPU 加速（`EnableGpuAcceleration`）为实验性功能，暂不可用，后续实现。请勿在生产环境启用。
 
 CEF 渲染到内存 → Godot 作为纹理绘制。
 
@@ -114,6 +117,8 @@ CEF 渲染到内存 → Godot 作为纹理绘制。
 - ❌ CPU 占用较高（软件渲染路径）
 
 ### EmbeddedWindow
+
+> ⚠️ **Linux**：嵌入式模式在 Linux 上尚不完整，仅窗口模式可用。Linux 上暂时推荐 OSR 模式。完整嵌入式支持为后续实现。
 
 CEF 创建原生子窗口嵌入到 Godot 窗口中。
 
@@ -298,7 +303,7 @@ browser.CloseDeveloperTools();               // 关闭 DevTools
 
 ### Linux
 
-- **EmbeddedWindow**：使用 X11 子窗口。
+- **EmbeddedWindow**：⚠️ Linux 上嵌入式模式不完整。仅窗口模式可用，嵌入模式在容器内无法正常工作。**Linux 上暂时推荐 OSR 模式**。完整嵌入式支持为后续实现。
 - **依赖**：安装 `libxkbcommon-x11-dev` 以支持键盘。
 - **AOT 构建**：需要 `clang` 和 `zlib1g-dev`。
 
@@ -315,7 +320,7 @@ browser.CloseDeveloperTools();               // 关闭 DevTools
 | 问题 | 解决方案 |
 |------|---------|
 | **空白页面** | 检查 `locales/` 目录和 `resources.pak` 是否存在 |
-| **GPU 崩溃** | 在 Inspector 中禁用 GPU 加速 |
+| **GPU 崩溃** | `EnableGpuAcceleration` 为实验性功能，暂不可用，后续实现。默认保持禁用。 |
 | **缺少 DLL** | 运行 `dotnet restore` 并重新构建 |
 | **IME 无法切换** | 确认 `__hostFocus` V8 对象已注册（检查调试输出） |
 | **右键无反应** | 在 Inspector 中设置 `ContextMenuEnabled = true` |

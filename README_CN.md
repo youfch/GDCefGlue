@@ -15,7 +15,7 @@
 - **JS ↔ C#/GDScript 桥接**：V8 IPC（无需 iframe），双向通信
 - **引擎无关的 JS API**：`window.__hostBridge` / `window.__hostEvents` / `window.__hostFocus`
 - **跨平台**：Windows (Win32)、Linux (X11)、macOS (Cocoa)
-- **GPU 加速**、弹窗处理、键盘鼠标支持
+- **GPU 加速**（实验性，暂不可用，后续实现）、弹窗处理、键盘鼠标支持
 
 ---
 
@@ -147,6 +147,8 @@ AOT 产物：`extension/bin/Release/net10.0/win-x64/native/GDCefGlueExtension.dl
 
 1. `WSALookupServiceBegin failed with: 10108` — 正常 Windows 警告，忽略
 2. CefGlue 序列化协议给字符串加 'S' 前缀 — 已自动剥离
+3. **GPU 加速**（`EnableGpuAcceleration`）为**实验性功能**，暂不可用，后续实现
+4. **Linux 嵌入式模式不完整** — 仅窗口模式可用，Linux 上暂时推荐 OSR 模式。完整嵌入式支持为后续实现
 
 ---
 

@@ -119,7 +119,6 @@ layout_mode = 2
 script = ExtResource("2_guh61")
 InitialUrl = "https://www.bing.com"
 FrameRate = 120
-EnableGpuAcceleration = true
 SyncCursor = true
 ContextMenuEnabled = true
 "Embedded Mode" = null

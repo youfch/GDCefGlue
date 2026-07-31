@@ -115,6 +115,7 @@ C# 端注册对象 → BrowserProcess 创建 V8 绑定 → JS 直接调方法 �
 
 | 功能 | 说明 | 优先级 | 参考实现 |
 |------|------|--------|---------|
+| **GPU 加速 OSR** (`EnableGpuAcceleration`) | ⚠️ 实验性功能，暂不可用。通过 `OnAcceleratedPaint` + SharedTexture 实现 GPU 加速渲染，后续完善。 | 🔬 实验性 | `CefGlueControl.AcceleratedPaint.cs` 已有框架 |
 | **下载处理** | CefDownloadHandler 实现，拦截 OnBeforeDownload / OnDownloadUpdated，提供下载进度信号。Godot FileDialog 选择保存路径，进度条 UI | ⭐⭐⭐ | CefGlue.Common + CefRunContextMenuCallback 模式（同右键菜单） |
 | **页面查找** | CefBrowserHost.Find() / StopFinding()，页面内查找功能 | ⭐⭐ | CefBrowserHost API |
 | **缩放控制** | CefBrowserHost.SetZoomLevel()，页面缩放 | ⭐⭐ | CefBrowserHost API |
@@ -122,6 +123,7 @@ C# 端注册对象 → BrowserProcess 创建 V8 绑定 → JS 直接调方法 �
 | **打印支持** | CEF 的打印功能 (CefBrowserHost.Print()) | ⭐ | CefBrowserHost API |
 | **JS 控制台日志** | CefDisplayHandler.OnConsoleMessage 将 JS console.log 转发到 Godot 输出 | ⭐ | GodotDisplayHandler 扩展 |
 | **键盘事件（嵌入模式）** | HandleForwardedEvent 补充 InputEventKey 处理（keydown/keyup） | ⭐⭐ | CefGlueControl.Events.cs 现有框架 |
+| **Linux 嵌入式模式** | EmbeddedWindow 在 Linux 上目前仅支持窗口模式，完整嵌入式支持（容器内）后续实现 | 🔬 后续 | X11 子窗口嵌入完善 |
 
 ## 参考实现
 
