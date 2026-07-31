@@ -45,6 +45,9 @@ namespace GDCefGlue
 
             DeactivateIme();
 
+            // 清理 GPU 加速资源
+            CleanupGpuAcceleration();
+
             if (_browserHost != null)
             {
                 _browserHost.CloseBrowser(true);
@@ -127,6 +130,14 @@ namespace GDCefGlue
             else
             {
                 windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
+
+                // 启用 GPU 加速 OSR (SharedTexture) — CEF 将调用 OnAcceleratedPaint 而非 OnPaint
+                if (EnableGpuAcceleration)
+                {
+                    windowInfo.SharedTextureEnabled = true;
+                    InitializeGpuAcceleration();
+                    GD.Print("[CefGlueControl] SharedTextureEnabled=true, GPU acceleration requested");
+                }
             }
 
             var settings = new CefBrowserSettings
