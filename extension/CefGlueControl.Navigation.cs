@@ -13,7 +13,7 @@ public partial class CefGlueControl
     public void GoForward() => _browser?.GoForward();
     public void NavigateToUrl(string url) { if (!string.IsNullOrEmpty(url)) { using var frame = _browser?.GetMainFrame(); frame?.LoadUrl(url); } }
     public void Reload(bool ignoreCache = false) => _browser?.Reload();
-    public void ShowDeveloperTools() { var w = CefWindowInfo.Create(); _browserHost?.ShowDevTools(w, _client, new CefBrowserSettings(), new CefPoint()); }
+public void ShowDeveloperTools() { var w = CefWindowInfo.Create(); w.RuntimeStyle = CefRuntimeStyle.Chrome; w.SetAsPopup(IntPtr.Zero, "DevTools"); _browserHost?.ShowDevTools(w, new PopupCefClient(), new CefBrowserSettings(), new CefPoint()); }
     public void CloseDeveloperTools() => _browserHost?.CloseDevTools();
 
     // ── 页面内查找 ──
@@ -56,6 +56,8 @@ public partial class CefGlueControl
             }
             // 注入焦点监视 JS（驱动 IME 激活/关闭）
             InjectFocusWatcherIfNeeded();
+            // 注入光标追踪 JS（IME 候选窗跟随光标）
+            InjectCaretTrackerIfNeeded();
             // 嵌入模式下注入事件转发 JS
             InjectEventForwardingScriptIfNeeded();
         }

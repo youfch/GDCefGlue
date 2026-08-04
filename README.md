@@ -15,7 +15,7 @@ A CEF (Chromium Embedded Framework) browser control for Godot 4.x using CefGlue.
 - **JS ↔ C#/GDScript bridge**: V8 IPC (no iframe), bidirectional
 - **Engine-agnostic JS API**: `window.__hostBridge` / `window.__hostEvents` / `window.__hostFocus`
 - **Cross-platform**: Windows (Win32), Linux (X11), macOS (Cocoa)
-- **GPU acceleration**, popup handling, IME, keyboard/mouse
+- **GPU acceleration** (experimental), popup handling, IME, keyboard/mouse
 
 ---
 
@@ -146,6 +146,8 @@ AOT output: `extension/bin/Release/net10.0/win-x64/native/GDCefGlueExtension.dll
 
 1. `WSALookupServiceBegin failed with: 10108` — normal Windows warning, ignore
 2. CefGlue serialization prepends 'S' marker to strings — auto-stripped
+3. **GPU acceleration** (`EnableGpuAcceleration`) is **experimental** and not production-ready. Do not rely on it.
+4. **Embedded mode on Linux** is incomplete — only windowed mode is supported, OSR is recommended. Full embedded support is planned.
 
 ---
 

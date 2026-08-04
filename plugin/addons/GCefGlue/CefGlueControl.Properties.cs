@@ -72,7 +72,19 @@ namespace GDCefGlue
         /// Enables GPU hardware acceleration.
         /// </summary>
         [Export]
-        public bool GpuAcceleration { get; set; } = true;
+        public bool GpuCompositing { get; set; } = true;
+
+        /// <summary>
+        /// Enables GPU-accelerated off-screen rendering. When enabled, CEF renders
+        /// to a shared GPU texture instead of a CPU pixel buffer, reducing CPU usage
+        /// and improving frame rate. Currently supported on:
+        /// - Windows: D3D12 (via D3D11on12 bridge)
+        /// - macOS: Metal (via IOSurface)
+        /// - Linux: not yet supported (falls back to CPU)
+        /// Default is disabled. Must be set before the browser is created.
+        /// </summary>
+        [Export]
+        public bool EnableGpuAcceleration { get; set; } = false;
 
         /// <summary>
         /// If true, popup windows navigate in the current browser instead of opening new windows.
@@ -134,17 +146,20 @@ namespace GDCefGlue
         //  静态属性（CEF 初始化前设置）
         // ══════════════════════════════════════════════════════════════
 
-        private static bool _useGpuAcceleration = true;
+        private static bool _useGpuCompositing = true;
         private static bool _useTransparent = false;
+        private static bool _enableGpuAcceleration = false;
         private static RenderMode _activeRenderMode = RenderMode.OSR;
 
         /// <summary>
-        /// Gets or sets the global GPU acceleration setting. Must be set before CEF initialization.
+        /// Gets or sets the global GPU compositing setting. Must be set before CEF initialization.
+        /// When true, CEF uses GPU compositing for page rendering; when false, falls back to
+        /// software rendering which is significantly slower for WebGL/CSS 3D content.
         /// </summary>
-        public static bool UseGpuAcceleration
+        public static bool UseGpuCompositing
         {
-            get => _useGpuAcceleration;
-            set => _useGpuAcceleration = value;
+            get => _useGpuCompositing;
+            set => _useGpuCompositing = value;
         }
 
         /// <summary>
@@ -154,6 +169,17 @@ namespace GDCefGlue
         {
             get => _useTransparent;
             set => _useTransparent = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the global GPU-accelerated OSR setting. Must be set before CEF initialization.
+        /// When true, CEF renders to a shared GPU texture (OnAcceleratedPaint path).
+        /// When false, CEF renders to a CPU pixel buffer (OnPaint path).
+        /// </summary>
+        public static bool UseGpuAcceleration
+        {
+            get => _enableGpuAcceleration;
+            set => _enableGpuAcceleration = value;
         }
 
         /// <summary>

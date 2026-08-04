@@ -211,6 +211,10 @@ public override void _Notification(int what)
             switch ((long)what)
             {
                 case NotificationResized: break;
+                case NotificationVisibilityChanged:
+                    if (_renderMode == RenderMode.EmbeddedWindow && _cefChildHwnd != IntPtr.Zero)
+                        NativeWindowMethods.SetPlatformWindowVisible(_cefChildHwnd, Visible);
+                    break;
                 case NotificationMouseExit: _isMousePressed = false; _pressedButton = (CefMouseButtonType)(-1); break;
                 case NotificationFocusEnter:
                     _browserHost?.SetFocus(true);
@@ -280,21 +284,20 @@ public override void _Notification(int what)
 
         /// <summary>
         /// 更新 IME 候选窗位置，由 GodotRenderHandler.OnImeCompositionRangeChanged 调用。
-        /// CEF 的 characterBounds 是相对于 view 坐标，转换为全局屏幕坐标。
-        /// Godot 4.6 的 DisplayServer 不提供直接设置 IME 候选窗位置的 API，
-        /// 候选窗位置由系统根据当前焦点控件位置自动确定。
-        /// 此方法保留以备将来 Godot 版本支持 IME 位置控制。
+        /// CEF 的 characterBounds 是相对于 view 的物理像素坐标，转换为窗口坐标。
+        /// 同时由 JS caret tracker 持续上报光标位置（HandleCaretPositionReported）。
         /// </summary>
         internal void UpdateImePosition(int x, int y, int width, int height)
         {
-            // 将 CEF 内部坐标转换为全局屏幕坐标
-            var globalPos = _cachedGlobalPosition;
             float scale = _cachedContentScale;
-            int screenX = (int)((globalPos.X + x / scale) * scale);
-            int screenY = (int)((globalPos.Y + y / scale) * scale);
+            var globalPos = _cachedGlobalPosition;
 
-            // 预留：Godot 未来版本可能支持 DisplayServer.ImeSetSelection 或类似 API
-            // 目前保持 IME 激活状态正确即可，候选窗位置由系统自动定位
+            // CEF view 物理像素坐标 → 相对窗口坐标
+            // Y +10 防止 IME 候选窗遮挡输入
+            int screenX = (int)((globalPos.X + x / scale) * scale);
+            int screenY = (int)((globalPos.Y + y / scale) * scale + 10);
+
+            DisplayServer.WindowSetImePosition(new Vector2I(screenX, screenY));
         }
     }
 }

@@ -89,28 +89,35 @@ namespace GDCefGlue
             // OSR: skip texture update when hidden (browser/audio/JS still runs in background)
             if (!Visible) return;
 
-                if (_browserHost != null && Size.X > 0 && Size.Y > 0)
+            if (_browserHost != null && Size.X > 0 && Size.Y > 0)
+            {
+                int newWidth = (int)Size.X, newHeight = (int)Size.Y;
+                if (newWidth != _controlWidth || newHeight != _controlHeight)
                 {
-                    int newWidth = (int)Size.X, newHeight = (int)Size.Y;
-                    if (newWidth != _controlWidth || newHeight != _controlHeight)
+                    _controlWidth = newWidth; _controlHeight = newHeight;
+                    _pendingWidth = newWidth; _pendingHeight = newHeight;
+                    _resizeStableCount = 0; QueueRedraw();
+                }
+                else if (_pendingWidth > 0 && _pendingHeight > 0)
+                {
+                    _resizeStableCount++;
+                    if (_resizeStableCount >= ResizeStableThreshold)
                     {
-                        _controlWidth = newWidth; _controlHeight = newHeight;
-                        _pendingWidth = newWidth; _pendingHeight = newHeight;
-                        _resizeStableCount = 0; QueueRedraw();
-                    }
-                    else if (_pendingWidth > 0 && _pendingHeight > 0)
-                    {
-                        _resizeStableCount++;
-                        if (_resizeStableCount >= ResizeStableThreshold)
-                        {
-                            // WasResized 内部会在 resize 完成后自动触发 OnPaint,
-                            // 不需要额外的 Invalidate, 否则同一帧画两次
-                            _browserHost.WasResized();
-                            _pendingWidth = 0; _pendingHeight = 0;
-                        }
+                        // WasResized 内部会在 resize 完成后自动触发 OnPaint,
+                        // 不需要额外的 Invalidate, 否则同一帧画两次
+                        _browserHost.WasResized();
+                        _pendingWidth = 0; _pendingHeight = 0;
                     }
                 }
+            }
 
+            // GPU 加速路径：处理待完成的 GPU 纹理拷贝
+            if (_gpuAccelerationActive)
+            {
+                ProcessGpuAcceleratedPaint();
+            }
+
+            // CPU 路径：从 pixel buffer 更新纹理
             if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
             {
                 int expectedSize = _width * _height * 4;
@@ -146,6 +153,17 @@ namespace GDCefGlue
         {
             if (Engine.IsEditorHint()) return;
             if (_renderMode == RenderMode.EmbeddedWindow) return;
+
+            // GPU 加速路径：直接使用 RenderingDevice 纹理 RID
+            if (_gpuTextureDirty && _gpuTextureRdRid.IsValid && _controlWidth > 0 && _controlHeight > 0)
+            {
+                var rect = new Rect2(0, 0, _controlWidth, _controlHeight);
+                RenderingServer.CanvasItemAddTextureRect(GetCanvasItem(), rect, _gpuTextureRdRid, false, Colors.White, false);
+                _gpuTextureDirty = false;
+                return;
+            }
+
+            // CPU 回退路径：使用 ImageTexture
             if (_texture != null && _controlWidth > 0 && _controlHeight > 0)
             {
                 if (Transparent) DrawTextureRect(_texture, new Rect2(Vector2.Zero, _controlWidth, _controlHeight), false, Colors.White, false);

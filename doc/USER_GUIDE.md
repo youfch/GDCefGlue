@@ -93,12 +93,15 @@ In the Godot editor, add a `CefGlueControl` node to your scene. Key Inspector pr
 | FrameRate | `60` | Browser FPS (1-360, OSR only) |
 | Transparent | `false` | Enable alpha transparency (OSR only) |
 | ContextMenuEnabled | `true` | Show right-click context menu (OSR only) |
+| EnableGpuAcceleration | `false` | ⚠️ **Experimental** — not production-ready, keep disabled by default |
 
 ---
 
 ## Rendering Modes
 
 ### OSR (Off-Screen Rendering) — Default
+
+> **Note:** GPU acceleration (`EnableGpuAcceleration`) is experimental and not production-ready. Use with caution.
 
 CEF renders the page into memory → Godot draws it as a texture.
 
@@ -113,6 +116,8 @@ CEF renders the page into memory → Godot draws it as a texture.
 - ❌ Higher CPU usage (software rendering path)
 
 ### EmbeddedWindow
+
+> ⚠️ **Linux**: Embedded mode is incomplete on Linux — only windowed mode is supported. OSR is recommended. Full embedded support is planned.
 
 CEF creates a native child OS window embedded in the Godot window.
 
@@ -297,7 +302,7 @@ browser.CloseDeveloperTools();              // Close DevTools
 
 ### Linux
 
-- **EmbeddedWindow**: Uses X11 child window.
+- **EmbeddedWindow**: ⚠️ Incomplete on Linux. Only windowed mode is supported; embedded mode does not work properly inside containers. **OSR is recommended on Linux for now.** Full embedded support is planned.
 - **Dependencies**: Install `libxkbcommon-x11-dev` for keyboard support.
 - **AOT build**: Requires `clang` and `zlib1g-dev`.
 - **⚠️ Must use the launch scripts**: CEF's `libcef.so` uses the initial-exec TLS model, which causes a SEGV when loaded via `dlopen` on Linux. You must use `scripts/run_gde_linux.sh` or `scripts/run_plugin_linux.sh` to launch your project — these scripts set `LD_PRELOAD` to preload `libcef.so`. Running Godot directly will crash. See [Linux Troubleshooting Guide](TROUBLESHOOTING_LINUX_KYLIN.md) for details.
@@ -315,7 +320,7 @@ browser.CloseDeveloperTools();              // Close DevTools
 | Problem | Solution |
 |---------|----------|
 | **Blank page** | Check `locales/` directory and `resources.pak` exist |
-| **GPU crash** | Disable GPU acceleration in Inspector |
+| **GPU crash** | `EnableGpuAcceleration` is experimental and not production-ready. Keep it disabled by default. |
 | **Missing DLLs** | Run `dotnet restore` and rebuild |
 | **IME not working** | Ensure `__hostFocus` V8 object is registered (check debug output) |
 | **Right-click does nothing** | Set `ContextMenuEnabled = true` in Inspector |

@@ -48,6 +48,22 @@ internal static class NativeWindowMethods
             Win32ShowWindow(window, visible ? SW_SHOW : SW_HIDE);
     }
 
+    /// <summary>
+    /// 获取窗口客户区在屏幕上的位置（物理像素）。
+    /// Windows 上使用 ClientToScreen 自动扣除标题栏偏移，
+    /// 其他平台回退到 (0,0) 由调用方用 DisplayServer.WindowGetPosition 补全。
+    /// </summary>
+    internal static (int X, int Y) GetWindowClientScreenPosition(IntPtr window)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var pt = new Win32Point { X = 0, Y = 0 };
+            Win32ClientToScreen(window, ref pt);
+            return (pt.X, pt.Y);
+        }
+        return (0, 0);
+    }
+
     // ── Win32 实现 ──
     // 注意: NativeAOT + DisableRuntimeMarshalling 下 bool 不是 blittable，
     // 所以返回类型用 int (Win32 BOOL) 代替 bool
@@ -61,6 +77,15 @@ internal static class NativeWindowMethods
 
     [DllImport("user32.dll", EntryPoint = "ShowWindow")]
     private static extern int Win32ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll", EntryPoint = "ClientToScreen")]
+    private static extern int Win32ClientToScreen(IntPtr hWnd, ref Win32Point lpPoint);
+
+    private struct Win32Point
+    {
+        public int X;
+        public int Y;
+    }
 
     internal const uint SWP_NOZORDER = 0x0004;
     internal const uint SWP_NOACTIVATE = 0x0010;

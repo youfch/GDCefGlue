@@ -28,7 +28,6 @@ public partial class CefGlueControl : Control
     private PackedByteArray _packedBuffer;
     private readonly object _bufferLock = new();
     private int _pixelBufferSize;
-    private int _renderBufferSize;
     internal int _width;
     internal int _height;
     internal int _controlWidth;

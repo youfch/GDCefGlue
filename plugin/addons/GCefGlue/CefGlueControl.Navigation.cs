@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Godot;
 using Xilium.CefGlue;
@@ -15,7 +16,11 @@ namespace GDCefGlue
         public void ShowDeveloperTools()
         {
             var windowInfo = CefWindowInfo.Create();
-            _browserHost?.ShowDevTools(windowInfo, _client, new CefBrowserSettings(), new CefPoint());
+windowInfo.RuntimeStyle = CefRuntimeStyle.Chrome;
+            windowInfo.SetAsPopup(IntPtr.Zero, "DevTools");
+            // 使用 PopupCefClient（空 handler），避免主浏览器 GodotCefClient 的
+            // OSR 渲染处理器、事件转发器等干扰 DevTools 窗口。
+            _browserHost?.ShowDevTools(windowInfo, new PopupCefClient(), new CefBrowserSettings(), new CefPoint());
         }
 
         public void CloseDeveloperTools() => _browserHost?.CloseDevTools();
@@ -60,7 +65,10 @@ namespace GDCefGlue
                 // OSR 模式注入输入焦点监听 JS（驱动 IME 激活/关闭）
                 // EmbeddedWindow 模式 CEF 有真实 HWND，IME 由 OS 直接管理，不需要 Godot 介入
                 if (_renderMode == RenderMode.OSR)
+                {
                     InjectFocusWatcherIfNeeded();
+                    InjectCaretTrackerIfNeeded();
+                }
                 // 嵌入窗口模式下注入事件转发 JS
                 if (_renderMode == RenderMode.EmbeddedWindow)
                     InjectEventForwardingScriptIfNeeded();

@@ -24,7 +24,7 @@ public partial class CefGlueControl
 
         context.AddPropertyGroup("Feature Toggles");
         context.BindProperty(new PropertyInfo(new StringName("gpu_acceleration"), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
-            static (CefGlueControl i) => i.GpuAcceleration, static (CefGlueControl i, bool v) => i.GpuAcceleration = v);
+            static (CefGlueControl i) => i.GpuCompositing, static (CefGlueControl i, bool v) => i.GpuCompositing = v);
         context.BindProperty(new PropertyInfo(new StringName("open_popup_in_current_browser"), VariantType.Bool) { Usage = PropertyUsageFlags.Default },
             static (CefGlueControl i) => i.OpenPopupInCurrentBrowser, static (CefGlueControl i, bool v) => i.OpenPopupInCurrentBrowser = v);
         context.BindProperty(new PropertyInfo(new StringName("enable_media_stream"), VariantType.Bool) { Usage = PropertyUsageFlags.Default },

@@ -153,6 +153,10 @@ public partial class CefGlueControl
         switch ((long)what)
         {
             case NotificationResized: break;
+            case NotificationVisibilityChanged:
+                if (_renderMode == RenderMode.EmbeddedWindow && _cefChildHwnd != IntPtr.Zero)
+                    NativeWindowMethods.SetPlatformWindowVisible(_cefChildHwnd, Visible);
+                break;
             case NotificationMouseExit: _isMousePressed = false; _pressedButton = (CefMouseButtonType)(-1); break;
             case NotificationFocusEnter:
                 _browserHost?.SetFocus(true);
@@ -221,12 +225,19 @@ public partial class CefGlueControl
 
     /// <summary>
     /// 更新 IME 候选窗位置，由 GodotRenderHandler.OnImeCompositionRangeChanged 调用。
+    /// CEF 的 characterBounds 是相对于 view 的物理像素坐标，转换为窗口坐标。
+    /// 同时由 JS caret tracker 持续上报光标位置（_handle_caret_position）。
     /// </summary>
     internal void UpdateImePosition(int x, int y, int width, int height)
     {
-        var globalPos = _cachedGlobalPosition;
         float scale = _cachedContentScale;
+        var globalPos = _cachedGlobalPosition;
+
+        // CEF view 物理像素坐标 → 相对窗口坐标
+        // Y +10 防止 IME 候选窗遮挡输入
         int screenX = (int)((globalPos.X + x / scale) * scale);
-        int screenY = (int)((globalPos.Y + y / scale) * scale);
+        int screenY = (int)((globalPos.Y + y / scale) * scale + 10);
+
+        DisplayServer.Singleton.WindowSetImePosition(new Vector2I(screenX, screenY));
     }
 }

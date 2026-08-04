@@ -34,11 +34,11 @@ public partial class CefGlueControl
         set => _transparent = value;
     }
 
-    private bool _gpuAcceleration = true;
-    public bool GpuAcceleration
+    private bool _gpuCompositing = true;
+    public bool GpuCompositing
     {
-        get => _gpuAcceleration;
-        set => _gpuAcceleration = value;
+        get => _gpuCompositing;
+        set => _gpuCompositing = value;
     }
 
     private bool _openPopupInCurrentBrowser = false;
@@ -77,10 +77,10 @@ public partial class CefGlueControl
         set => _forwardInputEvents = value;
     }
 
-    private static bool _useGpuAcceleration = true;
+    private static bool _useGpuCompositing = true;
     private static bool _useTransparent = false;
     private static RenderMode _activeRenderMode = RenderMode.OSR;
-    public static bool UseGpuAcceleration { get => _useGpuAcceleration; set => _useGpuAcceleration = value; }
+    public static bool UseGpuCompositing { get => _useGpuCompositing; set => _useGpuCompositing = value; }
     public static bool UseTransparent { get => _useTransparent; set => _useTransparent = value; }
     public static RenderMode ActiveRenderMode
     {

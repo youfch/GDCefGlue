@@ -322,4 +322,148 @@ public partial class CefGlueControl
         if (viewport != null)
             viewport.PushInput(evt);
     }
+
+    // ══════════════════════════════════════════════════════════════
+    //  IME 光标位置追踪（JS → V8 → C#）
+    // ══════════════════════════════════════════════════════════════
+
+    [System.Diagnostics.CodeAnalysis.DynamicDependency(
+        System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods,
+        typeof(GodotCaretTracker))]
+    internal void InjectCaretTrackerIfNeeded()
+    {
+        if (_browser == null || !_browserCreated) return;
+        if (_renderMode != RenderMode.OSR) return;
+        if (!_caretTrackerRegistered)
+        {
+            RegisterJavascriptObject(new GodotCaretTracker(this), "__hostCaret");
+            _caretTrackerRegistered = true;
+        }
+        using var frame = _browser.GetMainFrame();
+        if (frame != null)
+            frame.ExecuteJavaScript(CaretTrackerScript, "godot://caret_tracker", 0);
+    }
+
+    private bool _caretTrackerRegistered;
+
+    private sealed class GodotCaretTracker
+    {
+        private readonly CefGlueControl _control;
+        public GodotCaretTracker(CefGlueControl control) => _control = control;
+        public void OnCaretPositionChanged(int x, int y, int height, double dpr)
+        {
+            _control.CallDeferred("_handle_caret_position", x, y, height, dpr);
+        }
+    }
+
+    private void _handle_caret_position(int x, int y, int height, double dpr)
+    {
+        if (_disposed || _browserHost == null) return;
+
+        float scale = _cachedContentScale;
+        var globalPos = _cachedGlobalPosition;
+
+        // 相对窗口坐标（WindowSetImePosition 使用窗口客户区坐标）
+        // jsPos * dpr: CSS 像素 → 物理像素（处理页面缩放）
+        // globalPos * scale: 控件位置从虚拟像素 → 物理像素
+        // Y +10 防止 IME 候选窗遮挡输入
+        int screenX = (int)(x * dpr + globalPos.X * scale);
+        int screenY = (int)(y * dpr + globalPos.Y * scale + 10);
+
+        DisplayServer.Singleton.WindowSetImePosition(new Vector2I(screenX, screenY));
+    }
+
+    private const string CaretTrackerScript = @"
+(function(){
+    if (window.__hostCaretInjected) return;
+    window.__hostCaretInjected = true;
+
+    var IME_ACTIVE = false;
+
+    function isEditable(el) {
+        return el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+    }
+
+    var MIRROR_PROPS = [
+        'direction','boxSizing','width','height','overflowX','overflowY',
+        'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth',
+        'borderStyle','paddingTop','paddingRight','paddingBottom','paddingLeft',
+        'fontStyle','fontVariant','fontWeight','fontStretch','fontSize',
+        'fontSizeAdjust','lineHeight','fontFamily','textAlign','textTransform',
+        'textIndent','textDecoration','letterSpacing','wordSpacing',
+        'tabSize','MozTabSize','whiteSpace','wordWrap','wordBreak'
+    ];
+
+    function getCaretPos(element, pos) {
+        var isInput = element.tagName === 'INPUT';
+        var style = window.getComputedStyle(element);
+        var mirror = document.createElement('div');
+        mirror.id = '__ime_mirror';
+        document.body.appendChild(mirror);
+        var ms = mirror.style;
+        ms.position = 'absolute'; ms.visibility = 'hidden';
+        ms.whiteSpace = isInput ? 'nowrap' : 'pre-wrap';
+        ms.wordWrap = isInput ? 'normal' : 'break-word';
+        for (var i = 0; i < MIRROR_PROPS.length; i++) {
+            var p = MIRROR_PROPS[i];
+            if (p === 'whiteSpace' || p === 'wordWrap') continue;
+            ms[p] = style[p];
+        }
+        if (isInput) { ms.height = 'auto'; ms.overflowY = 'visible'; }
+        var elRect = element.getBoundingClientRect();
+        ms.left = elRect.left + window.scrollX + 'px';
+        ms.top = elRect.top + window.scrollY + 'px';
+        var textBefore = element.value.substring(0, pos);
+        mirror.textContent = textBefore;
+        if (textBefore.endsWith('\n')) mirror.textContent += '\u200b';
+        var marker = document.createElement('span');
+        marker.textContent = '\u200b';
+        mirror.appendChild(marker);
+        var markerRect = marker.getBoundingClientRect();
+        document.body.removeChild(mirror);
+        return {
+            x: markerRect.left - element.scrollLeft,
+            y: markerRect.top - element.scrollTop,
+            height: parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2
+        };
+    }
+
+    function reportCaret() {
+        try {
+            var el = document.activeElement;
+            if (!el || !isEditable(el)) return;
+            var x, y, h;
+            if (el.isContentEditable) {
+                var sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    var range = sel.getRangeAt(0);
+                    var rects = range.getClientRects();
+                    var r = rects.length > 0 ? rects[rects.length - 1] : range.getBoundingClientRect();
+                    x = Math.round(r.left || r.x || 0);
+                    y = Math.round(r.top || r.y || 0);
+                    h = Math.round(r.height || 20);
+                } else { return; }
+            } else {
+                var pos = el.selectionStart || 0;
+                var c = getCaretPos(el, pos);
+                x = Math.round(c.x); y = Math.round(c.y); h = Math.round(c.height);
+            }
+            window.__hostCaret.onCaretPositionChanged(x, y, h, window.devicePixelRatio);
+        } catch(e) { if (console && console.error) console.error('Caret tracker:', e); }
+    }
+
+    function scheduleReport() { setTimeout(reportCaret, 0); }
+
+    document.addEventListener('selectionchange', function() {
+        if (isEditable(document.activeElement)) reportCaret();
+    });
+    document.addEventListener('input', function() { scheduleReport(); }, true);
+    document.addEventListener('keyup', function(e) {
+        var nav = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown','Backspace','Delete'];
+        if (nav.indexOf(e.key) >= 0) reportCaret();
+    }, true);
+    document.addEventListener('mouseup', function() { setTimeout(reportCaret, 10); }, true);
+    document.addEventListener('focusin', function() { scheduleReport(); }, true);
+})();
+";
 }
