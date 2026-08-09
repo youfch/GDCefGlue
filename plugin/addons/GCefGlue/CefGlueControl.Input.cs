@@ -13,22 +13,29 @@ namespace GDCefGlue
         private bool _imeActive;
         private bool _imeWanted; // JS 报告页面有输入框聚焦，但 Godot 焦点可能还没到
 
+        /// <summary>
+        /// 激活 IME。注意：_imeActive 可能因 Godot 原生输入框焦点切换而与 OS 状态不同步，
+        /// 因此始终调用 SetImeActive(true) 确保 OS 端 IME 正确激活。
+        /// </summary>
         private void ActivateIme()
         {
             _imeWanted = true;
             var window = GetWindow();
-            if (window != null && !_imeActive)
+            if (window != null)
             {
                 window.SetImeActive(true);
                 _imeActive = true;
             }
         }
 
+        /// <summary>
+        /// 关闭 IME。不抢夺焦点，调用者根据上下文自行决定是否需要 GrabFocus。
+        /// </summary>
         private void DeactivateIme()
         {
             _imeWanted = false;
             var window = GetWindow();
-            if (window != null && _imeActive)
+            if (window != null)
             {
                 window.SetImeActive(false);
                 _imeActive = false;
@@ -218,9 +225,10 @@ public override void _Notification(int what)
                 case NotificationMouseExit: _isMousePressed = false; _pressedButton = (CefMouseButtonType)(-1); break;
                 case NotificationFocusEnter:
                     _browserHost?.SetFocus(true);
-                    // CefGlueControl 重新获得 Godot 焦点时，如果 JS 之前报告有输入框聚焦，
-                    // 重新激活 IME（解决首次运行/刷新后 IME 无法切换的问题）
-                    if (_imeWanted) ActivateIme();
+                    // 始终尝试激活 IME。如果浏览器没有可编辑元素聚焦，JS focusin 事件
+                    // 会触发 OnInputFocusChanged(false) → DeactivateIme() 将其关闭。
+                    // 这解决了从原生输入框切回浏览器时 IME 无法激活的问题。
+                    ActivateIme();
                     break;
                 case NotificationFocusExit:
                     if (_renderMode == RenderMode.EmbeddedWindow)

@@ -139,8 +139,30 @@ namespace GDCefGlue
         private void HandleNativeObjectCallRequest(CefProcessMessage message)
         {
             int callId; string objectName, memberName, argsJson;
+            byte[][] binaryArgs = null;
             using (var args = message.Arguments)
-            { callId = args.GetInt(0); objectName = args.GetString(1); memberName = args.GetString(2); argsJson = args.GetString(3); }
+            {
+                callId = args.GetInt(0);
+                objectName = args.GetString(1);
+                memberName = args.GetString(2);
+                argsJson = args.GetString(3);
+
+                // 读取二进制参数（新路径：原生 SetBinary 传输）
+                if (args.Count > 4)
+                {
+                    var binaryCount = args.GetInt(4);
+                    binaryArgs = new byte[binaryCount][];
+                    for (int i = 0; i < binaryCount; i++)
+                    {
+                        using (var binary = args.GetBinary(5 + i))
+                        {
+                            binaryArgs[i] = binary.ToArray();
+                        }
+                    }
+                }
+            }
+
+            // 二进制参数直接传到 DeserializeCallArgs，无需经过 base64
             if (!_registeredObjects.TryGetValue(objectName, out var reg))
             { SendNativeObjectCallResult(callId, null, $"Object '{objectName}' not registered"); return; }
             if (!reg.Methods.TryGetValue(memberName, out var method))
@@ -149,7 +171,7 @@ namespace GDCefGlue
             try
             {
                 var parameters = method.GetParameters();
-                var invokeArgs = DeserializeCallArgs(argsJson, parameters);
+                var invokeArgs = DeserializeCallArgs(argsJson, parameters, binaryArgs);
                 result = method.Invoke(reg.Target, invokeArgs);
                 if (result is Task task)
                 {
@@ -208,14 +230,14 @@ namespace GDCefGlue
             }
         }
 
-        private static object[] DeserializeCallArgs(string argsJson, ParameterInfo[] parameters)
+        private static object[] DeserializeCallArgs(string argsJson, ParameterInfo[] parameters, byte[][] binaryArgs = null)
         {
             if (parameters.Length == 0 || string.IsNullOrEmpty(argsJson)) return Array.Empty<object>();
             using var doc = JsonDocument.Parse(argsJson);
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Array)
             {
-                return new[] { DeserializeSingleArg(root, parameters[0].ParameterType) };
+                return new[] { DeserializeSingleArg(root, parameters[0].ParameterType, binaryArgs) };
             }
             var elements = new JsonElement[root.GetArrayLength()];
             int i = 0;
@@ -223,26 +245,36 @@ namespace GDCefGlue
             var result = new object[Math.Min(elements.Length, parameters.Length)];
             for (int j = 0; j < result.Length; j++)
             {
-                result[j] = DeserializeSingleArg(elements[j], parameters[j].ParameterType);
+                result[j] = DeserializeSingleArg(elements[j], parameters[j].ParameterType, binaryArgs);
             }
             return result;
         }
 
         /// <summary>
         /// 反序列化单个 JSON 参数，处理 CefGlue 的 S/D/B 类型标记。
-        /// 对 byte[] 目标类型：识别 B marker → 剥除 → Convert.FromBase64String。
+        /// 对 byte[] 目标类型：优先从 binaryArgs 解析 __BINARY_N__ 占位符（零 base64），
+        /// 否则回退到 B marker + base64 解码。
         /// 对 string 目标类型：识别 S/D/B marker → 剥除 → 返回明文。
         /// </summary>
-        private static object DeserializeSingleArg(JsonElement element, Type targetType)
+        private static object DeserializeSingleArg(JsonElement element, Type targetType, byte[][] binaryArgs = null)
         {
-            // CefGlue 的 BinaryMarker: 内联 base64 字符串 → byte[]
+            // 优先处理 __BINARY_N__ 占位符 → 直接从 binaryArgs 取 byte[]（零 base64）
             if (targetType == typeof(byte[]) && element.ValueKind == JsonValueKind.String)
             {
                 var raw = element.GetString();
+                if (raw != null && raw.StartsWith("__BINARY_") && raw.EndsWith("__") && binaryArgs != null)
+                {
+                    // 解析索引: "__BINARY_0__" → 0
+                    var indexStr = raw.Substring(9, raw.Length - 11);
+                    if (int.TryParse(indexStr, out var index) && index >= 0 && index < binaryArgs.Length)
+                    {
+                        return binaryArgs[index];
+                    }
+                }
+
+                // 回退：CefGlue 的 BinaryMarker 内联 base64 字符串 → byte[]
                 if (!string.IsNullOrEmpty(raw) && raw.Length > 1)
                 {
-                    // CefGlue 的 interceptor 对 Uint8Array 输出 "B" + btoa(data)
-                    // 剥掉 B marker 后 base64 解码
                     if (raw[0] == 'B' || raw[0] == 'S')
                         raw = raw.Substring(1);
                     try { return Convert.FromBase64String(raw); }
