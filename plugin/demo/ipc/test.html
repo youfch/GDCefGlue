@@ -21,6 +21,7 @@ button:active { transform: scale(0.96); }
 .btn-green { background: #2a9d8f; color: #fff; }
 .btn-orange { background: #e76f51; color: #fff; }
 .btn-purple { background: #8338ec; color: #fff; }
+.btn-cyan { background: #0891b2; color: #fff; }
 .btn-gray { background: #555; color: #eee; }
 #log {
   background: #0d1b2a; border: 1px solid #1b3a4b; border-radius: 6px;
@@ -38,19 +39,9 @@ button:active { transform: scale(0.96); }
 
 <h1>🧪 GDCefGlue JS ↔ C# Bridge Test</h1>
 
-<!-- Method A: godot:// bridge (iframe → OnBeforeBrowse, deprecated) -->
-<div class="section" style="opacity:0.5">
-  <h2>Method A: godot:// bridge (iframe) <span style="color:#e76f51;font-size:11px">[deprecated]</span></h2>
-  <p>JS → C# one-way message via iframe.src = 'godot://bridge?...'. Prefer Method B (IPC).</p>
-  <div class="btn-row">
-    <button class="btn-blue" onclick="bridgePing()">Ping C#</button>
-    <button class="btn-green" onclick="bridgeStatus()">Get Status</button>
-  </div>
-</div>
-
-<!-- Method B: RegisterJavascriptObject (V8 IPC) -->
+<!-- Method A: RegisterJavascriptObject (V8 IPC) -->
 <div class="section">
-  <h2>Method B: RegisterJavascriptObject (V8 IPC)</h2>
+  <h2>Method A: RegisterJavascriptObject (V8 IPC)</h2>
   <p>JS calls registered C# object methods via CefGlue IPC channel</p>
   <div class="btn-row">
     <button class="btn-purple" onclick="callHello()">bridge.hello()</button>
@@ -60,15 +51,29 @@ button:active { transform: scale(0.96); }
   </div>
 </div>
 
-<!-- Method C: DotnetBridge.eval (JS → C# evaluation) -->
+<!-- Method B: DotnetBridge.eval (JS → C# evaluation) -->
 <div class="section">
-  <h2>Method C: DotnetBridge.eval (JS → C# evaluation)</h2>
+  <h2>Method B: DotnetBridge.eval (JS → C# evaluation)</h2>
   <p>JS calls window.dotnetBridge.eval(code) → C# runs EvaluateJavaScript and returns the result.<br>
   <small>(IPC round-trip demo; JS can just use eval() directly)</small></p>
   <div class="btn-row">
     <button class="btn-blue" onclick="evalDocumentTitle()">C# eval: document.title</button>
     <button class="btn-blue" onclick="evalLocation()">C# eval: location.href</button>
     <button class="btn-blue" onclick="evalMath()">C# eval: Math.PI * 2</button>
+  </div>
+</div>
+
+<!-- Method C: Binary Channel -->
+<div class="section">
+  <h2>Method C: Binary Channel (JS ↔ C#)</h2>
+  <p>Binary data transfer between JS and C#. CefGlue 框架自动处理 Uint8Array ↔ byte[]（内部一层 base64）。</p>
+  <p style="font-size:12px;color:#7ec8e3">
+    C# → JS: <code>SendBinaryToJs()</code> → <code>window.__hostBridge._onBinaryMessage(b64)</code><br>
+    JS → C#: <code>window.dotnetBridge.sendBinary(Uint8Array)</code> → <code>BridgeBinary</code> 事件 (byte[])
+  </p>
+  <div class="btn-row">
+    <button class="btn-cyan" onclick="sendBinaryToCsharp()">Send Binary to C#</button>
+    <button class="btn-cyan" onclick="sendLargeBinaryToCsharp()">Send 1KB Binary to C#</button>
   </div>
 </div>
 
@@ -80,8 +85,6 @@ button:active { transform: scale(0.96); }
 
 <script>
 // ── Helpers ─────────────────────────────────────────────────────
-var _cbId = 0;
-
 function log(msg, cls) {
   var el = document.getElementById('log');
   var line = document.createElement('div');
@@ -96,44 +99,26 @@ window.__hostBridge = {
   _onMessage: function(msg) {
     log('C# pushed: ' + msg, 'info');
   },
-  _onResponse: function(cbId, msg) {
-    log('C# response [' + cbId + ']: ' + msg, 'ok');
-    // resolve any pending promise
-    if (window['__cb_' + cbId]) {
-      window['__cb_' + cbId](msg);
-      delete window['__cb_' + cbId];
+  _onBinaryMessage: function(b64) {
+    log('C# pushed binary: ' + b64.length + ' chars base64', 'info');
+    // Decode to verify
+    try {
+      var bytes = base64ToBytes(b64);
+      log('  ↔ decoded ' + bytes.length + ' bytes, first: ' + bytes.slice(0, 8).join(','), 'ok');
+    } catch (e) {
+      log('  ✗ decode failed: ' + e.message, 'error');
     }
   }
 };
 
-function sendToGodot(type, payload, cb) {
-  var cbid = 'cb_' + (++_cbId);
-  if (cb) window['__cb_' + cbid] = cb;
-  var i = document.createElement('iframe');
-  i.src = 'godot://bridge?type=' + encodeURIComponent(type)
-        + '&cb=' + cbid
-        + '&payload=' + encodeURIComponent(JSON.stringify(payload || {}));
-  i.style.display = 'none';
-  document.body.appendChild(i);
-  setTimeout(function() { i.remove(); }, 100);
+function base64ToBytes(b64) {
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return Array.from(bytes);
 }
 
-// ── Method A: godot:// bridge ─────────────────────────────────────
-function bridgePing() {
-  log('→ godot://bridge?type=ping ...', 'info');
-  sendToGodot('ping', {}, function(msg) {
-    log('← pong: ' + msg, 'ok');
-  });
-}
-
-function bridgeStatus() {
-  log('→ godot://bridge?type=status ...', 'info');
-  sendToGodot('status', {}, function(msg) {
-    log('← status: ' + msg, 'ok');
-  });
-}
-
-// ── Method B: RegisterJavascriptObject ────────────────────────────
+// ── Method A: RegisterJavascriptObject ────────────────────────────
 // CefGlue V8 bindings return Promise, use .then() to receive results
 function callHello() {
   log('→ bridge.hello() ...', 'call');
@@ -171,7 +156,7 @@ function callGetVersion() {
   });
 }
 
-// ── Method C: DotnetBridge.eval (JS → C# evaluation) ──────────────
+// ── Method B: DotnetBridge.eval (JS → C# evaluation) ──────────────
 function evalDocumentTitle() {
     log('→ C# will EvaluateJavaScript("document.title") ...', 'info');
     window.dotnetBridge.eval('document.title').then(function(result) {
@@ -199,10 +184,35 @@ function evalMath() {
     });
 }
 
+// ── Method C: Binary Channel ──────────────────────────────────────
+function sendBinaryToCsharp() {
+  log('→ dotnetBridge.sendBinary(Uint8Array) ...', 'call');
+  var bytes = new Uint8Array([0x47, 0x44, 0x43, 0x46, 0x65, 0x6c, 0x75, 0x65]);
+  log('  sending Uint8Array, ' + bytes.length + ' bytes', 'info');
+  window.dotnetBridge.sendBinary(bytes).then(function() {
+    log('← sent OK', 'ok');
+  }).catch(function(err) {
+    log('✗ ' + err, 'error');
+  });
+}
+
+function sendLargeBinaryToCsharp() {
+  log('→ dotnetBridge.sendBinary(1KB Uint8Array) ...', 'call');
+  var bytes = new Uint8Array(1024);
+  for (var i = 0; i < 1024; i++) bytes[i] = i & 0xFF;
+  window.dotnetBridge.sendBinary(bytes).then(function() {
+    log('← 1KB sent OK', 'ok');
+  }).catch(function(err) {
+    log('✗ ' + err, 'error');
+  });
+}
+
 // ── Initialization ──────────────────────────────────────────────
-log('✅ HTML loaded. Waiting for __hostBridge → C#.', 'ok');
+log('✅ HTML loaded. JS connections:', 'ok');
 log('ℹ️  window.dotnetBridge methods:', 'info');
-log('   hello(cb), echo(msg,cb), add(a,b,cb), getVersion(cb)', 'info');
+log('   hello(cb), echo(msg,cb), add(a,b,cb), getVersion(cb), eval(code)', 'info');
+log('ℹ️  window.dotnetBridge.sendBinary(Uint8Array) — JS→C# binary', 'info');
+log('ℹ️  window.__hostBridge._onBinaryMessage(b64) — C#→JS binary', 'info');
 log('ℹ️  Click buttons to test.', 'info');
 </script>
 </body>

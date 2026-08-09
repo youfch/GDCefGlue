@@ -67,6 +67,17 @@ public class DotnetBridge
             return $"Error: {ex.Message}";
         }
     }
+
+    // ── 二进制通道 ──
+
+    /// <summary>
+    /// JS → C# 二进制数据。JS 传 Uint8Array 即可，CefGlue 框架自动做 base64 编码。
+    /// C# 侧通过 DeserializeCallArgs 自动解码 B marker → byte[]。
+    /// </summary>
+    public void SendBinary(byte[] data)
+    {
+        _browser.RaiseBridgeBinary(data);
+    }
 }
 
 public partial class DemoScript : Control
@@ -85,8 +96,8 @@ public partial class DemoScript : Control
 
         // 连接浏览器事件
         _browser.BrowserInitialized += OnBrowserReady;
-        _browser.BridgeRequest += OnBridgeRequest;
         _browser.LoadEnd += OnLoadEnd;
+        _browser.BridgeBinary += OnBinaryReceived;
 
 // 链接工具栏按钮
         GetNode<Button>("Toolbar/ButtonRow/BtnEvalTitle").Pressed += () => OnEvalButton("document.title");
@@ -104,9 +115,6 @@ public partial class DemoScript : Control
         // 注册 C# 对象到 JS — 在 OnLoadEnd 也会重新注册以确保导航后 V8 绑定可用
         RegisterBridgeObjects();
 
-        // 注入 __hostBridge 辅助脚本（兼容现有 godot:// bridge 机制）
-        InjectBridgeScript();
-
         // 用 data: URI 加载测试 HTML
         LoadTestHtml();
     }
@@ -119,22 +127,6 @@ public partial class DemoScript : Control
         _browser.RegisterJavascriptObject(new DotnetBridge(_browser), "dotnetBridge");
         GD.Print("[Demo] Registered 'dotnetBridge' — JS can call window.dotnetBridge.*");
         Log("dotnetBridge registered, JS can call window.dotnetBridge.*");
-    }
-
-    private void InjectBridgeScript()
-    {
-        var js = @"
-(function() {
-    if (window.__hostBridge) return;
-    var pending = {};
-    window.__hostBridge = {
-        _onMessage: function(m){},
-        _onResponse: function(id,msg){
-            if(pending[id]){ pending[id](msg); delete pending[id]; }
-        }
-    };
-})();";
-        _browser.ExecuteJavaScript(js);
     }
 
     private void LoadTestHtml()
@@ -201,6 +193,12 @@ public partial class DemoScript : Control
         _browser.SendToJs("{\"type\":\"notification\",\"message\":\"Hello from C#!\"}");
         GD.Print("[Demo] Sent push message to JS");
         Log("C# → JS push message sent");
+
+        // 测试 C# → JS 二进制推送
+        var binaryData = new byte[] { 0x47, 0x44, 0x43, 0x65, 0x66, 0x47, 0x6c, 0x75, 0x65 };
+        _browser.SendBinaryToJs(binaryData);
+        GD.Print("[Demo] Sent binary data to JS (9 bytes)");
+        Log("C# → JS binary push sent");
     }
 
     // ── 按钮事件 ────────────────────────────────────────────────
@@ -254,30 +252,12 @@ public partial class DemoScript : Control
         }
     }
 
-    // ── Bridge 事件 (JS → C# via godot://) ──────────────────────
+    // ── Bridge 事件 ──────────────────────────────────────────────
 
-    private void OnBridgeRequest(string type, string payload, string cbId)
+    private void OnBinaryReceived(byte[] data)
     {
-        GD.Print($"[Demo] BridgeRequest: type={type}, payload={payload}, cb={cbId ?? "(none)"}");
-        Log($"← JS bridge request: {type}");
-
-        switch (type)
-        {
-            case "ping":
-                _browser.SendResponse(cbId, "{\"status\":\"pong\",\"from\":\"C#\"}");
-                Log("→ replied pong");
-                break;
-
-            case "status":
-                var status = $"{{\"initialized\":true,\"loading\":{_browser.IsLoading.ToString().ToLower()}}}";
-                _browser.SendResponse(cbId, status);
-                Log("→ replied status");
-                break;
-
-            default:
-                _browser.SendResponse(cbId, $"{{\"error\":\"unknown type: {type}\"}}");
-                break;
-        }
+        GD.Print($"[Demo] Binary received from JS: {data.Length} bytes");
+        Log($"← Binary from JS: {data.Length} bytes, hex prefix: {BitConverter.ToString(data[..Math.Min(8, data.Length)])}");
     }
 
     // ── 日志 ─────────────────────────────────────────────────────

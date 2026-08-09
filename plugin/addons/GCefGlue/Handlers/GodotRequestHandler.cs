@@ -3,12 +3,11 @@ using Xilium.CefGlue;
 namespace GDCefGlue
 {
     /// <summary>
-    /// CEF Request Handler — intercepts custom-protocol navigations for JS↔C# bridging.
+    /// CEF Request Handler.
     ///
-    /// JS → C#:  iframe.src = "godot://bridge?type=X&cb=ID&payload=JSON"
-    ///           (triggers OnBeforeBrowse; we cancel & dispatch via BridgeRequest event)
-    /// C# → JS:  control.SendToJs(json)  →  window.__hostBridge._onMessage(msg)
-    ///           control.SendResponse(cbId, json)  →  window.__hostBridge._onResponse(id, msg)
+    /// 历史的 JS→C# iframe 桥接（godot://bridge 协议）已移除。
+    /// JS↔C# 通信统一走 V8 IPC（RegisterJavascriptObject）与二进制通道
+    /// （见 CefGlueControl.Bridge.cs）。
     /// </summary>
     internal sealed class GodotRequestHandler : CefRequestHandler
     {
@@ -19,32 +18,23 @@ namespace GDCefGlue
             _control = control;
         }
 
-    /// <summary>
-    /// Intercept navigations to godot://bridge/... — parse & dispatch, then cancel.
-    /// </summary>
-    protected override bool OnBeforeBrowse(
-        CefBrowser browser, CefFrame frame, CefRequest request,
-        bool userGesture, bool isRedirect)
-    {
-        if (_control.IsDisposed) return false;
-        var url = request?.Url;
-        if (url != null && url.StartsWith("godot://bridge", System.StringComparison.Ordinal))
+        protected override bool OnBeforeBrowse(
+            CefBrowser browser, CefFrame frame, CefRequest request,
+            bool userGesture, bool isRedirect)
         {
-            _control.OnBridgeRequest(url);
-            return true; // cancel navigation — iframe stays empty
+            // 不再拦截任何自定义协议导航。
+            return false;
         }
-        return false;
-    }
 
-    /// <summary>
-    /// Return null to use default resource handling for all non-bridge requests.
-    /// </summary>
-    protected override CefResourceRequestHandler GetResourceRequestHandler(
-        CefBrowser browser, CefFrame frame, CefRequest request,
-        bool isNavigation, bool isDownload,
-        string requestInitiator, ref bool disableDefaultHandling)
-    {
-        return null;
+        /// <summary>
+        /// Return null to use default resource handling for all requests.
+        /// </summary>
+        protected override CefResourceRequestHandler GetResourceRequestHandler(
+            CefBrowser browser, CefFrame frame, CefRequest request,
+            bool isNavigation, bool isDownload,
+            string requestInitiator, ref bool disableDefaultHandling)
+        {
+            return null;
+        }
     }
-}
 }

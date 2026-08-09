@@ -40,16 +40,20 @@ namespace GDCefGlue
         }
 
         // ── CefGlue 序列化 marker ──
-        private const string CefGlueStringMarker = "S";
-        private const string CefGlueDateTimeMarker = "D";
-        private const string CefGlueBinaryMarker = "B";
+        // CefGlue.Common 的 JSON 序列化（StringJsonConverter / BinaryJsonConverter /
+        // DateTimeJsonConverter）在序列化值时，会在值前追加一个单字符类型标记：
+        //   'S' = string / 'B' = byte[] / 'D' = DateTime
+        // 该标记始终在值的最前端（如 "hello!" → S"hello!"），且始终存在。
+        // 因此无条件剥离第一个标记字符即可还原原始值。
+        // 对 base64 二进制数据同样安全：SGVsbG8= → SSGVsbG8=（标记 + base64），
+        // 剥离一个 S 后得到正确的 SGVsbG8=。
         private const int CefGlueMarkerLength = 1;
 
         private static string StripCefGlueMarker(string value)
         {
             if (string.IsNullOrEmpty(value) || value.Length <= CefGlueMarkerLength) return value;
-            var marker = value.Substring(0, CefGlueMarkerLength);
-            if (marker == CefGlueStringMarker || marker == CefGlueDateTimeMarker || marker == CefGlueBinaryMarker)
+            char marker = value[0];
+            if (marker == 'S' || marker == 'D' || marker == 'B')
                 return value.Substring(CefGlueMarkerLength);
             return value;
         }
@@ -211,9 +215,7 @@ namespace GDCefGlue
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Array)
             {
-                var val = JsonSerializer.Deserialize(argsJson, parameters[0].ParameterType);
-                if (val is string strVal) val = StripCefGlueMarker(strVal);
-                return new[] { val };
+                return new[] { DeserializeSingleArg(root, parameters[0].ParameterType) };
             }
             var elements = new JsonElement[root.GetArrayLength()];
             int i = 0;
@@ -221,13 +223,43 @@ namespace GDCefGlue
             var result = new object[Math.Min(elements.Length, parameters.Length)];
             for (int j = 0; j < result.Length; j++)
             {
-                var val = JsonSerializer.Deserialize(elements[j].GetRawText(), parameters[j].ParameterType);
-                if (val is string strVal) val = StripCefGlueMarker(strVal);
-                result[j] = val;
+                result[j] = DeserializeSingleArg(elements[j], parameters[j].ParameterType);
             }
             return result;
         }
 
+        /// <summary>
+        /// 反序列化单个 JSON 参数，处理 CefGlue 的 S/D/B 类型标记。
+        /// 对 byte[] 目标类型：识别 B marker → 剥除 → Convert.FromBase64String。
+        /// 对 string 目标类型：识别 S/D/B marker → 剥除 → 返回明文。
+        /// </summary>
+        private static object DeserializeSingleArg(JsonElement element, Type targetType)
+        {
+            // CefGlue 的 BinaryMarker: 内联 base64 字符串 → byte[]
+            if (targetType == typeof(byte[]) && element.ValueKind == JsonValueKind.String)
+            {
+                var raw = element.GetString();
+                if (!string.IsNullOrEmpty(raw) && raw.Length > 1)
+                {
+                    // CefGlue 的 interceptor 对 Uint8Array 输出 "B" + btoa(data)
+                    // 剥掉 B marker 后 base64 解码
+                    if (raw[0] == 'B' || raw[0] == 'S')
+                        raw = raw.Substring(1);
+                    try { return Convert.FromBase64String(raw); }
+                    catch (FormatException) { }
+                }
+                return null;
+            }
+
+            var val = JsonSerializer.Deserialize(element.GetRawText(), targetType);
+            if (val is string strVal) val = StripCefGlueMarker(strVal);
+            return val;
+        }
+
+        /// <summary>
+        /// 向 JS 推送 JSON 消息。JS 端监听 window.__hostBridge._onMessage(msg) 接收。
+        /// 从 Godot 主线程调用即可（内部使用 ExecuteJavaScript 在 CEF 主帧执行）。
+        /// </summary>
         public void SendToJs(string jsonMessage)
         {
             var escaped = jsonMessage.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
@@ -235,27 +267,51 @@ namespace GDCefGlue
             frame?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onMessage('{escaped}');", "godot://response", 1);
         }
 
-        public void SendResponse(string cbId, string jsonResponse)
+        // ── 二进制通道 ──
+        // CefGlue.Common 的 RegisterJavascriptObject 支持 Uint8Array ↔ byte[] 传输：
+        //   JS 传 Uint8Array → CefGlue interceptor 序列化为 "B" + btoa(data)（B marker + base64）
+        //   C# DeserializeCallArgs 识别 B marker → Convert.FromBase64String → byte[]
+        // 因此插件无需再做额外 base64 编解码（仅框架固有的一层）。
+        //
+        // 如需零 base64 膨胀的原生 ArrayBuffer 传输，需实现自定义 CefRenderProcessHandler
+        // 并注入自定义 CefProcessMessage 路由（见方案 A）。
+
+        /// <summary>
+        /// 向 JS 推送二进制数据。内部编码为 base64 后通过 ExecuteJavaScript 注入。
+        /// JS 端监听 window.__hostBridge._onBinaryMessage(base64) 接收。
+        /// </summary>
+        public void SendBinaryToJs(byte[] data)
         {
-            var escaped = jsonResponse.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+            if (data == null || data.Length == 0) return;
+            var b64 = Convert.ToBase64String(data);
+            // 使用简单的字符转义，仅处理 \ 和 '（JS 字符串字面量安全）
+            var escaped = b64.Replace("\\", "\\\\").Replace("'", "\\'");
             using var frame = _browser.GetMainFrame();
-            frame?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onResponse('{cbId}',\"{escaped}\");", "godot://response", 1);
+            frame?.ExecuteJavaScript(
+                $"window.__hostBridge && window.__hostBridge._onBinaryMessage('{escaped}');",
+                "godot://binary", 0);
         }
 
-        internal void OnBridgeRequest(string url)
+        /// <summary>
+        /// JS → C# 二进制数据到达事件。参数为解码后的原始字节。
+        /// 由 JS 调用 window.dotnetBridge.sendBinary(Uint8Array) 触发。
+        /// </summary>
+        public event Action<byte[]> BridgeBinary;
+
+        /// <summary>
+        /// 供注册的桥接对象调用，将 JS 侧传来的字节数据触发 <see cref="BridgeBinary"/>。
+        /// 注意：可能从 CEF IPC 线程进入，需用 CallDeferred 调度到 Godot 主线程触发事件，
+        /// 确保订阅者可在事件处理器中安全访问 Godot 节点。
+        /// </summary>
+        internal void RaiseBridgeBinary(byte[] data)
         {
-            try
+            if (data == null || data.Length == 0) return;
+            var captured = data; // capture for closure
+            Callable.From(() =>
             {
-                var uri = new System.Uri(url);
-                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-                string type = query.Get("type") ?? "";
-                string cbId = query.Get("cb");
-                string payloadStr = query.Get("payload") ?? "";
-                if (_renderMode == RenderMode.EmbeddedWindow && ForwardInputEvents && type == "event_forward")
-                { HandleForwardedEvent(payloadStr); return; }
-                BridgeRequest?.Invoke(type, payloadStr, cbId);
-            }
-            catch (Exception ex) { GD.PrintErr($"[CefGlueControl] Failed to parse bridge URL '{url}': {ex.Message}"); }
+                if (_disposed) return;
+                BridgeBinary?.Invoke(captured);
+            }).CallDeferred();
         }
     }
 }
