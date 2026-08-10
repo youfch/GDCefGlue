@@ -154,11 +154,14 @@ namespace GDCefGlue
             if (Engine.IsEditorHint()) return;
             if (_renderMode == RenderMode.EmbeddedWindow) return;
 
-            // GPU 加速路径：直接使用 RenderingDevice 纹理 RID
-            if (_gpuTextureDirty && _gpuTextureRdRid.IsValid && _controlWidth > 0 && _controlHeight > 0)
+            // GPU 加速路径：始终绘制 GPU 纹理（即使 _gpuTextureDirty 为 false）。
+            // 若回退到 CPU 路径，初始化的空纹理（1x1 Image）显示为黑色。
+            // 点击后 CEF 停止产生新帧 → _gpuTextureDirty=false → 回退 CPU → 黑屏
+            // 滚轮触发新帧 → _gpuTextureDirty=true → GPU 路径 → 恢复
+            if (_gpuAccelerationActive && _gpuTexture2Drd != null && _controlWidth > 0 && _controlHeight > 0)
             {
                 var rect = new Rect2(0, 0, _controlWidth, _controlHeight);
-                RenderingServer.CanvasItemAddTextureRect(GetCanvasItem(), rect, _gpuTextureRdRid, false, Colors.White, false);
+                RenderingServer.CanvasItemAddTextureRect(GetCanvasItem(), rect, _gpuTexture2Drd.GetRid(), false, Colors.White, false);
                 _gpuTextureDirty = false;
                 return;
             }

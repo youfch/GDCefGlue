@@ -1,18 +1,27 @@
 using System;
 using System.Runtime.InteropServices;
 using Godot;
+using SharpGen.Runtime;
+using SharpGen.Runtime.Win32;
+using Vortice.Direct3D;
+using Vortice.Direct3D11;
+using Vortice.Direct3D12;
+using Vortice.Direct3D11on12;
+using Vortice.DXGI;
+using D3D12ResourceFlags = Vortice.Direct3D12.ResourceFlags;
 
 namespace GDCefGlue
 {
     // ══════════════════════════════════════════════════════════════
     //  D3D11on12 GPU 纹理拷贝器 — Windows D3D12 后端
     //
-    //  参考 Godot CEF (Rust) 的 D3D11on12 桥接方案：
+    //  使用 Vortice.Windows 类型安全的 COM 绑定，避免手写 vtable 偏移。
+    //  流程：
     //  1. 从 Godot 的 RenderingDevice 拿到 ID3D12Device 指针
     //  2. 创建独立的 D3D12 command queue（避免与 Godot 同步冲突）
     //  3. 创建 D3D11on12 设备，包装 Godot 的 D3D12 设备
     //  4. OnAcceleratedPaint 回调中：DuplicateHandle → OpenSharedResource1 → CopyResource
-    //  5. 自己管理 fence 同步
+    //  5. 用 fence 同步 GPU 拷贝完成
     // ══════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -20,28 +29,40 @@ namespace GDCefGlue
     /// </summary>
     internal unsafe class D3D11on12TextureCopier : ITextureCopier
     {
-        // ── COM 接口指针 ──
-        private IntPtr _d3d12Device;          // ID3D12Device*
-        private IntPtr _commandQueue;         // ID3D12CommandQueue*
-        private IntPtr _d3d11Device;          // ID3D11Device*
-        private IntPtr _d3d11Context;         // ID3D11DeviceContext*
-        private IntPtr _d3d11on12Device;      // ID3D11On12Device*
-        private IntPtr _fence;                // ID3D12Fence*
+        // ── Godot 的 D3D12 设备（不拥有，通过 AddRef 保护） ──
+        private ID3D12Device _d3d12Device;
+        private nint _d3d12DeviceRawPtr;
+
+        // ── 我们创建并拥有的资源 ──
+        private ID3D12CommandQueue _commandQueue;
+        private ID3D12Fence _fence;
         private ulong _fenceValue;
-        private IntPtr _fenceEvent;
+        private ID3D11Device _d3d11Device;
+        private ID3D11DeviceContext _d3d11Context;
+        private ID3D11On12Device _d3d11on12Device;
+        private nint _fenceEvent;
         private bool _copyInFlight;
         private bool _disposed;
 
-        // ── 待处理拷贝 ──
-        private IntPtr _pendingDuplicatedHandle; // HANDLE (需 CloseHandle)
+        // ── 待处理拷贝（线程安全：QueueCopy 在 CEF 线程，ProcessPendingCopy 在 Godot 主线程） ──
+        private readonly object _srcLock = new();
+        private ID3D11Resource _pendingSrc;     // 保护锁: _srcLock
+        private ID3D11Resource _retiredSrc;     // 上一帧的纹理，安全释放用
         private int _pendingWidth;
         private int _pendingHeight;
+
+        private static readonly FeatureLevel[] s_featureLevels = { global::Vortice.Direct3D.FeatureLevel.Level_11_0 };
 
         private D3D11on12TextureCopier() { }
 
         public static D3D11on12TextureCopier TryCreate()
         {
-            // D3D11on12 暂不可用，返回 null 使用 CPU 路径
+            var copier = new D3D11on12TextureCopier();
+            if (copier.Initialize())
+            {
+                return copier;
+            }
+            copier.Dispose();
             return null;
         }
 
@@ -54,147 +75,121 @@ namespace GDCefGlue
                 return false;
             }
 
-            // 1. 从 Godot 拿到设备指针
-            var devicePtr = rd.GetDriverResource(RenderingDevice.DriverResource.LogicalDevice, new Rid(), 0);
+            // 1. 从 Godot 拿到 D3D12 设备指针
+            // 注意：仅在 D3D12 渲染后端下有效。若 Godot 使用 Vulkan 后端，
+            // GetDriverResource(LogicalDevice) 返回的是 VkDevice，后续操作会失败
+            // 并被 try-catch 捕获。
+            var devicePtr = (nint)rd.GetDriverResource(
+                RenderingDevice.DriverResource.LogicalDevice, new Rid(), 0);
             if (devicePtr == 0)
             {
-                GD.PrintErr("[D3D11on12] Failed to get device from Godot");
-                return false;
-            }
-            _d3d12Device = (IntPtr)(nint)devicePtr;
-
-            // 跳过 COM 验证，直接使用设备指针
-            // devicePtr 由 Godot 管理，我们不释放
-
-            // 2. 创建自己的 command queue（不借用 Godot 的，避免同步冲突）
-            var queueDesc = new D3D12_COMMAND_QUEUE_DESC
-            {
-                Type = D3D12_COMMAND_LIST_TYPE.D3D12_COMMAND_LIST_TYPE_DIRECT,
-                Priority = D3D12_COMMAND_QUEUE_PRIORITY.D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
-                Flags = D3D12_COMMAND_QUEUE_FLAGS.D3D12_COMMAND_QUEUE_FLAG_NONE,
-                NodeMask = 0,
-            };
-
-            Guid iidQueue = IID.ID3D12CommandQueue;
-            int hr;
-            IntPtr commandQueue;
-            hr = ComVtbl.ID3D12Device_CreateCommandQueue(_d3d12Device, &queueDesc, &iidQueue, out commandQueue);
-            _commandQueue = commandQueue;
-            if (hr < 0)
-            {
-                GD.PrintErr($"[D3D11on12] CreateCommandQueue failed: 0x{hr:X8}");
+                GD.PrintErr("[D3D11on12] Failed to get D3D12 device from Godot");
                 return false;
             }
 
-// 3. 创建 fence (flags=0 即 D3D12_FENCE_FLAG_NONE)
-            var fenceIid = new Guid("0A753DCF-C4D8-4B91-ADF6-BE5A60D95A76");
-            IntPtr fence;
-            Guid* pIid = &fenceIid;
+            try
+            {
+                _d3d12DeviceRawPtr = devicePtr;
+                _d3d12Device = new ID3D12Device(devicePtr);
+                // AddRef 保护 Godot 持有的引用，Dispose 时平衡
+                Marshal.AddRef(devicePtr);
 
-            hr = ComVtbl.ID3D12Device_CreateFence(_d3d12Device, 0, 0u, (IntPtr)pIid, out fence);
-            if (hr < 0)
-            {
-                GD.PrintErr($"[D3D11on12] CreateFence failed: 0x{hr:X8}, continuing without fence");
-                _fence = IntPtr.Zero;
-            }
-            else
-            {
-                _fence = fence;
+                // 2. 创建自己的 command queue（不借用 Godot 的，避免同步冲突）
+                _commandQueue = _d3d12Device.CreateCommandQueue(
+                    CommandListType.Direct,
+                    CommandQueuePriority.Normal,
+                    CommandQueueFlags.None,
+                    0);
+
+                // 3. 创建 fence
+                _fence = _d3d12Device.CreateFence(0, Vortice.Direct3D12.FenceFlags.None);
                 _fenceValue = 0;
-                _copyInFlight = false;
-            }
 
-            // 4. 创建 fence event
-            _fenceEvent = Kernel32.CreateEventW(IntPtr.Zero, false, false, null);
-            if (_fenceEvent == IntPtr.Zero)
-            {
-                GD.PrintErr("[D3D11on12] CreateEventW failed");
-                return false;
-            }
-
-            // 5. 创建 D3D11on12 设备
-            var d3d11Device = IntPtr.Zero;
-            var d3d11Context = IntPtr.Zero;
-            var d3d11on12Device = IntPtr.Zero;
-
-            var queueArray = stackalloc IntPtr[1];
-            queueArray[0] = _commandQueue;
-
-            GD.Print("[D3D11on12] Calling D3D11On12CreateDevice...");
-                try
+                // 4. 创建 fence event
+                _fenceEvent = Kernel32.CreateEventW(IntPtr.Zero, false, false, null);
+                if (_fenceEvent == 0)
                 {
-                    hr = D3D11.D3D11On12CreateDevice(
-                        _d3d12Device,
-                        (uint)D3D11_CREATE_DEVICE_FLAG.D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-                        IntPtr.Zero,
-                        0,
-                        (IntPtr)queueArray,
-                        1,
-                        0,
-                        ref d3d11Device,
-                        IntPtr.Zero,
-                        ref d3d11Context
-                    );
-                    GD.Print($"[D3D11on12] D3D11On12CreateDevice result: 0x{hr:X8}");
-                }
-                catch (Exception ex)
-                {
-                    GD.PrintErr($"[D3D11on12] D3D11On12CreateDevice exception: {ex}");
+                    GD.PrintErr("[D3D11on12] CreateEventW failed");
                     return false;
                 }
-            if (hr < 0)
+
+                // 5. 创建 D3D11on12 设备
+                var result = Apis.D3D11On12CreateDevice(
+                    _d3d12Device,
+                    DeviceCreationFlags.BgraSupport,
+                    s_featureLevels,
+                    new IUnknown[] { _commandQueue },
+                    0,
+                    out _d3d11Device,
+                    out _d3d11Context,
+                    out _);
+
+                if (result.Failure)
+                {
+                    GD.PrintErr($"[D3D11on12] D3D11On12CreateDevice failed: 0x{result.Code:X8}");
+                    return false;
+                }
+
+                // 6. Query ID3D11On12Device
+                _d3d11on12Device = _d3d11Device.QueryInterface<ID3D11On12Device>();
+            }
+            catch (Exception ex)
             {
-                GD.PrintErr($"[D3D11on12] D3D11On12CreateDevice failed: 0x{hr:X8}");
+                GD.PrintErr($"[D3D11on12] Initialization failed: {ex.Message}");
                 return false;
             }
 
-            _d3d11Device = d3d11Device;
-            _d3d11Context = d3d11Context;
-
-            // Query ID3D11On12Device from the D3D11 device
-            Guid iidD3D11On12 = IID.ID3D11On12Device;
-            hr = ComVtbl.IUnknown_QueryInterface(d3d11Device, &iidD3D11On12, out d3d11on12Device);
-            if (hr < 0)
-            {
-                GD.PrintErr($"[D3D11on12] QueryInterface(ID3D11On12Device) failed: 0x{hr:X8}");
-                return false;
-            }
-            _d3d11on12Device = d3d11on12Device;
-
-            GD.Print($"[D3D11on12] Initialized successfully (device=0x{_d3d12Device.ToInt64():X})");
+            GD.Print($"[D3D11on12] Initialized successfully (device=0x{devicePtr.ToInt64():X})");
             return true;
         }
 
-        public bool IsValid => _d3d12Device != IntPtr.Zero && !_disposed;
+        public bool IsValid => _d3d12Device != null && !_disposed;
 
         public CopyResult QueueCopy(IntPtr sharedTextureHandle, int width, int height)
         {
             if (sharedTextureHandle == IntPtr.Zero || width <= 0 || height <= 0)
                 return CopyResult.Failed;
 
-            // Duplicate 句柄 —— 回调返回后 CEF 可能释放原句柄
-            var currentProcess = Kernel32.GetCurrentProcess();
-            IntPtr duplicatedHandle;
-            if (!Kernel32.DuplicateHandle(currentProcess, sharedTextureHandle,
-                    currentProcess, out duplicatedHandle,
-                    0, false, Kernel32.DUPLICATE_SAME_ACCESS))
+            // 关键：在 CEF UI 线程中立即打开共享纹理。
+            // 若推迟到 ProcessPendingCopy（Godot 主线程）才打开，CEF 可能已释放
+            // 该共享句柄下的纹理，导致 OpenSharedResource1 返回 E_HANDLE。
+            // 打开后持有 ID3D11Resource 引用，即使 CEF 释放原句柄纹理也仍然有效。
+            var newSrc = OpenSharedTexture(sharedTextureHandle);
+            if (newSrc == null)
             {
-                GD.PrintErr("[D3D11on12] DuplicateHandle failed");
+                GD.PrintErr("[D3D11on12] QueueCopy: OpenSharedResource1 failed");
                 return CopyResult.Failed;
             }
 
-            // 替换之前的 pending copy（会自动关闭旧句柄）
-            CleanupPendingHandle();
-            _pendingDuplicatedHandle = duplicatedHandle;
-            _pendingWidth = width;
-            _pendingHeight = height;
+            // 线程安全地换入新纹理，旧纹理延迟到 ProcessPendingCopy 后释放
+            lock (_srcLock)
+            {
+                // 将上一帧的 retired 安全释放（此时 ProcessPendingCopy 已经在用新纹理了）
+                if (_retiredSrc != null)
+                {
+                    _retiredSrc.Dispose();
+                    _retiredSrc = null;
+                }
+                // 当前 pending 成为 retired
+                _retiredSrc = _pendingSrc;
+                // 新纹理成为 pending
+                _pendingSrc = newSrc;
+                _pendingWidth = width;
+                _pendingHeight = height;
+            }
 
             return CopyResult.Success;
         }
 
         public CopyResult ProcessPendingCopy(Rid dstRdRid)
         {
-            if (_pendingDuplicatedHandle == IntPtr.Zero)
+            // 线程安全地获取当前 pending 纹理
+            ID3D11Resource srcTexture;
+            lock (_srcLock)
+            {
+                srcTexture = _pendingSrc;
+            }
+            if (srcTexture == null)
                 return CopyResult.Success; // 没有待处理拷贝
 
             if (!dstRdRid.IsValid)
@@ -204,27 +199,23 @@ namespace GDCefGlue
             }
 
             // 等待之前的拷贝完成
-            if (_copyInFlight && _fence != IntPtr.Zero)
+            if (_copyInFlight && _fence != null)
             {
-                var completed = ComVtbl.ID3D12Fence_GetCompletedValue(_fence);
+                var completed = _fence.CompletedValue;
                 if (completed < _fenceValue)
                 {
                     return CopyResult.RetryLater; // 还没完成，下一帧再试
                 }
                 _copyInFlight = false;
             }
-            else if (_copyInFlight)
-            {
-                // 无 fence 模式：假设拷贝已完成后清除标记
-                _copyInFlight = false;
-            }
 
-            // 获取 Godot 的目标 D3D12 纹理
             var rd = RenderingServer.Singleton.GetRenderingDevice();
             if (rd == null) return CopyResult.Failed;
 
-            var dstResourcePtr = (IntPtr)(nint)rd.GetDriverResource(RenderingDevice.DriverResource.Texture, dstRdRid, 0);
-            if (dstResourcePtr == IntPtr.Zero)
+            // 获取 Godot 的目标 D3D12 纹理
+            var dstResourcePtr = (nint)rd.GetDriverResource(
+                RenderingDevice.DriverResource.Texture, dstRdRid, 0);
+            if (dstResourcePtr == 0)
             {
                 GD.PrintErr("[D3D11on12] Failed to get destination texture");
                 return CopyResult.Failed;
@@ -233,55 +224,104 @@ namespace GDCefGlue
             var width = _pendingWidth;
             var height = _pendingHeight;
 
-            // 打开 CEF 的共享纹理 (D3D11)
-            // 通过 OpenSharedResource1 打开
-            var srcTexture = OpenSharedTexture(_pendingDuplicatedHandle);
-            if (srcTexture == IntPtr.Zero)
-            {
-                CleanupPendingHandle();
-                return CopyResult.Failed;
-            }
+            ID3D12Resource dstResource = null;
+            ID3D11Resource wrappedDst = null;
 
-            // 包装 Godot 的 D3D12 纹理为 D3D11 资源
-            var wrappedResource = WrapD3D12Texture(dstResourcePtr);
-            if (wrappedResource == IntPtr.Zero)
+            try
             {
-                ComVtbl.IUnknown_Release(srcTexture);
-                CleanupPendingHandle();
-                return CopyResult.Failed;
-            }
+                // CEF 的共享纹理带有 SHARED_KEYEDMUTEX (0x802 = NTHandle | KeyedMutex)，
+                // 拷贝前必须 AcquireSync，拷贝后 ReleaseSync，否则跨进程数据不一致。
+                // 若 AcquireSync 失败/超时，说明 CEF 正在渲染该纹理（未释放 mutex），
+                // 此时拷贝会读到半写入数据 → 黑屏。应跳过此帧，保留上一帧数据。
+                IDXGIKeyedMutex keyedMutex = null;
+                bool mutexAcquired = false;
+                try
+                {
+                    keyedMutex = srcTexture.QueryInterfaceOrNull<IDXGIKeyedMutex>();
+                    if (keyedMutex != null)
+                    {
+                        try { keyedMutex.AcquireSync(0, 100); mutexAcquired = true; }
+                        catch { /* 超时/失败：CEF 正持有 mutex，跳过本帧 */ }
+                    }
+                    else
+                    {
+                        mutexAcquired = true; // 无 keyed mutex 的纹理直接拷贝
+                    }
+                }
+                catch { }
 
-            // GPU 拷贝: D3D11CopyResource(wrappedDst, src)
-            ComVtbl.ID3D11DeviceContext_CopyResource(_d3d11Context, wrappedResource, srcTexture);
-            ComVtbl.ID3D11On12Device_ReleaseWrappedResources(_d3d11on12Device, &wrappedResource, 1);
-            ComVtbl.ID3D11DeviceContext_Flush(_d3d11Context);
+                if (!mutexAcquired)
+                {
+                    keyedMutex?.Dispose();
+                    return CopyResult.RetryLater; // 下一帧再试，保留上一帧数据
+                }
 
-            // Signal fence 以同步
-            if (_fence != IntPtr.Zero)
-            {
+                // 包装 Godot 的 D3D12 纹理为 D3D11 资源
+                dstResource = new ID3D12Resource(dstResourcePtr);
+                Marshal.AddRef(dstResourcePtr); // 保护 Godot 的引用
+
+                var flags = new Vortice.Direct3D11on12.ResourceFlags
+                {
+                    BindFlags = Vortice.Direct3D11.BindFlags.ShaderResource,
+                };
+
+                // 对齐 godot-cef: CopyDest 作为 inState（Godot 纹理创建后处于 COPY_DEST），
+                // Common 作为 outState（拷贝完释放回给 Godot 采样）。
+                wrappedDst = _d3d11on12Device.CreateWrappedResource<ID3D11Resource>(
+                    dstResource, flags,
+                    ResourceStates.CopyDest,
+                    ResourceStates.Common);
+
+                // GPU 拷贝: D3D11CopyResource(wrappedDst, src)
+                _d3d11Context.CopyResource(wrappedDst, srcTexture);
+                _d3d11on12Device.ReleaseWrappedResources(new[] { wrappedDst });
+                _d3d11Context.Flush();
+
+                // 释放 keyed mutex（让 CEF 可以继续渲染下一帧）
+                if (keyedMutex != null)
+                {
+                    try { keyedMutex.ReleaseSync(0); } catch { }
+                    keyedMutex.Dispose();
+                }
+
+                // Signal fence 以同步
                 _fenceValue++;
-                ComVtbl.ID3D12CommandQueue_Signal(_commandQueue, _fence, _fenceValue);
+                _commandQueue.Signal(_fence, _fenceValue);
+
+                // 等待 GPU 拷贝完成，确保纹理数据就绪后才返回。
+                var completed = _fence.CompletedValue;
+                if (completed < _fenceValue)
+                {
+                    _fence.SetEventOnCompletion(_fenceValue, _fenceEvent);
+                    Kernel32.WaitForSingleObject(_fenceEvent, Kernel32.INFINITE);
+                }
+                _copyInFlight = false;
+
+                return CopyResult.Success;
             }
-            _copyInFlight = true;
-
-            // 释放临时资源
-            ComVtbl.IUnknown_Release(wrappedResource);
-            ComVtbl.IUnknown_Release(srcTexture);
-
-            // 清理 pending 句柄（拷贝已完成提交）
-            CleanupPendingHandle();
-
-            return CopyResult.Success;
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[D3D11on12] ProcessPendingCopy failed: {ex.Message}");
+                return CopyResult.Failed;
+            }
+            finally
+            {
+                wrappedDst?.Dispose();
+                if (dstResource != null)
+                {
+                    dstResource.Dispose(); // 平衡上面的 AddRef
+                }
+            }
         }
 
         public void WaitForCopy()
         {
-            if (!_copyInFlight || _fence == IntPtr.Zero) return;
+            if (!_copyInFlight || _fence == null) return;
 
-            var completed = ComVtbl.ID3D12Fence_GetCompletedValue(_fence);
+            var completed = _fence.CompletedValue;
             if (completed < _fenceValue)
             {
-                ComVtbl.ID3D12Fence_SetEventOnCompletion(_fence, _fenceValue, _fenceEvent);
+                _fence.SetEventOnCompletion(_fenceValue, _fenceEvent);
                 Kernel32.WaitForSingleObject(_fenceEvent, Kernel32.INFINITE);
             }
             _copyInFlight = false;
@@ -292,63 +332,43 @@ namespace GDCefGlue
             var rd = RenderingServer.Singleton.GetRenderingDevice();
             if (rd == null) return new Rid();
 
-            // 使用 TextureCreateFromExtension 创建 GPU 纹理
-            // 这比 TextureCreate 更轻量，不需要 RDTextureFormat/RDTextureView 类型
-            return rd.TextureCreateFromExtension(
-                RenderingDevice.TextureType.Type2D,
-                RenderingDevice.DataFormat.B8G8R8A8Unorm,
-                RenderingDevice.TextureSamples.Samples1,
-                RenderingDevice.TextureUsageBits.SamplingBit | RenderingDevice.TextureUsageBits.CanCopyToBit,
-                (ulong)Math.Max(1, width),
-                (ulong)Math.Max(1, height),
-                1,   // depth
-                1,   // arrayLayers
-                1    // mipmaps
-            );
+            // 使用 TextureCreate 创建标准 GPU 纹理。
+            // TextureCreateFromExtension 用于包装已有的原生资源，不适合这里。
+            // 纹理创建后，ProcessPendingCopy 通过 GetDriverResource(Texture, rid, 0)
+            // 获取其 D3D12 资源指针，然后用 D3D11on12 CopyResource 拷贝数据。
+            //
+            // 注意：必须调用 AddShareableFormat 标记纹理为可共享，
+            // 否则 Godot 的 D3D12 后端不会分配可外部访问的资源。
+            var format = new RDTextureFormat();
+            format.AddShareableFormat(RenderingDevice.DataFormat.B8G8R8A8Unorm);
+            format.Format = RenderingDevice.DataFormat.B8G8R8A8Unorm;
+            format.Width = (uint)Math.Max(1, width);
+            format.Height = (uint)Math.Max(1, height);
+            format.Depth = 1;
+            format.ArrayLayers = 1;
+            format.Mipmaps = 1;
+            format.TextureType = RenderingDevice.TextureType.Type2D;
+            format.Samples = RenderingDevice.TextureSamples.Samples1;
+            format.UsageBits = RenderingDevice.TextureUsageBits.SamplingBit | RenderingDevice.TextureUsageBits.CanCopyToBit;
+
+            var view = new RDTextureView();
+
+            return rd.TextureCreate(format, view);
         }
 
-        private IntPtr OpenSharedTexture(IntPtr handle)
+        private ID3D11Resource OpenSharedTexture(IntPtr handle)
         {
             // 需要 ID3D11Device1 来调用 OpenSharedResource1
-            // 通过 QueryInterface 获取
-            Guid iidDevice1 = IID.ID3D11Device1;
-            IntPtr device1;
-            int hr = ComVtbl.IUnknown_QueryInterface(_d3d11Device, &iidDevice1, out device1);
-            if (hr < 0) return IntPtr.Zero;
-
-            Guid iidTexture2D = IID.ID3D11Texture2D;
-            IntPtr texture;
-            hr = ComVtbl.ID3D11Device1_OpenSharedResource1(device1, handle, &iidTexture2D, out texture);
-
-            ComVtbl.IUnknown_Release(device1);
-
-            return hr >= 0 ? texture : IntPtr.Zero;
-        }
-
-        private IntPtr WrapD3D12Texture(IntPtr d3d12Resource)
-        {
-            var flags = new D3D11_RESOURCE_FLAGS
+            var device1 = _d3d11Device.QueryInterfaceOrNull<ID3D11Device1>();
+            if (device1 == null)
             {
-                BindFlags = (uint)D3D11_BIND_FLAG.D3D11_BIND_SHADER_RESOURCE,
-            };
+                GD.PrintErr("[D3D11on12] Failed to get ID3D11Device1");
+                return null;
+            }
 
-            Guid iidResource = IID.ID3D11Resource;
-            IntPtr wrappedResource;
-            int hr = ComVtbl.ID3D11On12Device_CreateWrappedResource(
-                _d3d11on12Device, d3d12Resource, &flags,
-                D3D12_RESOURCE_STATES.D3D12_RESOURCE_STATE_COPY_DEST,
-                D3D12_RESOURCE_STATES.D3D12_RESOURCE_STATE_COMMON,
-                &iidResource, out wrappedResource);
-
-            return hr >= 0 ? wrappedResource : IntPtr.Zero;
-        }
-
-        private void CleanupPendingHandle()
-        {
-            if (_pendingDuplicatedHandle != IntPtr.Zero)
+            using (device1)
             {
-                Kernel32.CloseHandle(_pendingDuplicatedHandle);
-                _pendingDuplicatedHandle = IntPtr.Zero;
+                return device1.OpenSharedResource1<ID3D11Texture2D>(handle);
             }
         }
 
@@ -360,23 +380,35 @@ namespace GDCefGlue
             try
             {
                 WaitForCopy();
-                CleanupPendingHandle();
 
-                if (_d3d11on12Device != IntPtr.Zero)
-                { ComVtbl.IUnknown_Release(_d3d11on12Device); _d3d11on12Device = IntPtr.Zero; }
-                if (_d3d11Context != IntPtr.Zero)
-                { ComVtbl.IUnknown_Release(_d3d11Context); _d3d11Context = IntPtr.Zero; }
-                if (_d3d11Device != IntPtr.Zero)
-                { ComVtbl.IUnknown_Release(_d3d11Device); _d3d11Device = IntPtr.Zero; }
-                if (_commandQueue != IntPtr.Zero)
-                { ComVtbl.IUnknown_Release(_commandQueue); _commandQueue = IntPtr.Zero; }
-                if (_fence != IntPtr.Zero)
-                { ComVtbl.IUnknown_Release(_fence); _fence = IntPtr.Zero; }
-                if (_fenceEvent != IntPtr.Zero)
-                { Kernel32.CloseHandle(_fenceEvent); _fenceEvent = IntPtr.Zero; }
+                // 清理待处理纹理
+                lock (_srcLock)
+                {
+                    _retiredSrc?.Dispose();
+                    _retiredSrc = null;
+                    _pendingSrc?.Dispose();
+                    _pendingSrc = null;
+                }
 
-                // _d3d12Device 由 Godot 管理，不释放
-                _d3d12Device = IntPtr.Zero;
+                _d3d11on12Device?.Dispose();
+                _d3d11Context?.Dispose();
+                _d3d11Device?.Dispose();
+                _fence?.Dispose();
+                _commandQueue?.Dispose();
+
+                // 释放 D3D12 设备包装（平衡初始化时的 AddRef）
+                // Godot 自己的引用不受影响
+                if (_d3d12Device != null)
+                {
+                    _d3d12Device.Dispose();
+                    _d3d12Device = null;
+                }
+
+                if (_fenceEvent != 0)
+                {
+                    Kernel32.CloseHandle(_fenceEvent);
+                    _fenceEvent = 0;
+                }
             }
             catch (Exception ex)
             {
@@ -386,270 +418,7 @@ namespace GDCefGlue
     }
 
     // ══════════════════════════════════════════════════════════════
-    //  D3D12 / D3D11 / DXGI 结构体定义
-    // ══════════════════════════════════════════════════════════════
-
-    #pragma warning disable CS0649 // 字段未赋值（通过 COM 返回）
-
-    internal enum D3D12_COMMAND_LIST_TYPE : int
-    {
-        D3D12_COMMAND_LIST_TYPE_DIRECT = 0,
-    }
-
-    internal enum D3D12_COMMAND_QUEUE_PRIORITY : int
-    {
-        D3D12_COMMAND_QUEUE_PRIORITY_NORMAL = 0,
-    }
-
-    internal enum D3D12_COMMAND_QUEUE_FLAGS : int
-    {
-        D3D12_COMMAND_QUEUE_FLAG_NONE = 0,
-    }
-
-    internal enum D3D12_FENCE_FLAGS : int
-    {
-        D3D12_FENCE_FLAG_NONE = 0,
-    }
-
-    internal enum D3D12_RESOURCE_STATES : int
-    {
-        D3D12_RESOURCE_STATE_COMMON = 0,
-        D3D12_RESOURCE_STATE_COPY_DEST = 4,
-    }
-
-    internal enum D3D11_BIND_FLAG : uint
-    {
-        D3D11_BIND_SHADER_RESOURCE = 8,
-    }
-
-    internal enum D3D11_CREATE_DEVICE_FLAG : uint
-    {
-        D3D11_CREATE_DEVICE_BGRA_SUPPORT = 0x20,
-    }
-
-    internal enum D3D_FEATURE_LEVEL : int
-    {
-        D3D_FEATURE_LEVEL_11_0 = 0xb000,
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct D3D12_COMMAND_QUEUE_DESC
-    {
-        public D3D12_COMMAND_LIST_TYPE Type;
-        public D3D12_COMMAND_QUEUE_PRIORITY Priority;
-        public D3D12_COMMAND_QUEUE_FLAGS Flags;
-        public int NodeMask;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct D3D11_RESOURCE_FLAGS
-    {
-        public uint BindFlags;
-        public uint MiscFlags;
-        public uint CPUAccessFlags;
-        public uint StructureByteStride;
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  COM GUID 常量
-    // ══════════════════════════════════════════════════════════════
-
-    internal static class IID
-    {
-        // D3D12
-        public static readonly Guid ID3D12CommandQueue = new Guid("0EC870A6-5D7E-4C22-8CFC-5BAAE07616ED");
-        public static readonly Guid ID3D12Fence = new Guid("0A753DCF-C4D8-4B91-ADF6-BE5A60D95A76");
-
-        // D3D11
-        public static readonly Guid ID3D11Device1 = new Guid("A04BFB29-08EF-43D6-A49C-A9BDBDCBE686");
-        public static readonly Guid ID3D11Texture2D = new Guid("6F15AAF2-D208-4E89-9AB4-489535D34F9C");
-        public static readonly Guid ID3D11Resource = new Guid("DC8E63F3-D12B-4952-B47B-5E45026A862D");
-        public static readonly Guid ID3D11On12Device = new Guid("85611E73-70A9-490E-9614-A9E302777904");
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  COM vtable 函数调用 (使用函数指针从 vtable 获取)
-    //
-    //  vtable 索引计算说明：
-    //  每个 COM 接口从 IUnknown 继承 3 个方法 (QueryInterface/AddRef/Release)，
-    //  然后依次排列基类方法，最后是接口自身方法。
-    //
-    //  ID3D12Device: IUnknown(3) + ID3D12Object(5) + 自身方法
-    //    CreateCommandQueue = 8  (idx 0 in ID3D12Device)
-    //    CreateFence        = 31 (idx 23)
-    //    GetAdapterLuid     = 32 (idx 24)
-    //
-    //  ID3D12CommandQueue: IUnknown(3) + ID3D12Object(5) + ID3D12DeviceChild(1) + ID3D12Pageable(0) + 自身
-    //    Signal             = 13 (idx 4)
-    //
-    //  ID3D12Fence: IUnknown(3) + ID3D12Object(5) + ID3D12DeviceChild(1) + ID3D12Pageable(0) + 自身
-    //    GetCompletedValue  = 9  (idx 0)
-    //    SetEventOnCompletion = 10 (idx 1)
-    //
-    //  ID3D11Device1: IUnknown(3) + ID3D11Device(40) + 自身
-    //    OpenSharedResource1 = 43 (idx 1 in ID3D11Device1)
-    //
-    //  ID3D11On12Device: IUnknown(3) + 自身
-    //    CreateWrappedResource   = 3 (idx 0)
-    //    ReleaseWrappedResources = 4 (idx 1)
-    //
-    //  ID3D11DeviceContext: IUnknown(3) + ID3D11Object(5) + ID3D11DeviceChild(1) + 自身
-    //    CopyResource = 19 (idx 10)
-    //    Flush        = 50 (idx 41)
-    // ══════════════════════════════════════════════════════════════
-
-    internal static unsafe class ComVtbl
-    {
-        // ── IUnknown (所有 COM 对象共用) ──
-        public static int IUnknown_QueryInterface(IntPtr obj, Guid* riid, out IntPtr ppv)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int>)vtable[0];
-            fixed (IntPtr* p = &ppv) return func(obj, riid, p);
-        }
-
-        public static uint IUnknown_AddRef(IntPtr obj)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, uint>)vtable[1];
-            return func(obj);
-        }
-
-        public static uint IUnknown_Release(IntPtr obj)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, uint>)vtable[2];
-            return func(obj);
-        }
-
-// ── ID3D12Device ──
-        //  vtable: IUnknown(3) + ID3D12Object(5) + ID3D12Device methods
-        //  CreateCommandQueue = 8  (idx 0 in ID3D12Device)
-        //  CreateFence        = 38 (idx 30, verified from winapi crate ID3D12DeviceVtbl)
-        //  使用 Marshal.GetDelegateForFunctionPointer 而非 delegate* unmanaged，
-        //  避免 .NET 函数指针调用约定与 Win32 COM 的兼容性问题。
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        private delegate int CreateCommandQueueDelegate(IntPtr device, D3D12_COMMAND_QUEUE_DESC* desc, IntPtr riid, out IntPtr queue);
-
-        public static int ID3D12Device_CreateCommandQueue(IntPtr obj, D3D12_COMMAND_QUEUE_DESC* desc, Guid* riid, out IntPtr queue)
-        {
-            var vtable = *(IntPtr**)obj;
-            var funcPtr = vtable[8];
-            var func = Marshal.GetDelegateForFunctionPointer<CreateCommandQueueDelegate>(funcPtr);
-            return func(obj, desc, (IntPtr)riid, out queue);
-        }
-
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        private delegate int CreateFenceDelegate(IntPtr device, ulong initialValue, int flags, IntPtr riid, out IntPtr ppFence);
-
-        public static int ID3D12Device_CreateFence(IntPtr obj, ulong initialValue, uint flags, IntPtr riid, out IntPtr fence)
-        {
-            var vtable = *(IntPtr**)obj;
-            var funcPtr = vtable[31];
-            var func = Marshal.GetDelegateForFunctionPointer<CreateFenceDelegate>(funcPtr);
-            return func(obj, initialValue, (int)flags, riid, out fence);
-        }
-
-        //  ── ID3D12Fence ──
-        //  vtable: IUnknown(3) + ID3D12Object(5) + ID3D12DeviceChild(1) + ID3D12Fence methods
-        //  GetCompletedValue      = 9  (idx 0)
-        //  SetEventOnCompletion   = 10 (idx 1)
-        //  Signal                 = 11 (idx 2)
-        public static ulong ID3D12Fence_GetCompletedValue(IntPtr obj)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, ulong>)vtable[9];
-            return func(obj);
-        }
-
-        public static int ID3D12Fence_SetEventOnCompletion(IntPtr obj, ulong value, IntPtr hEvent)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, ulong, IntPtr, int>)vtable[10];
-            return func(obj, value, hEvent);
-        }
-
-        // ── ID3D12CommandQueue ──
-        public static int ID3D12CommandQueue_Signal(IntPtr obj, IntPtr fence, ulong value)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, ulong, int>)vtable[13];
-            return func(obj, fence, value);
-        }
-
-        // ── ID3D11Device1 ──
-        public static int ID3D11Device1_OpenSharedResource1(IntPtr obj, IntPtr handle, Guid* riid, out IntPtr resource)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, Guid*, IntPtr*, int>)vtable[43];
-            fixed (IntPtr* p = &resource) return func(obj, handle, riid, p);
-        }
-
-        // ── ID3D11On12Device ──
-        public static int ID3D11On12Device_CreateWrappedResource(
-            IntPtr obj, IntPtr d3d12Resource, D3D11_RESOURCE_FLAGS* flags,
-            D3D12_RESOURCE_STATES inState, D3D12_RESOURCE_STATES outState,
-            Guid* riid, out IntPtr wrappedResource)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, D3D11_RESOURCE_FLAGS*, D3D12_RESOURCE_STATES, D3D12_RESOURCE_STATES, Guid*, IntPtr*, int>)vtable[3];
-            fixed (IntPtr* p = &wrappedResource) return func(obj, d3d12Resource, flags, inState, outState, riid, p);
-        }
-
-        public static void ID3D11On12Device_ReleaseWrappedResources(IntPtr obj, IntPtr* resources, int count)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int, void>)vtable[4];
-            func(obj, resources, count);
-        }
-
-        // ── ID3D11DeviceContext ──
-        public static void ID3D11DeviceContext_CopyResource(IntPtr obj, IntPtr dst, IntPtr src)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, void>)vtable[19];
-            func(obj, dst, src);
-        }
-
-        public static void ID3D11DeviceContext_Flush(IntPtr obj)
-        {
-            var vtable = *(IntPtr**)obj;
-            var func = (delegate* unmanaged[Stdcall]<IntPtr, void>)vtable[50];
-            func(obj);
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  D3D11 flat API (DllImport)
-    // ══════════════════════════════════════════════════════════════
-
-    internal static unsafe class D3D11
-    {
-        // D3D11On12CreateDevice 的原始签名
-        // 来自 d3d11.h (Windows SDK)
-        // HRESULT D3D11On12CreateDevice(
-        //     ID3D12Device* pDevice, UINT Flags,
-        //     const D3D_FEATURE_LEVEL* pFeatureLevels, UINT FeatureLevels,
-        //     IUnknown* const* ppCommandQueues, UINT NumQueues, UINT NodeMask,
-        //     ID3D11Device** ppDevice, ID3D11DeviceContext** ppImmediateContext,
-        //     ID3D11DeviceContext** ppD3D11Context);
-[DllImport("d3d11.dll", CallingConvention = CallingConvention.StdCall)]
-        public static extern int D3D11On12CreateDevice(
-            IntPtr pDevice,
-            uint Flags,
-            IntPtr pFeatureLevels,
-            uint FeatureLevels,
-            IntPtr ppCommandQueues,
-            uint NumQueues,
-            uint NodeMask,
-            ref IntPtr ppDevice,
-            IntPtr ppImmediateContext,
-            ref IntPtr ppD3D11Context
-        );
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  Kernel32 flat API (DllImport)
+    //  Kernel32 flat API (DllImport) — Vortice 未覆盖的部分
     // ══════════════════════════════════════════════════════════════
 
     internal static unsafe class Kernel32
@@ -685,6 +454,4 @@ namespace GDCefGlue
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
     }
-
-    #pragma warning restore CS0649
 }

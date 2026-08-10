@@ -17,7 +17,8 @@ namespace GDCefGlue
     {
         // ── GPU 加速状态 ──
         private ITextureCopier _gpuCopier;
-        private Rid _gpuTextureRdRid;
+        private Rid _gpuTextureRdRid;      // RenderingDevice 纹理 RID
+        private Texture2Drd _gpuTexture2Drd; // Texture2D 包装（用于 CanvasItemAddTextureRect）
         private bool _gpuAccelerationActive;
         private bool _gpuCopyPending;
         private int _gpuPendingWidth;
@@ -80,16 +81,14 @@ namespace GDCefGlue
             if (_gpuTextureNeedsResize)
             {
                 FreeGpuTexture();
-                _gpuTextureRdRid = _gpuCopier.CreateDestinationTexture(
-                    _gpuPendingWidth, _gpuPendingHeight);
+                CreateGpuTexture(_gpuPendingWidth, _gpuPendingHeight);
                 _gpuTextureNeedsResize = false;
             }
 
             // 确保纹理存在
             if (!_gpuTextureRdRid.IsValid)
             {
-                _gpuTextureRdRid = _gpuCopier.CreateDestinationTexture(
-                    _gpuPendingWidth, _gpuPendingHeight);
+                CreateGpuTexture(_gpuPendingWidth, _gpuPendingHeight);
                 if (!_gpuTextureRdRid.IsValid)
                 {
                     return;
@@ -108,6 +107,20 @@ namespace GDCefGlue
         }
 
         /// <summary>
+        /// Create GPU texture: RenderingDevice texture + Texture2Drd wrapper.
+        /// </summary>
+        private void CreateGpuTexture(int width, int height)
+        {
+            // 1. 创建 RenderingDevice 纹理 RID
+            _gpuTextureRdRid = _gpuCopier.CreateDestinationTexture(width, height);
+            if (!_gpuTextureRdRid.IsValid) return;
+
+            // 2. 包装为 Texture2DRD（CanvasItemAddTextureRect 需要 Texture2D 类型的 RID）
+            _gpuTexture2Drd = new Texture2Drd();
+            _gpuTexture2Drd.TextureRdRid = _gpuTextureRdRid;
+        }
+
+        /// <summary>
         /// Free GPU texture resources.
         /// </summary>
         private void FreeGpuTexture()
@@ -117,6 +130,12 @@ namespace GDCefGlue
                 var rd = RenderingServer.Singleton.GetRenderingDevice();
                 if (rd != null) rd.FreeRid(_gpuTextureRdRid);
                 _gpuTextureRdRid = new Rid();
+            }
+
+            if (_gpuTexture2Drd != null)
+            {
+                _gpuTexture2Drd.Dispose();
+                _gpuTexture2Drd = null;
             }
         }
 
