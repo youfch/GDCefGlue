@@ -54,10 +54,9 @@ public partial class CefGlueControl
             (CefGlueControl i, string name) => i.UnregisterJsHandler(name));
         context.BindMethod(new StringName("send_to_js"), new ParameterInfo(new StringName("json"), VariantType.String),
             (CefGlueControl i, string json) => i.SendToJs(json));
-        context.BindMethod(new StringName("send_response"),
-            new ParameterInfo(new StringName("cb_id"), VariantType.String),
-            new ParameterInfo(new StringName("json"), VariantType.String),
-            (CefGlueControl i, string cbId, string json) => i.SendResponse(cbId, json));
+        context.BindMethod(new StringName("send_binary_to_js"),
+            new ParameterInfo(new StringName("data"), VariantType.PackedByteArray),
+            (CefGlueControl i, PackedByteArray data) => i.SendBinaryToJs(data.ToArray()));
         context.BindMethod(new StringName("show_developer_tools"), (CefGlueControl i) => i.ShowDeveloperTools());
         context.BindMethod(new StringName("close_developer_tools"), (CefGlueControl i) => i.CloseDeveloperTools());
         context.BindMethod(new StringName("find"),

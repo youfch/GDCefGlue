@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-namespace GDCefGlue
+namespace GDCefGlueExtension
 {
     /// <summary>
     /// Result of a GPU texture copy operation.

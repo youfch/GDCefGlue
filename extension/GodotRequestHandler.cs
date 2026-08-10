@@ -3,9 +3,10 @@ using Xilium.CefGlue;
 namespace GDCefGlueExtension;
 
 /// <summary>
-/// 拦截 godot://bridge 导航, 用于 JS→C# 桥接.
-/// JS: iframe.src = 'godot://bridge?type=X&cb=ID&payload=JSON'
-/// C#: 解析 URL 并触发 BridgeRequest 事件.
+/// CEF Request Handler.
+///
+/// 历史的 JS→C# iframe 桥接（godot://bridge 协议）已移除。
+/// JS↔C# 通信统一走 V8 IPC（RegisterJavascriptObject/RegisterJsHandler）与二进制通道。
 /// </summary>
 internal sealed class GodotRequestHandler : CefRequestHandler
 {
@@ -20,13 +21,7 @@ internal sealed class GodotRequestHandler : CefRequestHandler
         CefBrowser browser, CefFrame frame, CefRequest request,
         bool userGesture, bool isRedirect)
     {
-        if (_control.IsDisposed) return false;
-        var url = request?.Url;
-        if (url != null && url.StartsWith("godot://bridge", System.StringComparison.Ordinal))
-        {
-            _control.OnBridgeRequest(url);
-            return true; // 取消导航
-        }
+        // 不再拦截任何自定义协议导航。
         return false;
     }
 

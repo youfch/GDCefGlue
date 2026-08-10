@@ -77,11 +77,27 @@ public partial class CefGlueControl
     { int id; bool ok; string r, e; using (var a = m.Arguments) { id = a.GetInt(0); ok = a.GetBool(1); r = a.GetString(2); e = a.GetString(3); } if (_pendingEvals.TryRemove(id, out var t)) { if (ok) t.TrySetResult(r); else t.TrySetException(new Exception(e ?? "Unknown JS error")); } }
 
     // ── 合并版 HandleNativeObjectCallRequest ──
-    // 支持: dotnetBridge.eval, GDScript Callable, RegisteredObject (C# bridge)
+    // 支持: dotnetBridge.eval, GDScript Callable, RegisteredObject (C# bridge), 原生二进制通道
     private void HandleNativeObjectCallRequest(CefProcessMessage m)
     {
-        int cid; string on, mn, aj;
-        using (var a = m.Arguments) { cid = a.GetInt(0); on = a.GetString(1); mn = a.GetString(2); aj = a.GetString(3); }
+        int cid; string on, mn, aj; byte[][] binaryArgs = null;
+        using (var a = m.Arguments)
+        {
+            cid = a.GetInt(0); on = a.GetString(1); mn = a.GetString(2); aj = a.GetString(3);
+            // 读取原生二进制参数（__BINARY_N__ 通道，零 base64）
+            if (a.Count > 4)
+            {
+                var binaryCount = a.GetInt(4);
+                binaryArgs = new byte[binaryCount][];
+                for (int i = 0; i < binaryCount; i++)
+                {
+                    using (var binary = a.GetBinary(5 + i))
+                    {
+                        binaryArgs[i] = binary.ToArray();
+                    }
+                }
+            }
+        }
 
         // dotnetBridge.eval → 走 async EvaluateJavaScript，结果通过 Promise 返回
         if (on == "dotnetBridge" && mn == "eval")
@@ -107,7 +123,7 @@ public partial class CefGlueControl
                 if (reg.Methods.TryGetValue(mn, out var method))
                 {
                     var parameters = method.GetParameters();
-                    var invokeArgs = DeserializeCallArgs(aj, parameters);
+                    var invokeArgs = DeserializeCallArgs(aj, parameters, binaryArgs);
                     r = method.Invoke(reg.Target, invokeArgs);
                     if (r is Task task)
                     {
@@ -260,17 +276,31 @@ public partial class CefGlueControl
         frame?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onMessage('{e}');", "godot://response", 1);
     }
 
-    public void SendResponse(string cbId, string json)
+    // ── 二进制通道 ──
+    // CefGlue.Common 的 RegisterJavascriptObject 支持 Uint8Array ↔ byte[] 传输：
+    //   JS 传 Uint8Array → CefGlue interceptor 序列化为 "B" + btoa(data)
+    //   C# DeserializeJsonElement 识别 B marker → Convert.FromBase64String → byte[]
+
+    public void SendBinaryToJs(byte[] data)
     {
-        var e = json.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+        if (data == null || data.Length == 0) return;
+        var b64 = Convert.ToBase64String(data);
+        var escaped = b64.Replace("\\", "\\\\").Replace("'", "\\'");
         using var frame = _browser?.GetMainFrame();
-        frame?.ExecuteJavaScript($"window.__hostBridge && window.__hostBridge._onResponse('{cbId}',\"{e}\");", "godot://response", 1);
+        frame?.ExecuteJavaScript(
+            $"window.__hostBridge && window.__hostBridge._onBinaryMessage('{escaped}');",
+            "godot://binary", 0);
     }
 
-    internal void OnBridgeRequest(string url)
+    internal void RaiseBridgeBinary(byte[] data)
     {
-        try { var u = new System.Uri(url); var q = System.Web.HttpUtility.ParseQueryString(u.Query); string t = q.Get("type") ?? "", c = q.Get("cb"), p = q.Get("payload") ?? ""; BridgeRequest?.Invoke(t, p, c); }
-        catch (Exception ex) { GD.PrintErr($"[CefGlueControl] Failed to parse bridge URL '{url}': {ex.Message}"); }
+        if (data == null || data.Length == 0) return;
+        var captured = data;
+        Callable.From(() =>
+        {
+            if (_disposed) return;
+            BridgeBinary?.Invoke(captured);
+        }).CallDeferred();
     }
 
     // ── RegisterJavascriptObject (CEF IPC) ──
@@ -328,7 +358,7 @@ public partial class CefGlueControl
         }
     }
 
-    private static object[] DeserializeCallArgs(string argsJson, ParameterInfo[] parameters)
+    private static object[] DeserializeCallArgs(string argsJson, ParameterInfo[] parameters, byte[][] binaryArgs = null)
     {
         if (string.IsNullOrEmpty(argsJson) || parameters.Length == 0)
             return Array.Empty<object>();
@@ -347,7 +377,7 @@ public partial class CefGlueControl
                 var result = new object[parameters.Length];
                 for (int j = 0; j < parameters.Length && j < elements.Length; j++)
                 {
-                    result[j] = DeserializeJsonElement(elements[j], parameters[j].ParameterType);
+                    result[j] = DeserializeJsonElement(elements[j], parameters[j].ParameterType, binaryArgs);
                 }
                 return result;
             }
@@ -355,7 +385,7 @@ public partial class CefGlueControl
             {
                 // 单个值
                 var result = new object[1];
-                result[0] = DeserializeJsonElement(root, parameters[0].ParameterType);
+                result[0] = DeserializeJsonElement(root, parameters[0].ParameterType, binaryArgs);
                 return result;
             }
         }
@@ -366,8 +396,31 @@ public partial class CefGlueControl
         }
     }
 
-    private static object DeserializeJsonElement(JsonElement el, Type targetType)
+    private static object DeserializeJsonElement(JsonElement el, Type targetType, byte[][] binaryArgs = null)
     {
+        // 优先处理 __BINARY_N__ 占位符 → 直接从 binaryArgs 取 byte[]（零 base64）
+        if (targetType == typeof(byte[]) && el.ValueKind == JsonValueKind.String)
+        {
+            var raw = el.GetString();
+            if (raw != null && raw.StartsWith("__BINARY_") && raw.EndsWith("__") && binaryArgs != null)
+            {
+                var indexStr = raw.Substring(9, raw.Length - 11);
+                if (int.TryParse(indexStr, out var index) && index >= 0 && index < binaryArgs.Length)
+                {
+                    return binaryArgs[index];
+                }
+            }
+
+            // 回退：CefGlue interceptor 的 B marker + base64 编码
+            if (!string.IsNullOrEmpty(raw) && raw.Length > 1)
+            {
+                if (raw[0] == 'B' || raw[0] == 'S')
+                    raw = raw.Substring(1);
+                try { return Convert.FromBase64String(raw); }
+                catch (FormatException) { }
+            }
+            return null;
+        }
         if (targetType == typeof(string)) return StripCefGlueMarker(el.GetString());
         if (targetType == typeof(int)) return el.GetInt32();
         if (targetType == typeof(long)) return el.GetInt64();

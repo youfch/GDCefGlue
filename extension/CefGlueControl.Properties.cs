@@ -41,6 +41,13 @@ public partial class CefGlueControl
         set => _gpuCompositing = value;
     }
 
+    private bool _enableGpuAcceleration = false;
+    public bool EnableGpuAcceleration
+    {
+        get => _enableGpuAcceleration;
+        set => _enableGpuAcceleration = value;
+    }
+
     private bool _openPopupInCurrentBrowser = false;
     public bool OpenPopupInCurrentBrowser
     {
@@ -79,9 +86,11 @@ public partial class CefGlueControl
 
     private static bool _useGpuCompositing = true;
     private static bool _useTransparent = false;
+    private static bool _useGpuAcceleration = false;
     private static RenderMode _activeRenderMode = RenderMode.OSR;
     public static bool UseGpuCompositing { get => _useGpuCompositing; set => _useGpuCompositing = value; }
     public static bool UseTransparent { get => _useTransparent; set => _useTransparent = value; }
+    public static bool UseGpuAcceleration { get => _useGpuAcceleration; set => _useGpuAcceleration = value; }
     public static RenderMode ActiveRenderMode
     {
         get => _activeRenderMode;
@@ -112,8 +121,8 @@ public partial class CefGlueControl
     public event LoadStartEventHandler LoadStart;
     public event LoadEndEventHandler LoadEnd;
     public event LoadErrorEventHandler LoadError;
-    public event Action<string, string, string> BridgeRequest;
     public event Action<string, string, string, Action<string>> NativeCall;
+    public event Action<byte[]> BridgeBinary;
     public event Action<string, bool> NewWindowRequested;
     internal void RaiseNewWindowRequested(string url, bool isNewWindow) => NewWindowRequested?.Invoke(url, isNewWindow);
     internal bool HasNewWindowSubscribers => NewWindowRequested != null;

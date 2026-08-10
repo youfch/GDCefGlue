@@ -13,7 +13,7 @@ using Vortice.DXGI;
 using D3D12ResourceFlags = Vortice.Direct3D12.ResourceFlags;
 #endif
 
-namespace GDCefGlue
+namespace GDCefGlueExtension
 {
 #if GD_GPU_WINDOWS
     // ══════════════════════════════════════════════════════════════

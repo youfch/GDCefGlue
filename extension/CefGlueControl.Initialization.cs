@@ -14,6 +14,7 @@ public partial class CefGlueControl
         if (Godot.Engine.Singleton.IsEditorHint()) { return; }
         _renderMode = Mode;
         UseGpuCompositing = GpuCompositing; UseTransparent = Transparent;
+        UseGpuAcceleration = EnableGpuAcceleration;
         ActiveRenderMode = Mode;
         CefInitializer.CacheDirectory = CacheDirectory;
         CefInitializer.Initialize();
@@ -27,6 +28,9 @@ public partial class CefGlueControl
     {
         if (Godot.Engine.Singleton.IsEditorHint()) { return; }
         _disposed = true;
+        DeactivateIme();
+        // 清理 GPU 加速资源
+        CleanupGpuAcceleration();
         if (_browserHost != null) { _browserHost.CloseBrowser(true); _browserHost = null; _browser = null; }
         _client = null;
         if (_pixelBuffer != null && _pixelBufferSize > 0) { ArrayPool<byte>.Shared.Return(_pixelBuffer); _pixelBuffer = null; _pixelBufferSize = 0; }
@@ -71,6 +75,21 @@ public partial class CefGlueControl
         else
         {
             windowInfo.SetAsWindowless(IntPtr.Zero, Transparent);
+
+            // 启用 GPU 加速 OSR (SharedTexture) — CEF 将调用 OnAcceleratedPaint 而非 OnPaint
+            if (EnableGpuAcceleration)
+            {
+                InitializeGpuAcceleration();
+                if (_gpuAccelerationActive)
+                {
+                    windowInfo.SharedTextureEnabled = true;
+                    GD.Print("[CefGlueControl] SharedTextureEnabled=true, GPU acceleration activated");
+                }
+                else
+                {
+                    GD.Print("[CefGlueControl] GPU acceleration not available, using CPU OnPaint");
+                }
+            }
         }
         var settings = new CefBrowserSettings { WindowlessFrameRate = frameRate };
         _client = new GodotCefClient(this);

@@ -2,7 +2,7 @@ using System;
 using Godot;
 using Xilium.CefGlue;
 
-namespace GDCefGlue
+namespace GDCefGlueExtension
 {
     // ══════════════════════════════════════════════════════════════
     //  GPU 加速 OSR: OnAcceleratedPaint 分派 + 纹理管理

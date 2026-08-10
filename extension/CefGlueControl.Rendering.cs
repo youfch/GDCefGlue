@@ -58,6 +58,12 @@ Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
             if (w != _controlWidth || h != _controlHeight) { _controlWidth = w; _controlHeight = h; _pendingWidth = w; _pendingHeight = h; _resizeStableCount = 0; QueueRedraw(); }
             else if (_pendingWidth > 0 && _pendingHeight > 0 && ++_resizeStableCount >= ResizeStableThreshold) { _browserHost.WasResized(); _pendingWidth = 0; _pendingHeight = 0; }
         }
+
+        // GPU 加速路径：处理待完成的 GPU 纹理拷贝
+        if (_gpuAccelerationActive)
+        {
+            ProcessGpuAcceleratedPaint();
+        }
         if (_isDirty && _pixelBuffer != null && _width > 0 && _height > 0)
         {
             int expected = _width * _height * 4;
@@ -91,6 +97,18 @@ Marshal.Copy(buffer, _pixelBuffer, 0, bufferSize);
     {
         if (Godot.Engine.Singleton.IsEditorHint()) return;
         if (_renderMode == RenderMode.EmbeddedWindow) return;
+
+        // GPU 加速路径：始终绘制 GPU 纹理（即使 _gpuTextureDirty 为 false）。
+        // 若回退到 CPU 路径，初始化的空纹理（1x1 Image）显示为黑色。
+        if (_gpuAccelerationActive && _gpuTexture2Drd != null && _controlWidth > 0 && _controlHeight > 0)
+        {
+            var rect = new Rect2(0, 0, _controlWidth, _controlHeight);
+            RenderingServer.Singleton.CanvasItemAddTextureRect(GetCanvasItem(), rect, _gpuTexture2Drd.GetRid(), false, new Color(1, 1, 1, 1), false);
+            _gpuTextureDirty = false;
+            return;
+        }
+
+        // CPU 回退路径
         if (_texture != null && _controlWidth > 0 && _controlHeight > 0)
         {
             if (Transparent) DrawTextureRect(_texture, new Rect2(Vector2.Zero, _controlWidth, _controlHeight), false, new Color(1, 1, 1, 1), false);

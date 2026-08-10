@@ -4,6 +4,8 @@
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- 仅 Windows 启用 GPU 加速（D3D11on12/Vortice）。其他平台编译产物不包含 Vortice，运行时返回 null 走 CPU 回退 -->
+    <DefineConstants Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(DefineConstants);GD_GPU_WINDOWS</DefineConstants>
   </PropertyGroup>
 	
   <ItemGroup>
@@ -11,7 +13,11 @@
     <PackageReference Include="CefGlue.Common" Version="149.7827.156" />
     <PackageReference Include="chromiumembeddedframework.runtime" Version="149.0.4" />
     <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="149.0.4" />
+  </ItemGroup>
+
+  <!-- GPU 加速依赖：仅 Windows 平台引用 Vortice，其他平台不解析/不携带这些 DLL -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
     <PackageReference Include="Vortice.Direct3D12" Version="3.8.3" />
-    </ItemGroup>
+  </ItemGroup>
 </Project>

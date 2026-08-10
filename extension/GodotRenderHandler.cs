@@ -44,7 +44,21 @@ internal class GodotRenderHandler : CefRenderHandler
         finally { browser.Dispose(); }
     }
 
-    protected override void OnAcceleratedPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, CefAcceleratedPaintInfo info) { }
+    protected override void OnAcceleratedPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, CefAcceleratedPaintInfo info)
+    {
+        if (_control.IsDisposed) { browser.Dispose(); return; }
+        try
+        {
+            if (type == CefPaintElementType.View)
+            {
+                _control.OnAcceleratedPaint(
+                    info.SharedTexture,
+                    info.Extra.CodedSize.Width,
+                    info.Extra.CodedSize.Height);
+            }
+        }
+        finally { browser.Dispose(); }
+    }
 
     protected override void OnScrollOffsetChanged(CefBrowser browser, double x, double y) { }
 
