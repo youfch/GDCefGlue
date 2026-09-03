@@ -33,21 +33,34 @@ namespace GDCefGlueExtension
         {
             if (_gpuCopier != null) return;
 
-#if !GD_GPU_WINDOWS
-            GD.Print("[CefGlueControl] GPU acceleration is not yet supported on this platform");
-            GD.Print("[CefGlueControl] Windows D3D12 is currently supported");
-            GD.Print("[CefGlueControl] macOS Metal (Phase 2) and Linux Vulkan (Phase 4) are planned");
-            GD.Print("[CefGlueControl] Falling back to CPU rendering (OnPaint)");
-            _gpuAccelerationActive = false;
-            return;
+            var backend = TextureCopierFactory.DetectBackend();
+            GD.Print($"[CefGlueControl] Detected render backend: {backend}");
+
+            // 检查当前平台是否支持 GPU 加速
+            bool platformSupported = false;
+#if GD_GPU_WINDOWS
+            platformSupported = platformSupported || (backend == GpuBackend.D3D12 || backend == GpuBackend.Vulkan);
 #endif
+#if GD_GPU_MACOS
+            platformSupported = platformSupported || (backend == GpuBackend.Metal);
+#endif
+#if GD_GPU_LINUX
+            platformSupported = platformSupported || (backend == GpuBackend.Vulkan);
+#endif
+
+            if (!platformSupported)
+            {
+                GD.Print($"[CefGlueControl] GPU acceleration not supported on this platform/backend ({backend}), falling back to CPU rendering (OnPaint)");
+                _gpuAccelerationActive = false;
+                return;
+            }
 
             _gpuCopier = TextureCopierFactory.Create();
             _gpuAccelerationActive = _gpuCopier != null && _gpuCopier.IsValid;
 
             if (_gpuAccelerationActive)
             {
-                GD.Print("[CefGlueControl] GPU acceleration initialized");
+                GD.Print("[CefGlueControl] GPU acceleration initialized successfully");
             }
             else
             {

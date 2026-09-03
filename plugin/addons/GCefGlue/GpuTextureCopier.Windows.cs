@@ -293,14 +293,10 @@ namespace GDCefGlue
                 _fenceValue++;
                 _commandQueue.Signal(_fence, _fenceValue);
 
-                // 等待 GPU 拷贝完成，确保纹理数据就绪后才返回。
-                var completed = _fence.CompletedValue;
-                if (completed < _fenceValue)
-                {
-                    _fence.SetEventOnCompletion(_fenceValue, _fenceEvent);
-                    Kernel32.WaitForSingleObject(_fenceEvent, Kernel32.INFINITE);
-                }
-                _copyInFlight = false;
+                // 异步 GPU 拷贝：不阻塞主线程等待 fence。
+                // 下一帧 ProcessPendingCopy 会通过 _copyInFlight 检查 fence 是否完成。
+                // 若未完成则返回 RetryLater，保留上一帧数据。
+                _copyInFlight = true;
 
                 return CopyResult.Success;
             }

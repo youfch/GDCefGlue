@@ -4,8 +4,10 @@
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- 仅 Windows 启用 GPU 加速（D3D11on12/Vortice）。其他平台编译产物不包含 Vortice，运行时返回 null 走 CPU 回退 -->
+    <!-- 平台 GPU 加速条件编译。每个平台只在对应 OS 上编译其 GPU copier，其他平台不携带依赖 -->
     <DefineConstants Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(DefineConstants);GD_GPU_WINDOWS</DefineConstants>
+    <DefineConstants Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(DefineConstants);GD_GPU_MACOS</DefineConstants>
+    <DefineConstants Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(DefineConstants);GD_GPU_LINUX</DefineConstants>
   </PropertyGroup>
 	
   <ItemGroup>

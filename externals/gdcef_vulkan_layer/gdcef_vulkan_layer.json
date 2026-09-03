@@ -1,0 +1,15 @@
+{
+    "file_format_version": "1.0.0",
+    "layer": {
+        "name": "VK_LAYER_GDCEF_EXTMEM",
+        "type": "GLOBAL",
+        "library_path": "gdcef_vulkan_layer.dll",
+        "api_version": "1.2.200",
+        "implementation_version": "1",
+        "description": "GDCefGlue: injects external-memory Vulkan extensions for GPU-accelerated OSR",
+        "functions": {
+            "vkGetInstanceProcAddr": "vkGetInstanceProcAddr",
+            "vkGetDeviceProcAddr": "vkGetDeviceProcAddr"
+        }
+    }
+}

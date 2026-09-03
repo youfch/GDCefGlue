@@ -3,6 +3,9 @@
 /.backups/
 /.temp/
 
+# OpenCode/Omo tool runtime data
+/.omo/
+
 # Repository/Project Shared
 /bin/
 /obj/

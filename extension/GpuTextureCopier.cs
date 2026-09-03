@@ -15,6 +15,18 @@ namespace GDCefGlueExtension
     }
 
     /// <summary>
+    /// Detected Godot rendering backend for GPU-accelerated OSR.
+    /// </summary>
+    internal enum GpuBackend
+    {
+        Unknown,
+        D3D12,
+        Vulkan,
+        Metal,
+        OpenGL,
+    }
+
+    /// <summary>
     /// Interface for GPU-accelerated texture copy from CEF shared texture to Godot RenderingDevice texture.
     /// Each platform/backend implements this interface.
     /// </summary>
@@ -54,26 +66,89 @@ namespace GDCefGlueExtension
     /// </summary>
     internal static class TextureCopierFactory
     {
+        /// <summary>
+        /// Detect the current Godot rendering backend at runtime.
+        /// </summary>
+        public static GpuBackend DetectBackend()
+        {
+            try
+            {
+                var rd = RenderingServer.Singleton.GetRenderingDevice();
+                if (rd == null) return GpuBackend.Unknown;
+
+                var driverName = RenderingServer.Singleton.GetCurrentRenderingDriverName().ToLowerInvariant();
+                if (driverName.Contains("d3d12")) return GpuBackend.D3D12;
+                if (driverName.Contains("vulkan")) return GpuBackend.Vulkan;
+                if (driverName.Contains("metal")) return GpuBackend.Metal;
+                if (driverName.Contains("opengl") || driverName.Contains("gl_")) return GpuBackend.OpenGL;
+                return GpuBackend.Unknown;
+            }
+            catch
+            {
+                return GpuBackend.Unknown;
+            }
+        }
+
         public static ITextureCopier Create()
         {
+            var backend = DetectBackend();
+            GD.Print($"[TextureCopier] Detected render backend: {backend}");
+
 #if GD_GPU_WINDOWS
-            // Try Windows D3D12 first (D3D11on12 bridge via Vortice)
-            var windowsCopier = D3D11on12TextureCopier.TryCreate();
-            if (windowsCopier != null)
+            // Windows: try D3D12 first (D3D11on12 bridge via Vortice)
+            if (backend == GpuBackend.D3D12)
             {
-                GD.Print("[TextureCopier] Using D3D11on12 texture copier (Windows D3D12)");
-                return windowsCopier;
+                var copier = D3D11on12TextureCopier.TryCreate();
+                if (copier != null)
+                {
+                    GD.Print("[TextureCopier] Using D3D11on12 texture copier (Windows D3D12)");
+                    return copier;
+                }
+                GD.Print("[TextureCopier] D3D11on12 copier failed, trying fallback...");
             }
-#else
-            GD.Print("[TextureCopier] GPU acceleration not available on this platform");
-            GD.Print("[TextureCopier] Implementations: Windows D3D12 (via Vortice.D3D11on12)");
-            GD.Print("[TextureCopier] macOS Metal (Phase 2) and Linux Vulkan (Phase 4) are planned");
+
+            // Windows Vulkan: try Vulkan external memory copier (via VK_KHR_external_memory_win32)
+            if (backend == GpuBackend.Vulkan)
+            {
+                var copier = WindowsVulkanTextureCopier.TryCreate();
+                if (copier != null)
+                {
+                    GD.Print("[TextureCopier] Using Windows Vulkan external memory copier");
+                    return copier;
+                }
+                GD.Print("[TextureCopier] Windows Vulkan copier failed, using CPU fallback");
+            }
 #endif
 
-            // macOS Metal would go here in Phase 2
-            // Linux Vulkan would go here in Phase 4
+#if GD_GPU_MACOS
+            // macOS: Metal IOSurface import
+            if (backend == GpuBackend.Metal)
+            {
+                var copier = MetalTextureCopier.TryCreate();
+                if (copier != null)
+                {
+                    GD.Print("[TextureCopier] Using Metal IOSurface texture copier (macOS)");
+                    return copier;
+                }
+                GD.Print("[TextureCopier] Metal copier failed, using CPU fallback");
+            }
+#endif
 
-            GD.Print("[TextureCopier] No GPU-accelerated copier available for this platform");
+#if GD_GPU_LINUX
+            // Linux: Vulkan external memory / DMA-BUF
+            if (backend == GpuBackend.Vulkan)
+            {
+                var copier = LinuxVulkanTextureCopier.TryCreate();
+                if (copier != null)
+                {
+                    GD.Print("[TextureCopier] Using Linux Vulkan DMA-BUF texture copier");
+                    return copier;
+                }
+                GD.Print("[TextureCopier] Linux Vulkan copier failed, using CPU fallback");
+            }
+#endif
+
+            GD.Print($"[TextureCopier] No GPU-accelerated copier available for backend {backend}, using CPU fallback");
             return null;
         }
     }
