@@ -116,6 +116,7 @@ C# 端注册对象 → BrowserProcess 创建 V8 绑定 → JS 直接调方法 �
 | 功能 | 说明 | 优先级 | 参考实现 |
 |------|------|--------|---------|
 | **GPU 加速 OSR** (`EnableGpuAcceleration`) | ⚠️ 实验性功能，暂不可用。通过 `OnAcceleratedPaint` + SharedTexture 实现 GPU 加速渲染，后续完善。 | 🔬 实验性 | `CefGlueControl.AcceleratedPaint.cs` 已有框架 |
+| **远程调试** | Chrome DevTools Protocol 远程调试。读项目设置 `gdcefglue/remote_debugging_port`（0=关闭，有效范围 1024-65535），仅绑定 loopback。单进程单端点，多实例表现为多 target。详见 `.omo/plans/remote-debugging-plan.md` | ⭐⭐ | CEF 149 / CDP |
 | **下载处理** | CefDownloadHandler 实现，拦截 OnBeforeDownload / OnDownloadUpdated，提供下载进度信号。Godot FileDialog 选择保存路径，进度条 UI | ⭐⭐⭐ | CefGlue.Common + CefRunContextMenuCallback 模式（同右键菜单） |
 | **页面查找** | CefBrowserHost.Find() / StopFinding()，页面内查找功能 | ⭐⭐ | CefBrowserHost API |
 | **缩放控制** | CefBrowserHost.SetZoomLevel()，页面缩放 | ⭐⭐ | CefBrowserHost API |
