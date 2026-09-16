@@ -64,3 +64,9 @@ mono_crash.*.json
 build/
 # OpenCode conversations
 conversations/
+
+# Omo (OhMyOpenAgent) runtime state (keep .omo/plans/ tracked)
+/.omo/run-continuation/
+
+# Legacy workspace dir (pre-rename .sisyphus -> .omo, migrated 2026-08)
+/.sisyphus/
