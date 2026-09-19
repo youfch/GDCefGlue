@@ -57,6 +57,16 @@ namespace GDCefGlue
 
             if (string.IsNullOrEmpty(processType))
             {
+                if (CefInitializer.RemoteDebuggingPort > 0)
+                {
+                    // Chromium M111+ 会拒绝携带 Origin 头的 DevTools WebSocket 连接，
+                    // 而 CEF 不会自动放行（chromiumembedded/cef#3740 已 WontFix）。
+                    // 不带 Origin 的客户端（Puppeteer/Playwright/curl）本就不受影响；
+                    // 追加此开关是为了放行 Web 版 DevTools 前端等带 Origin 的客户端。
+                    // 仅在调试端口开启时追加，发布构建完全不受影响。
+                    commandLine.AppendSwitch("remote-allow-origins", "*");
+                }
+
                 if (CefGlueControl.UseTransparent)
                 {
                     commandLine.AppendSwitch("enable-begin-frame-scheduling");

@@ -23,6 +23,14 @@ project/assembly_name="GDCefGlue"
 
 movie_writer/fps=120
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/GCefGlue/plugin.cfg")
+
+[gdcefglue]
+
+remote_debugging_port=4399
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

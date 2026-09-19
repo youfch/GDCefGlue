@@ -292,6 +292,54 @@ browser.CloseDeveloperTools();               // 关闭 DevTools
 
 ---
 
+## 远程调试（Chrome DevTools Protocol）
+
+CEF 可以开放一个 CDP 端点，让外部工具连接到内嵌浏览器。该功能**默认关闭**，由**唯一一个** Godot 项目设置控制。
+
+### 开启
+
+把项目设置 `gdcefglue/remote_debugging_port` 设成 **1024–65535** 之间的端口（例如 `9222`）。`0` 表示关闭。
+
+| 构建形态 | 如何让该设置出现在「项目设置」面板里 |
+|---------|--------------------------------------|
+| **Plugin（C#）** | 插件包内附一个可选的编辑器插件。在 *项目设置 ▸ 插件* 里启用 **GDCefGlue Project Settings**，即可在项目设置中找到它。**必须先以 Debug 构建**，否则插件会报 `Unable to load addon script`。 |
+| **GDExtension** | 由扩展自动注册，无需启用任何插件。 |
+
+这是一项调试专用设置，因此请打开「项目设置」右上角的**高级设置**开关，或直接在搜索框里输入 `gdcefglue`。启用该插件是**严格增量**的 —— 不启用时 `CefGlueControl` 的行为与之前完全一致。
+
+也可以直接编辑 `project.godot`：
+
+```ini
+[gdcefglue]
+
+remote_debugging_port=9222
+```
+
+修改后**需要重启**：CEF 每个进程只初始化一次。
+
+### 连接
+
+```bash
+# 连通性自检 —— 两条都应返回 JSON
+curl http://127.0.0.1:9222/json/version
+curl http://127.0.0.1:9222/json/list
+```
+
+- Google Chrome 的 **chrome://inspect**
+- **Puppeteer** —— `puppeteer.connect({ browserURL: 'http://127.0.0.1:9222' })`，然后 `await browser.pages()`
+- **Playwright** —— `chromium.connectOverCDP('http://127.0.0.1:9222')`，然后 `browser.contexts()[0].pages()`
+
+### 必须知道的限制
+
+1. **`http://127.0.0.1:9222/` 是空白页。** vanilla CEF 构建没有把 DevTools 发现页资源编进去。端点本身是正常的 —— 请改用 `chrome://inspect` 或 `/json/list`。
+2. **一个端口对应多个浏览器。** CEF 每进程**只有一个** CDP 端点，所以场景里的每个 `CefGlueControl` 都表现为 `/json/list` 里一个独立的 *target*。**无法给每个浏览器分配各自的端口**；请按 `title` / `url` 选择目标。
+3. **无法给 target 打标签。** CEF 没有让宿主设置 target 名称的 API（`window_name` 不会暴露，`description` 为空）。要区分多个标签页，请设置有辨识度的 `document.title`，或在 URL 里加标记（如 `#gc-tab=3`）再按它匹配。
+4. **`/json/new` 不支持。** 它走的是 Chrome 的标签页基础设施而不是 `CefBrowserHost::CreateBrowser`，因此不会经过你的 `CefLifeSpanHandler`，会留下不受管理的浏览器。它同时还是一个免鉴权的脚本执行面（`/json/new?javascript:...`）。请用自己的代码创建浏览器，客户端会把它们识别为新的 target。
+5. **OSR 的 target `type`。** 当前 CEF 构建下离屏浏览器上报 `type: "page"`，但历史上出现过变化。如果 Selenium/ChromeDriver 找不到你的浏览器，请在 `/json/list` 里确认 `type` 字段的实际值。
+6. **仅本机可访问、无鉴权。** 端点绑定在 `127.0.0.1` / `::1`，CEF **不读取** `--remote-debugging-address`。需要远程访问请用 SSH 隧道或反向代理。任何能连上该端口的人都能完全控制浏览器 —— **绝不要在发布构建里开启**。
+
+---
+
 ## 平台注意事项
 
 ### Windows

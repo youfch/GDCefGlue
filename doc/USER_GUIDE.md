@@ -292,6 +292,54 @@ browser.CloseDeveloperTools();              // Close DevTools
 
 ---
 
+## Remote Debugging (Chrome DevTools Protocol)
+
+CEF can expose a CDP endpoint so external tooling can attach to the embedded browser. It is **off by default** and controlled by one Godot project setting.
+
+### Enable
+
+Set the project setting `gdcefglue/remote_debugging_port` to a port in **1024–65535** (e.g. `9222`). `0` means disabled.
+
+| Build | How to get the setting in the Project Settings dialog |
+|-------|------------------------------------------------------|
+| **Plugin (C#)** | The addon ships an optional editor plugin. Enable **GDCefGlue Project Settings** in *Project Settings ▸ Plugins*, then look for the setting. Build the project in **Debug** first — otherwise the plugin reports `Unable to load addon script`. |
+| **GDExtension** | Registered automatically by the extension. No plugin to enable. |
+
+The entry is a debug-only setting, so turn on **Advanced Settings** in the Project Settings dialog, or just type `gdcefglue` into its search box. Enabling the plugin is **purely additive** — without it `CefGlueControl` behaves exactly as before.
+
+You can also edit `project.godot` directly:
+
+```ini
+[gdcefglue]
+
+remote_debugging_port=9222
+```
+
+Changing the value requires a **restart**: CEF is initialized once per process.
+
+### Connect
+
+```bash
+# sanity check — both should return JSON
+curl http://127.0.0.1:9222/json/version
+curl http://127.0.0.1:9222/json/list
+```
+
+- **chrome://inspect** in Google Chrome
+- **Puppeteer** — `puppeteer.connect({ browserURL: 'http://127.0.0.1:9222' })`, then `await browser.pages()`
+- **Playwright** — `chromium.connectOverCDP('http://127.0.0.1:9222')`, then `browser.contexts()[0].pages()`
+
+### Limitations to know about
+
+1. **`http://127.0.0.1:9222/` is a blank page.** The DevTools discovery page is not compiled into vanilla CEF builds. The endpoint itself is fine — use `chrome://inspect` or `/json/list`.
+2. **One port, many browsers.** CEF has exactly **one** CDP endpoint per process, so every `CefGlueControl` in the scene appears as a separate *target* in `/json/list`. You cannot give each browser its own port; select a target by its `title` / `url`.
+3. **Targets cannot be labelled.** CEF offers no host API to name a target (`window_name` is not surfaced, `description` is empty). To tell tabs apart, set a distinctive `document.title` or put a marker in the URL (e.g. `#gc-tab=3`) and match on that.
+4. **`/json/new` is not supported.** It goes through Chrome's tab infrastructure instead of `CefBrowserHost::CreateBrowser`, so it never reaches your `CefLifeSpanHandler` and leaves an unmanaged browser. It is also an unauthenticated script-execution surface (`/json/new?javascript:...`). Create browsers with your own code — clients will see them appear as new targets.
+5. **Target `type` for OSR.** Off-screen browsers report `type: "page"` in current CEF builds, but this has varied historically. If Selenium/ChromeDriver cannot find your browser, check the `type` field in `/json/list` on your build.
+6. **Loopback only, no authentication.** The endpoint binds to `127.0.0.1` / `::1`; `--remote-debugging-address` is not honoured by CEF. For remote access use an SSH tunnel or a proxy. Anything that can reach the port controls the browser — never enable this in a shipped build.
+
+---
+
 ## Platform-Specific Notes
 
 ### Windows
